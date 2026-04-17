@@ -1,0 +1,52 @@
+# Data (large MRI datasets)
+data/
+!data/.gitkeep
+
+# Model outputs
+outputs/
+checkpoints/
+logs/
+wandb/
+
+# Download scripts with presigned URLs
+scripts/download_data.sh
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# External repos
+external/
+!external/.gitkeep
+
+# Large files
+*.tar.xz
+*.tar.gz
+*.zip
+*.pkl
+nohup.out
+
+# Proposal PDF
+*.pdf

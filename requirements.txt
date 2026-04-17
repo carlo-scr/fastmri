@@ -1,0 +1,23 @@
+# Core
+torch>=2.0
+torchvision
+numpy
+h5py
+scikit-image
+scipy
+
+# Visualization
+matplotlib
+tensorboard
+
+# Utilities
+tqdm
+pyyaml
+
+# ADPS model loading (needed for EDM checkpoint deserialization)
+s3fs
+wandb
+
+# Notebooks
+jupyter
+ipywidgets

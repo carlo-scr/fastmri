@@ -1,0 +1,25 @@
+# Default training config
+data:
+  data_path: data
+  challenge: singlecoil
+  center_fraction: 0.08
+  acceleration: 4
+  crop_size: [320, 320]
+
+model:
+  architecture: unet
+  in_chans: 1
+  out_chans: 1
+  chans: 32
+  num_pool_layers: 4
+
+training:
+  batch_size: 16
+  epochs: 50
+  lr: 0.001
+  optimizer: adam
+  loss: l1
+
+output:
+  output_path: outputs
+  save_every: 5
