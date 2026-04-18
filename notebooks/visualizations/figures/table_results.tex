@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\caption{Quantitative comparison of $\Pi$GDM and FA-KGD+FPDC on fastMRI brain and knee data. $\Delta$ denotes FA-KGD improvement over $\Pi$GDM. Best results per setting in \textbf{bold}.}
+\label{tab:results}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Setting & $N$ & \multicolumn{2}{c}{PSNR (dB) $\uparrow$} & $\Delta$PSNR & \multicolumn{2}{c}{SSIM $\uparrow$} \\
+\cmidrule(lr){3-4} \cmidrule(lr){6-7}
+ & & $\Pi$GDM & FA-KGD & (dB) & $\Pi$GDM & FA-KGD \\
+\midrule
+Brain R=4, $T$=20 & 5 & 29.43 & \textbf{29.73} & {\color{red}+0.30} & 0.8669 & \textbf{0.8714} \\
+Brain R=4, $T$=50 & 5 & 30.00 & \textbf{30.49} & {\color{red}+0.50} & 0.8636 & \textbf{0.8738} \\
+Brain R=4, $T$=50 (15 sl) & 15 & 30.27 & \textbf{30.77} & {\color{red}+0.50} & 0.8733 & \textbf{0.8835} \\
+Brain R=4, $T$=100 & 5 & 29.86 & \textbf{30.45} & {\color{red}+0.58} & 0.8563 & \textbf{0.8691} \\
+Brain R=8, $T$=50 & 5 & 27.52 & \textbf{27.73} & {\color{red}+0.21} & 0.8291 & \textbf{0.8373} \\
+Knee R=4, $T$=20 & 5 & 31.23 & \textbf{31.39} & {\color{red}+0.17} & 0.7554 & \textbf{0.7674} \\
+Knee R=8, $T$=20 & 5 & 30.85 & \textbf{31.00} & {\color{red}+0.15} & 0.7421 & \textbf{0.7531} \\
+\bottomrule
+\end{tabular}
+\end{table}

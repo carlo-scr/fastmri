@@ -23,6 +23,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 import torch
+from skimage.metrics import structural_similarity as ssim_fn
 
 # Add project root to path
 project_root = str(Path(__file__).resolve().parents[1])
@@ -248,6 +249,16 @@ def run_reconstruction(args):
             print(f"  FA-KGD+FPDC: PSNR = {fakgd_psnr:.2f} dB  ({fakgd_time:.1f}s)")
             print(f"  Δ PSNR = {fakgd_psnr - pigdm_psnr:+.2f} dB")
 
+            # Compute SSIM
+            gt_mag = x_gt.abs().cpu().numpy()
+            pigdm_mag = pigdm_result["recon"].abs().cpu().numpy()
+            fakgd_mag = fakgd_result["recon"].abs().cpu().numpy()
+            data_range = gt_mag.max() - gt_mag.min()
+            pigdm_ssim = ssim_fn(gt_mag, pigdm_mag, data_range=data_range)
+            fakgd_ssim = ssim_fn(gt_mag, fakgd_mag, data_range=data_range)
+            print(f"  ΠGDM  SSIM = {pigdm_ssim:.4f}")
+            print(f"  FA-KGD SSIM = {fakgd_ssim:.4f}  (Δ = {fakgd_ssim - pigdm_ssim:+.4f})")
+
             # Store results
             slice_result = {
                 "volume": h5_file.name,
@@ -255,6 +266,9 @@ def run_reconstruction(args):
                 "pigdm_psnr": pigdm_psnr,
                 "fakgd_psnr": fakgd_psnr,
                 "delta_psnr": fakgd_psnr - pigdm_psnr,
+                "pigdm_ssim": float(pigdm_ssim),
+                "fakgd_ssim": float(fakgd_ssim),
+                "delta_ssim": float(fakgd_ssim - pigdm_ssim),
                 "pigdm_time": pigdm_time,
                 "fakgd_time": fakgd_time,
             }
@@ -282,9 +296,15 @@ def run_reconstruction(args):
     pigdm_psnrs = [r["pigdm_psnr"] for r in all_results]
     fakgd_psnrs = [r["fakgd_psnr"] for r in all_results]
     deltas = [r["delta_psnr"] for r in all_results]
+    pigdm_ssims = [r["pigdm_ssim"] for r in all_results]
+    fakgd_ssims = [r["fakgd_ssim"] for r in all_results]
+    delta_ssims = [r["delta_ssim"] for r in all_results]
     print(f"  ΠGDM  mean PSNR: {np.mean(pigdm_psnrs):.2f} ± {np.std(pigdm_psnrs):.2f} dB")
     print(f"  FA-KGD mean PSNR: {np.mean(fakgd_psnrs):.2f} ± {np.std(fakgd_psnrs):.2f} dB")
     print(f"  Δ PSNR:           {np.mean(deltas):+.2f} ± {np.std(deltas):.2f} dB")
+    print(f"  ΠGDM  mean SSIM: {np.mean(pigdm_ssims):.4f} ± {np.std(pigdm_ssims):.4f}")
+    print(f"  FA-KGD mean SSIM: {np.mean(fakgd_ssims):.4f} ± {np.std(fakgd_ssims):.4f}")
+    print(f"  Δ SSIM:           {np.mean(delta_ssims):+.4f} ± {np.std(delta_ssims):.4f}")
 
     # Save summary
     summary_path = os.path.join(args.output_dir, "results.json")
@@ -297,6 +317,10 @@ def run_reconstruction(args):
                 "fakgd_mean_psnr": float(np.mean(fakgd_psnrs)),
                 "delta_psnr_mean": float(np.mean(deltas)),
                 "delta_psnr_std": float(np.std(deltas)),
+                "pigdm_mean_ssim": float(np.mean(pigdm_ssims)),
+                "fakgd_mean_ssim": float(np.mean(fakgd_ssims)),
+                "delta_ssim_mean": float(np.mean(delta_ssims)),
+                "delta_ssim_std": float(np.std(delta_ssims)),
                 "num_slices": slices_done,
             },
         }, f, indent=2)
