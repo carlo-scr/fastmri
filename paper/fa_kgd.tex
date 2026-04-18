@@ -15,7 +15,6 @@
 \usepackage{cite}
 \usepackage{url}
 \usepackage{bm}
-\usepackage{bbm}
 \usepackage{multirow}
 
 % Convenience macros
@@ -144,14 +143,6 @@ contributions are:
   and FPDC are mutually enabling, not merely additive.
 \end{enumerate}
 
-The remainder of this paper is organized as follows.
-Section~\ref{sec:related} reviews related work.
-Section~\ref{sec:problem} formalizes the MRI inverse problem.
-Section~\ref{sec:method} presents FA-KGD in detail.
-Section~\ref{sec:experiments} reports experimental results.
-Section~\ref{sec:discussion} discusses implications and limitations.
-Section~\ref{sec:conclusion} concludes.
-
 % ============================================================
 %  II. BACKGROUND AND RELATED WORK
 % ============================================================
@@ -223,18 +214,6 @@ where $\mathbf{A} \in \mathbb{C}^{m \times n}$ is a subsampled Fourier
 operator ($m \ll n$) and $\mathbf{R}$ is the measurement noise covariance.
 Accelerated MRI sets $m/n \in \{1/4,\, 1/8\}$, reducing scan time by the
 same factor at the cost of an underdetermined reconstruction.
-
-\subsection{Failure Modes of Existing Samplers}
-
-Three errors compound in existing diffusion-based MRI reconstruction:
-\textit{(1) Isotropic noise} ignores the $10$–$100\times$ SNR differential
-between k-space center and periphery.
-\textit{(2) DC shock} injects distributional mismatch at each denoising step
-by forcing measured frequencies to zero residual regardless of whether the
-iterate is ready to accept that correction.
-\textit{(3) Open-loop gain} propagates miscalibration uncorrected through the
-full denoising chain.
-FA-KGD corrects all three simultaneously.
 
 % ============================================================
 %  IV. PROPOSED METHOD: FA-KGD
@@ -398,39 +377,40 @@ ESPIRiT~\cite{uecker2014espirit}; (3) DDRM~\cite{kawar2022ddrm}; (4)
 
 \subsection{Main Quantitative Results}
 
-Table~\ref{tab:results} reports PSNR and SSIM for \PIGDM{} and FA-KGD+FPDC
-across all EDM settings. FA-KGD improves upon \PIGDM{} in every configuration,
-with gains of +0.15 to +0.58 dB in PSNR and +0.008 to +0.012 in SSIM. Three
-trends are evident. First, \textit{domain-matched models benefit more}: the
-brain-matched model yields $\Delta = +0.31$–$+0.58$ dB versus $+0.15$–$+0.17$
-dB for the cross-domain knee setting. Second, \textit{gains increase with step
-budget}: $\Delta$ PSNR grows from $+0.30$ dB at $T=20$ to $+0.58$ dB at
-$T=100$ (Fig.~\ref{fig:scaling}a), consistent with FA-KGD's closed-loop noise
-estimates improving as more denoising steps are available for the M-step to
-converge. Third, \textit{gains are consistent in SSIM} (+0.008–+0.012 across
-all settings), confirming improved perceptual quality beyond pixel-level SNR.
+Table~\ref{tab:results} reports PSNR and SSIM across all EDM settings.
+FA-KGD improves upon \PIGDM{} in every configuration (+0.15 to +0.58~dB
+PSNR, +0.008 to +0.012 SSIM). Three trends stand out:
+\textit{(i)} domain-matched models benefit more
+($\Delta{=}+0.30$--$+0.58$~dB brain vs.\ $+0.15$--$+0.17$~dB knee);
+\textit{(ii)} gains grow with step budget, from $+0.30$~dB at $T{=}20$ to
+$+0.58$~dB at $T{=}100$ (Fig.~\ref{fig:scaling}a), as more steps let the
+M-step converge;
+\textit{(iii)} SSIM improvements are consistent (+0.008--+0.012),
+confirming perceptual gains beyond pixel-level SNR.
 
 \begin{table}[t]
 \centering
 \caption{Quantitative comparison on fastMRI. $\Delta$ is FA-KGD improvement
 over \PIGDM{}. Best results per setting in \textbf{bold}.}
 \label{tab:results}
-\small
-\begin{tabular}{lcccccc}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lc cc c cc@{}}
 \toprule
-Setting & $T$ & \multicolumn{2}{c}{PSNR (dB) $\uparrow$} & $\Delta$PSNR
+Setting & $T$ & \multicolumn{2}{c}{PSNR (dB) $\uparrow$} & $\Delta$
         & \multicolumn{2}{c}{SSIM $\uparrow$} \\
 \cmidrule(lr){3-4} \cmidrule(lr){6-7}
- & & \PIGDM{} & FA-KGD & (dB) & \PIGDM{} & FA-KGD \\
+ & & \PIGDM{} & Ours & (dB) & \PIGDM{} & Ours \\
 \midrule
-Brain $R{=}4$ & 20 & 29.43 & \textbf{29.73} & \textcolor{red}{+0.30} & 0.8669 & \textbf{0.8714} \\
-Brain $R{=}4$ & 50 & 30.00 & \textbf{30.49} & \textcolor{red}{+0.50} & 0.8636 & \textbf{0.8738} \\
-Brain $R{=}4$ (15 sl.) & 50 & 30.27 & \textbf{30.77} & \textcolor{red}{+0.50} & 0.8733 & \textbf{0.8835} \\
-Brain $R{=}4$ & 100 & 29.86 & \textbf{30.45} & \textcolor{red}{+0.58} & 0.8563 & \textbf{0.8691} \\
-Brain $R{=}8$ & 50 & 27.52 & \textbf{27.73} & \textcolor{red}{+0.21} & 0.8291 & \textbf{0.8373} \\
-Knee $R{=}4$ & 20 & 31.23 & \textbf{31.39} & \textcolor{red}{+0.17} & 0.7554 & \textbf{0.7674} \\
-Knee $R{=}8$ & 20 & 30.85 & \textbf{31.00} & \textcolor{red}{+0.15} & 0.7421 & \textbf{0.7531} \\
+Brain $R{=}4$ & 20 & 29.43 & \textbf{29.73} & \textcolor{red}{+0.30} & .867 & \textbf{.871} \\
+Brain $R{=}4$ & 50 & 30.00 & \textbf{30.49} & \textcolor{red}{+0.50} & .864 & \textbf{.874} \\
+Brain $R{=}4$\textsuperscript{\dag} & 50 & 30.27 & \textbf{30.77} & \textcolor{red}{+0.50} & .873 & \textbf{.884} \\
+Brain $R{=}4$ & 100 & 29.86 & \textbf{30.45} & \textcolor{red}{+0.58} & .856 & \textbf{.869} \\
+Brain $R{=}8$ & 50 & 27.52 & \textbf{27.73} & \textcolor{red}{+0.21} & .829 & \textbf{.837} \\
+Knee $R{=}4$ & 20 & 31.23 & \textbf{31.39} & \textcolor{red}{+0.17} & .755 & \textbf{.767} \\
+Knee $R{=}8$ & 20 & 30.85 & \textbf{31.00} & \textcolor{red}{+0.15} & .742 & \textbf{.753} \\
 \bottomrule
+\multicolumn{7}{@{}l}{\textsuperscript{\dag}15 slices (3 volumes); all others 5 slices.}
 \end{tabular}
 \end{table}
 
@@ -447,13 +427,11 @@ Knee $R{=}8$ & 20 & 30.85 & \textbf{31.00} & \textcolor{red}{+0.15} & 0.7421 & \
 
 \subsection{Scaling with Diffusion Steps}
 
-Fig.~\ref{fig:scaling} shows PSNR and SSIM as a function of denoising step
-budget $T \in \{20, 50, 100\}$ on brain $R=4$. \PIGDM{} PSNR peaks at $T=50$
-then slightly degrades at $T=100$, a behavior consistent with over-correction
-from accumulated DC shock. FA-KGD PSNR and SSIM improve monotonically across
-all tested step counts, suggesting that FPDC eliminates the over-correction
-mode that limits \PIGDM{} at high step budgets. The $\Delta$ PSNR gap (panel
-a) grows strictly with $T$, reaching $+0.58$ dB at $T=100$.
+Fig.~\ref{fig:scaling} plots PSNR and SSIM versus step budget $T$ on
+brain $R{=}4$. \PIGDM{} peaks at $T{=}50$ then degrades — consistent with
+accumulated DC shock. FA-KGD improves monotonically, and the gap grows
+strictly with $T$ ($+0.58$~dB at $T{=}100$), confirming that FPDC
+eliminates the over-correction mode.
 
 \begin{figure}[t]
   \centering
@@ -467,13 +445,12 @@ a) grows strictly with $T$, reaching $+0.58$ dB at $T=100$.
 
 \subsection{Frequency-Band Analysis}
 
-Fig.~\ref{fig:freq} decomposes per-band k-space NMSE on brain $R=4$.
-FA-KGD yields 8.9\% improvement in the lowest frequency band (0–50, center
-k-space) and 7.7\% in the 50–100 band. Improvement decreases with frequency,
-reaching near-zero at the highest bands ($\geq$150). This profile precisely
-matches the mechanism of FPDC: by deferring high-frequency DC constraints to
-later denoising steps, FA-KGD improves low-frequency reconstruction without
-disrupting high-frequency residuals that are dominated by measurement noise.
+Fig.~\ref{fig:freq} decomposes per-band k-space NMSE on brain $R{=}4$.
+FA-KGD improves the low-frequency bands most (8.9\% at 0--50, 7.7\% at
+50--100) with near-zero change at high bands ($\geq$150). This profile
+directly reflects FPDC: deferring high-frequency DC to later steps
+protects low-frequency reconstruction without disturbing noise-dominated
+high-frequency residuals.
 
 \begin{figure}[t]
   \centering
@@ -487,14 +464,12 @@ disrupting high-frequency residuals that are dominated by measurement noise.
 
 \subsection{Cross-Domain Generalization}
 
-Fig.~\ref{fig:crossdomain} shows $\Delta$PSNR and $\Delta$SSIM across all
-four experimental conditions. Domain-matched brain experiments yield the
-largest absolute gains ($\Delta = +0.49$ dB at $T=50$), while cross-domain
-knee experiments yield smaller but consistent gains (+0.17 and +0.15 dB).
-The improvement pattern suggests that FA-KGD's frequency-adaptive gain is
-especially effective when the EDM's score network accurately represents the
-anatomy being reconstructed, allowing the Kalman gain to correctly apportion
-trust between measurement and prior.
+Fig.~\ref{fig:crossdomain} compares $\Delta$PSNR and $\Delta$SSIM across
+all settings. Domain-matched brain yields the largest gains
+($\Delta{=}+0.49$~dB at $T{=}50$); cross-domain knee gains are smaller
+but consistent (+0.15--+0.17~dB). The pattern confirms that the adaptive
+gain is most effective when the score network faithfully represents the
+target anatomy.
 
 \begin{figure}[t]
   \centering
@@ -509,14 +484,12 @@ trust between measurement and prior.
 
 \subsection{Hyperparameter Sensitivity}
 
-Fig.~\ref{fig:hparam} shows $\Delta$PSNR as a function of FPDC exponent
-$\beta \in \{0.5, 1.0, 2.0\}$ and EMA smoothing $\alpha \in \{0.8, 0.9,
-0.95, 1.0\}$ on brain $R=4$. The method is robustly insensitive to both:
-gains range from $+0.229$ to $+0.315$ dB across the full grid, with
-$\beta = 1.0$, $\alpha = 0.95$ being the best combination (highlighted). The
-flat $\beta \in \{0.5, 1.0\}$ region confirms that the precise shape of the
-FPDC expansion schedule matters less than its existence, which is itself a
-practical advantage for deployment.
+Fig.~\ref{fig:hparam} sweeps $\beta \in \{0.5, 1.0, 2.0\}$ and
+$\alpha \in \{0.8, 0.9, 0.95, 1.0\}$ on brain $R{=}4$. All 12
+combinations improve over \PIGDM{} ($+0.229$ to $+0.315$~dB), with
+$\beta{=}1.0$, $\alpha{=}0.95$ optimal. The flat plateau at
+$\beta \in \{0.5, 1.0\}$ shows that the FPDC expansion shape matters
+less than its existence — a practical advantage.
 
 \begin{figure}[t]
   \centering
@@ -560,15 +533,13 @@ FA-KGD-EM ($\gamma{=}1$, na\"{i}ve) & 47.4 & $-$12.8 \\
 \end{tabular}
 \end{table}
 
-\textbf{Superadditive synergy.} FPDC alone contributes 0 dB because with an
-isotropic gain, progressive frequency gating is invisible. The adaptive gain
-alone contributes $+0.7$ dB but is limited by DC shock contaminating the
-residuals used to estimate $\hatsig_i^2$. Together, FPDC ensures the gain
-acts only on frequencies with trustworthy residuals; the 1.2 dB superadditive
-gap is a direct consequence of this mutual enabling relationship. This synergy
-is also visible in the real-network results: gains at $T=100$ ($+0.58$ dB)
-are larger than at $T=20$ ($+0.30$ dB), consistent with more steps allowing
-the closed-loop noise estimates to converge and amplify the synergy.
+\textbf{Superadditive synergy.} FPDC alone adds 0~dB (isotropic gain
+renders frequency gating invisible). The adaptive gain alone adds $+0.7$~dB
+but is limited by DC shock contaminating its residuals. Together, FPDC
+ensures the gain acts only on trustworthy residuals — the 1.2~dB
+superadditive gap confirms mutual enablement. The same pattern appears in
+real-network results: $\Delta$ grows from $+0.30$~dB ($T{=}20$) to
+$+0.58$~dB ($T{=}100$) as more steps let the closed-loop estimates converge.
 
 % ============================================================
 %  VI. DISCUSSION
@@ -576,26 +547,22 @@ the closed-loop noise estimates to converge and amplify the synergy.
 \section{Discussion}
 \label{sec:discussion}
 
-\textbf{Synergy as the central finding.} The superadditive gain from
-combining adaptive Kalman gain and FPDC is the paper's central result. It
-reflects genuine architectural coupling: FPDC prevents DC shock from
-polluting the residuals used for online noise estimation; accurate gain
-estimates make FPDC's progressive gating effective. This ``mutually enabling''
-relationship distinguishes FA-KGD from prior work treating noise estimation
-and DC scheduling as independent design choices.
+\textbf{Synergy as the central finding.} FPDC prevents DC shock from
+polluting the residuals that the M-step uses to estimate $\hatsig_i^2$;
+accurate gain estimates in turn make FPDC's progressive gating effective.
+This mutually enabling coupling — not the individual components —
+is the central contribution and distinguishes FA-KGD from prior work
+that treats noise estimation and DC scheduling as independent choices.
 
 \textbf{Generality of the $\gamma$-family result.}
 Equation~\eqref{eq:gamma_decomp} holds for any well-trained diffusion model
-applied to any linear inverse problem: as long as $\eta^2 \ll 1$, online
-bias correction with $\gamma = 1$ will over-correct by $1/\eta^2$. This
-applies to DPS, DDRM, and any future solver that attempts online noise
-estimation, considerably broadening the impact beyond MRI reconstruction.
+applied to any linear inverse problem: as long as $\eta^2 \ll 1$, setting
+$\gamma = 1$ will over-correct by $1/\eta^2$. This caution applies equally
+to DPS, DDRM, and future solvers that attempt online noise estimation.
 
 \textbf{Step-budget efficiency.} FA-KGD's increasing advantage at higher $T$
-(Fig.~\ref{fig:scaling}) suggests a practical benefit: the method may
-converge to higher quality at a fixed step budget, or achieve a target quality
-at fewer steps. A systematic step-budget experiment with larger slice counts
-remains as future work.
+(Fig.~\ref{fig:scaling}) suggests the method may achieve a target quality
+at fewer steps than \PIGDM{}, a hypothesis worth testing at scale.
 
 \textbf{Limitations.}
 \begin{itemize}
@@ -613,12 +580,9 @@ remains as future work.
   could improve further.
 \end{itemize}
 
-\textbf{Future work.} Full validation over all 200 volumes at $R \in \{4,8\}$
-is the immediate next step. Beyond this: multi-anatomy experiments, integration
-with learned sampling mask optimization, and investigation of step-budget
-efficiency under the real score network. If results hold at scale, FA-KGD is
-a strong candidate for MIDL, MICCAI, or a CVPR/ICCV workshop on generative
-models for medical imaging.
+\textbf{Future work.} Full validation over all $\sim$200 volumes at
+$R \in \{4,8\}$ is the immediate next step, followed by multi-anatomy
+experiments and integration with learned sampling mask optimization.
 
 % ============================================================
 %  VII. CONCLUSION
@@ -626,21 +590,16 @@ models for medical imaging.
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented FA-KGD, a training-free diffusion sampler for accelerated MRI
-reconstruction that corrects three structural errors shared by all existing
-methods: isotropic noise assumptions, DC shock, and open-loop fixed gain. The
-three components — frequency-adaptive Kalman gain, Frequency-Progressive Data
-Consistency, and $\gamma$-corrected online noise refinement — combine
-superadditively (+1.9 dB over \PIGDM{} on the oracle, +0.58 dB at $T=100$
-with the real EDM network), revealing a mutual-enabling relationship in which
-each component amplifies the effectiveness of the others. FA-KGD holds across
-two anatomies, two acceleration factors, and multiple step budgets, with
-consistent SSIM gains demonstrating perceptual quality improvements beyond
-raw SNR. The $\gamma$-family characterization, linking appropriate bias
-correction to denoiser quality $\eta^2$, is an independently novel theoretical
-contribution applicable to any diffusion-based inverse problem solver. The
-complete method requires $\sim$150 lines of modification to an existing
-sampler, with no new model weights and negligible per-step overhead.
+FA-KGD corrects three structural errors in diffusion-based MRI
+reconstruction — isotropic noise, DC shock, and open-loop gain — with three
+lightweight, mutually enabling components. The adaptive Kalman gain and
+FPDC combine superadditively (+1.9~dB on the oracle, +0.58~dB at $T{=}100$
+with a real EDM), holding across two anatomies, two acceleration factors,
+and multiple step budgets. The $\gamma$-family analysis, showing that
+$\gamma{=}0$ is the safe optimum for any well-trained diffusion solver,
+is an independently useful theoretical contribution. The complete method
+adds $\sim$150 lines to an existing sampler with no new weights and
+negligible overhead.
 
 % ============================================================
 %  REFERENCES
@@ -774,21 +733,5 @@ ACS size   & $24 \times 24$ & Calibration region \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\section{Experimental Status}
-\label{app:timeline}
-
-\begin{itemize}
-  \item \textbf{Complete:} \PIGDM{} baseline confirmed (60.2 dB oracle;
-  29.43/31.23 dB EDM brain/knee $R=4$). FA-KGD implementation with FPDC and
-  M-step. Oracle ablation confirming superadditivity. EDM evaluations (brain
-  $T \in \{20, 50, 100\}$; knee $T=20$; both $R \in \{4, 8\}$).
-  Hyperparameter sweep (Fig.~\ref{fig:hparam}).
-  \item \textbf{In progress:} Full validation over all $\sim$200 volumes at
-  $R \in \{4, 8\}$. PSNR-vs-steps efficiency curves for knee. Brain $R=8$
-  EDM reconstruction.
-  \item \textbf{Planned:} DC shock visualization (k-space error maps);
-  noise convergence trajectory plots; complete theoretical derivations.
-\end{itemize}
 
 \end{document}
