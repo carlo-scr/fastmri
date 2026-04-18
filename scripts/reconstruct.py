@@ -47,19 +47,32 @@ def _center_crop(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
 def load_slice(h5_path: str, slice_idx: int, target_shape: tuple | None = None) -> torch.Tensor:
     """Load a single slice from an HDF5 file, return complex image [H, W].
 
-    If target_shape is provided, center-crops k-space to that size before
-    inverse FFT (equivalent to low-pass filtering + downsampling).
+    Supports three data formats:
+    1. Singlecoil: kspace [num_slices, H, W] → ifft2c
+    2. Multicoil fully-sampled: kspace [num_slices, num_coils, H, W] → RSS
+    3. Multicoil with reconstruction_rss: uses precomputed RSS ground truth
+       (for val/test sets where k-space may be undersampled)
+
+    If target_shape is provided, center-crops the image to that size.
     """
     with h5py.File(h5_path, "r") as f:
-        kspace = f["kspace"][slice_idx]  # (H, W) complex
-    kspace = torch.from_numpy(kspace)
+        if "reconstruction_rss" in f:
+            # Val/test data: use precomputed RSS ground truth (real-valued)
+            rss = f["reconstruction_rss"][slice_idx]  # (H, W) float
+            img = torch.from_numpy(rss).to(torch.complex64)
+        else:
+            kspace = f["kspace"][slice_idx]  # (H, W) or (num_coils, H, W)
+            kspace = torch.from_numpy(kspace)
+            if kspace.dim() == 3:
+                # Multicoil: RSS combination
+                coil_imgs = ifft2c(kspace)
+                rss = torch.sqrt((coil_imgs.abs() ** 2).sum(dim=0))
+                img = rss.to(torch.complex64)
+            else:
+                img = ifft2c(kspace)
 
     if target_shape is not None:
-        # Center-crop k-space to target resolution
-        kspace = _center_crop(kspace, target_shape[0], target_shape[1])
-
-    # Convert to image domain
-    img = ifft2c(kspace)
+        img = _center_crop(img, target_shape[0], target_shape[1])
     return img
 
 
@@ -142,7 +155,8 @@ def run_reconstruction(args):
             break
 
         with h5py.File(h5_file, "r") as f:
-            num_slices_in_vol = f["kspace"].shape[0]
+            key = "reconstruction_rss" if "reconstruction_rss" in f else "kspace"
+            num_slices_in_vol = f[key].shape[0]
 
         # Pick middle slices (most informative anatomy)
         mid = num_slices_in_vol // 2
