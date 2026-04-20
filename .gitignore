@@ -11,6 +11,9 @@ wandb/
 # Download scripts with presigned URLs
 scripts/download_data.sh
 
+# Cloud env files (presigned URLs / project-local overrides)
+cloud/.env
+
 # Python
 __pycache__/
 *.py[cod]
