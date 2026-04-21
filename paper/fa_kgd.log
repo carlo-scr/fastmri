@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  18 APR 2026 11:31
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  20 APR 2026 12:26
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -513,12 +513,12 @@ LaTeX Warning: No \author given.
 
 LaTeX Warning: No \author given.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 64.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 60.
 
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 64.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 60.
 
 
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -535,66 +535,66 @@ usr/local/texlive/2025basic/texmf-dist/fonts/enc/dvips/base/8r.enc}
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 287.
+(hyperref)                removing `math shift' on input line 307.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\gamma' on input line 287.
+(hyperref)                removing `\gamma' on input line 307.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 287.
+(hyperref)                removing `math shift' on input line 307.
 
+
+
+[2]
 Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 315.
+put line 338.
 LaTeX Font Info:    Trying to load font information for OMS+ptm on input line 3
-24.
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/omsptm.fd
+47.
+ (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/omsptm.fd
 File: omsptm.fd 
 )
 LaTeX Font Info:    Font shape `OMS/ptm/m/n' in size <10> not available
-(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 324.
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 347.
 
-Underfull \hbox (badness 1831) in paragraph at lines 346--350
+Underfull \hbox (badness 1831) in paragraph at lines 369--373
 \OT1/ptm/m/n/10 KGD op-er-a-tion re-duces to FFTs, in-dex se-lec-tions, and
  []
 
 
 
-[2]
 LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 4
-07.
- (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ts1ptm.fd
+12.
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
-<fig1_reconstruction_comparison.png, id=217, 408.0846pt x 329.0694pt>
+<fig1_reconstruction_comparison.png, id=239, 521.5485pt x 329.7921pt>
 File: fig1_reconstruction_comparison.png Graphic file (type png)
 <use fig1_reconstruction_comparison.png>
 Package pdftex.def Info: fig1_reconstruction_comparison.png  used on input line
- 419.
-(pdftex.def)             Requested size: 252.0pt x 203.20747pt.
-
-
-<fig3_scaling_curve.png, id=220, 500.8311pt x 159.7167pt>
-File: fig3_scaling_curve.png Graphic file (type png)
-<use fig3_scaling_curve.png>
-Package pdftex.def Info: fig3_scaling_curve.png  used on input line 438.
-(pdftex.def)             Requested size: 252.0pt x 80.36263pt.
-<fig4_frequency_analysis.png, id=222, 437.7153pt x 190.0701pt>
-File: fig4_frequency_analysis.png Graphic file (type png)
-<use fig4_frequency_analysis.png>
-Package pdftex.def Info: fig4_frequency_analysis.png  used on input line 457.
-(pdftex.def)             Requested size: 252.0pt x 109.42865pt.
+ 450.
+(pdftex.def)             Requested size: 252.0pt x 159.3451pt.
 
 
 [3 <./fig1_reconstruction_comparison.png>]
-<fig7_cross_domain_bar.png, id=251, 438.9198pt x 172.4844pt>
+<fig3_scaling_curve.png, id=268, 521.3076pt x 170.5572pt>
+File: fig3_scaling_curve.png Graphic file (type png)
+<use fig3_scaling_curve.png>
+Package pdftex.def Info: fig3_scaling_curve.png  used on input line 471.
+(pdftex.def)             Requested size: 252.0pt x 82.44687pt.
+<fig4_frequency_analysis.png, id=270, 521.3076pt x 196.0926pt>
+File: fig4_frequency_analysis.png Graphic file (type png)
+<use fig4_frequency_analysis.png>
+Package pdftex.def Info: fig4_frequency_analysis.png  used on input line 493.
+(pdftex.def)             Requested size: 252.0pt x 94.79062pt.
+<fig7_cross_domain_bar.png, id=272, 508.0581pt x 209.8239pt>
 File: fig7_cross_domain_bar.png Graphic file (type png)
 <use fig7_cross_domain_bar.png>
-Package pdftex.def Info: fig7_cross_domain_bar.png  used on input line 476.
-(pdftex.def)             Requested size: 252.0pt x 99.03036pt.
+Package pdftex.def Info: fig7_cross_domain_bar.png  used on input line 514.
+(pdftex.def)             Requested size: 252.0pt x 104.07285pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 487--493
+Underfull \hbox (badness 10000) in paragraph at lines 527--533
 []\OT1/ptm/m/n/10 Fig. [][]5[][] sweeps $\OML/cmm/m/it/10 ^^L \OMS/cmsy/m/n/10 
 2 f\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 5\OML/cmm/m/it/10 ; \OT1/
 cmr/m/n/10 1\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 ; \OT1/cmr/m/n/
@@ -602,55 +602,68 @@ cmr/m/n/10 1\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 ; \OT1/cmr/m/n/
 $\OML/cmm/m/it/10  \OMS/cmsy/m/n/10 2
  []
 
-<fig5_hyperparameter_sweep.png, id=253, 240.6591pt x 175.3752pt>
+<fig5_hyperparameter_sweep.png, id=276, 326.1786pt x 239.4546pt>
 File: fig5_hyperparameter_sweep.png Graphic file (type png)
 <use fig5_hyperparameter_sweep.png>
-Package pdftex.def Info: fig5_hyperparameter_sweep.png  used on input line 496.
+Package pdftex.def Info: fig5_hyperparameter_sweep.png  used on input line 536.
 
-(pdftex.def)             Requested size: 252.0pt x 183.64095pt.
+(pdftex.def)             Requested size: 252.0pt x 185.00174pt.
 
 
 
 
 [4 <./fig3_scaling_curve.png> <./fig4_frequency_analysis.png> <./fig7_cross_dom
-ain_bar.png> <./fig5_hyperparameter_sweep.png>] (./fa_kgd.bbl
+ain_bar.png>]
 
-)
-** WARNING: Ignoring useless \section in Appendix (line 615).
+
+Underfull \hbox (badness 1688) in paragraph at lines 627--630
+[]\OT1/ptm/b/n/10 Future work. \OT1/ptm/m/n/10 Full fastMRI val-i-da-tion, mult
+i-anatomy
+ []
+
+(./fa_kgd.bbl
+Underfull \hbox (badness 2460) in paragraph at lines 49--53
+[]\OT1/ptm/m/n/8 A. Sri-ram, J. Zbon-tar, T. Mur-rell, A. De-fazio, C. L. Zit-n
+ick,
+ []
+
+
+
+[5 <./fig5_hyperparameter_sweep.png>])
+** WARNING: Ignoring useless \section in Appendix (line 659).
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 618.
+(hyperref)                removing `math shift' on input line 662.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\beta' on input line 618.
+(hyperref)                removing `\beta' on input line 662.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 618.
+(hyperref)                removing `math shift' on input line 662.
 
-LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 6
-60.
+LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 7
+04.
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 )
-** WARNING: Ignoring useless \section in Appendix (line 665).
+** WARNING: Ignoring useless \section in Appendix (line 709).
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 668.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\gamma' on input line 668.
+(hyperref)                removing `math shift' on input line 712.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 668.
+(hyperref)                removing `\gamma' on input line 712.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 712.
 
 
 
-[5]
-** WARNING: Ignoring useless \section in Appendix (line 702).
+** WARNING: Ignoring useless \section in Appendix (line 746).
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -664,26 +677,22 @@ Before submitting the final camera ready copy, remember to:
 
 
 
-
-
-[6
-
-] (./fa_kgd.aux)
+[6] (./fa_kgd.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `fa_kgd.out' has not changed.
-(rerunfilecheck)             Checksum: E893F7EA9EF1E5252A0E84D0F9FC64A6;6227.
+(rerunfilecheck)             Checksum: 2863CB9BEEFDE5FE3337876EDA8A1B83;6467.
  ) 
 Here is how much of TeX's memory you used:
- 11982 strings out of 474662
- 186913 string characters out of 5751110
- 609846 words of memory out of 5000000
- 34737 multiletter control sequences out of 15000+600000
+ 11994 strings out of 474662
+ 187151 string characters out of 5751110
+ 611044 words of memory out of 5000000
+ 34744 multiletter control sequences out of 15000+600000
  609329 words of font info for 140 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 75i,12n,79p,461b,526s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,11n,79p,652b,587s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx1
 0.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/c
 mbx7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/c
@@ -703,21 +712,22 @@ f-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2025basic/te
 xmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texlive/2025basic/
 texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/texlive/2025basi
 c/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025
-basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2
-025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texliv
-e/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/tex
-live/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/
-texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></u
-sr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm1
-0.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/courier/ucrr8a.p
-fb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></
-usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/
-local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local
-/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on fa_kgd.pdf (6 pages, 2586685 bytes).
+basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb></usr/local/texlive/2
+025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texliv
+e/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/tex
+live/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/
+texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/loc
+al/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
+</usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/ms
+bm10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/courier/ucrr8
+a.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb
+></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></u
+sr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/lo
+cal/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on fa_kgd.pdf (6 pages, 3693532 bytes).
 PDF statistics:
- 438 PDF objects out of 1000 (max. 8388607)
- 358 compressed objects within 4 object streams
- 91 named destinations out of 1000 (max. 500000)
- 282 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 469 PDF objects out of 1000 (max. 8388607)
+ 386 compressed objects within 4 object streams
+ 96 named destinations out of 1000 (max. 500000)
+ 290 words of extra memory for PDF output out of 10000 (max. 10000000)
 

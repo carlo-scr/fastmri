@@ -21,10 +21,10 @@
 \providecommand{\BIBdecl}{\relax}
 \BIBdecl
 
-\bibitem{song2023pigdm}
-J.~Song, A.~Vahdat, M.~Mardani, and J.~Kautz, ``Pseudoinverse-guided diffusion
-  models for inverse problems,'' in \emph{International Conference on Learning
-  Representations}, 2023.
+\bibitem{karras2022edm}
+T.~Karras, M.~Aittala, T.~Aila, and S.~Laine, ``Elucidating the design space of
+  diffusion-based generative models,'' in \emph{Advances in Neural Information
+  Processing Systems}, 2022.
 
 \bibitem{ho2020ddpm}
 J.~Ho, A.~Jain, and P.~Abbeel, ``Denoising diffusion probabilistic models,'' in
@@ -36,6 +36,21 @@ Y.~Song, J.~Sohl-Dickstein, D.~P. Kingma, A.~Kumar, S.~Ermon, and B.~Poole,
   equations,'' in \emph{International Conference on Learning Representations},
   2021.
 
+\bibitem{jalal2021robust}
+A.~Jalal, M.~Arvinte, G.~Daras, E.~Price, A.~G. Dimakis, and J.~I. Tamir,
+  ``Robust compressed sensing {MRI} with deep generative priors,'' in
+  \emph{Advances in Neural Information Processing Systems}, 2021.
+
+\bibitem{chung2022scoremri}
+H.~Chung and J.~C. Ye, ``Score-based diffusion models for accelerated {MRI},''
+  \emph{Medical Image Analysis}, vol.~80, p. 102479, 2022.
+
+\bibitem{sriram2020varnet}
+A.~Sriram, J.~Zbontar, T.~Murrell, A.~Defazio, C.~L. Zitnick, N.~Yakubova,
+  F.~Knoll, and P.~Johnson, ``End-to-end variational networks for accelerated
+  {MRI} reconstruction,'' in \emph{Medical Image Computing and Computer
+  Assisted Intervention (MICCAI)}, 2020, pp. 64--73.
+
 \bibitem{kawar2022ddrm}
 B.~Kawar, M.~Elad, S.~Ermon, and J.~Song, ``Denoising diffusion restoration
   models,'' in \emph{Advances in Neural Information Processing Systems}, 2022.
@@ -44,6 +59,17 @@ B.~Kawar, M.~Elad, S.~Ermon, and J.~Song, ``Denoising diffusion restoration
 H.~Chung, J.~Kim, M.~T. McCann, M.~L. Klasky, and J.~C. Ye, ``Diffusion
   posterior sampling for general noisy inverse problems,'' in
   \emph{International Conference on Learning Representations}, 2023.
+
+\bibitem{song2023pigdm}
+J.~Song, A.~Vahdat, M.~Mardani, and J.~Kautz, ``Pseudoinverse-guided diffusion
+  models for inverse problems,'' in \emph{International Conference on Learning
+  Representations}, 2023.
+
+\bibitem{daras2025ambient}
+G.~Daras, K.~Shah, Y.~Dagan, A.~Gollakota, A.~G. Dimakis, and A.~Klivans,
+  ``Ambient diffusion posterior sampling: Solving inverse problems with
+  diffusion models trained on corrupted data,'' in \emph{International
+  Conference on Learning Representations}, 2025.
 
 \bibitem{peng2024optimal}
 X.~Peng, Z.~Zheng, W.~Dai, N.~Xiao, C.~Li, J.~Zou, and H.~Xiong, ``Improving
@@ -67,11 +93,5 @@ J.~Zbontar, F.~Knoll, A.~Sriram, T.~Murrell, Z.~Huang, M.~J. Muckley,
   A.~Defazio, R.~Stern, P.~Johnson, M.~Bruno \emph{et~al.}, ``{fastMRI}: An
   open dataset and benchmarks for accelerated {MRI},'' \emph{arXiv preprint
   arXiv:1811.08839}, 2018.
-
-\bibitem{daras2025ambient}
-G.~Daras, K.~Shah, Y.~Dagan, A.~Gollakota, A.~G. Dimakis, and A.~Klivans,
-  ``Ambient diffusion posterior sampling: Solving inverse problems with
-  diffusion models trained on corrupted data,'' in \emph{International
-  Conference on Learning Representations}, 2025.
 
 \end{thebibliography}

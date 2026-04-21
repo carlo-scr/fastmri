@@ -34,6 +34,8 @@ from src.samplers.mri_forward import fft2c, ifft2c, create_mask, build_radius_gr
 from src.samplers.schedules import ddpm_sigma_schedule, edm_sigma_schedule
 from src.samplers.pigdm import run_pigdm
 from src.samplers.fakgd import run_fakgd
+from src.samplers.dps import run_dps
+from src.samplers.adps import run_adps
 from src.models.edm_loader import OracleDenoiser, load_edm_model, EDMDenoiser
 
 
@@ -221,6 +223,31 @@ def run_reconstruction(args):
             # Estimate sigma_y for ΠGDM (isotropic — mean of true noise variance)
             sigma_y_iso = np.sqrt(true_sigma_sq.mean().item())
 
+            # --- Run DPS ---
+            print(f"\nRunning DPS (T={args.num_steps}, ζ={args.dps_step_size})...")
+            t0 = time.time()
+            dps_result = run_dps(
+                y=y, mask=mask, sigma_schedule=sigma_schedule,
+                denoiser_fn=denoiser, step_size=args.dps_step_size,
+                x_gt=x_gt, seed=args.seed,
+            )
+            dps_time = time.time() - t0
+            dps_psnr = dps_result["psnr_trajectory"][-1] if dps_result["psnr_trajectory"] else 0
+            print(f"  DPS: PSNR = {dps_psnr:.2f} dB  ({dps_time:.1f}s)")
+
+            # --- Run ADPS ---
+            print(f"\nRunning ADPS (T={args.num_steps}, l_ss={args.adps_step_size}, S_churn={args.adps_s_churn})...")
+            t0 = time.time()
+            adps_result = run_adps(
+                y=y, mask=mask, sigma_schedule=sigma_schedule,
+                denoiser_fn=denoiser, step_size=args.adps_step_size,
+                s_churn=args.adps_s_churn,
+                x_gt=x_gt, seed=args.seed,
+            )
+            adps_time = time.time() - t0
+            adps_psnr = adps_result["psnr_trajectory"][-1] if adps_result["psnr_trajectory"] else 0
+            print(f"  ADPS: PSNR = {adps_psnr:.2f} dB  ({adps_time:.1f}s)")
+
             # --- Run ΠGDM ---
             print(f"\nRunning ΠGDM (T={args.num_steps}, σ_y={sigma_y_iso:.4e})...")
             t0 = time.time()
@@ -251,11 +278,17 @@ def run_reconstruction(args):
 
             # Compute SSIM
             gt_mag = x_gt.abs().cpu().numpy()
+            dps_mag = dps_result["recon"].abs().cpu().numpy()
+            adps_mag = adps_result["recon"].abs().cpu().numpy()
             pigdm_mag = pigdm_result["recon"].abs().cpu().numpy()
             fakgd_mag = fakgd_result["recon"].abs().cpu().numpy()
             data_range = gt_mag.max() - gt_mag.min()
+            dps_ssim = ssim_fn(gt_mag, dps_mag, data_range=data_range)
+            adps_ssim = ssim_fn(gt_mag, adps_mag, data_range=data_range)
             pigdm_ssim = ssim_fn(gt_mag, pigdm_mag, data_range=data_range)
             fakgd_ssim = ssim_fn(gt_mag, fakgd_mag, data_range=data_range)
+            print(f"  DPS   SSIM = {dps_ssim:.4f}")
+            print(f"  ADPS  SSIM = {adps_ssim:.4f}")
             print(f"  ΠGDM  SSIM = {pigdm_ssim:.4f}")
             print(f"  FA-KGD SSIM = {fakgd_ssim:.4f}  (Δ = {fakgd_ssim - pigdm_ssim:+.4f})")
 
@@ -263,12 +296,18 @@ def run_reconstruction(args):
             slice_result = {
                 "volume": h5_file.name,
                 "slice": sl,
+                "dps_psnr": dps_psnr,
+                "adps_psnr": adps_psnr,
                 "pigdm_psnr": pigdm_psnr,
                 "fakgd_psnr": fakgd_psnr,
                 "delta_psnr": fakgd_psnr - pigdm_psnr,
+                "dps_ssim": float(dps_ssim),
+                "adps_ssim": float(adps_ssim),
                 "pigdm_ssim": float(pigdm_ssim),
                 "fakgd_ssim": float(fakgd_ssim),
                 "delta_ssim": float(fakgd_ssim - pigdm_ssim),
+                "dps_time": dps_time,
+                "adps_time": adps_time,
                 "pigdm_time": pigdm_time,
                 "fakgd_time": fakgd_time,
             }
@@ -278,8 +317,12 @@ def run_reconstruction(args):
             save_dir = os.path.join(args.output_dir, h5_file.stem)
             os.makedirs(save_dir, exist_ok=True)
             torch.save({
+                "dps_recon": dps_result["recon"].cpu(),
+                "adps_recon": adps_result["recon"].cpu(),
                 "pigdm_recon": pigdm_result["recon"].cpu(),
                 "fakgd_recon": fakgd_result["recon"].cpu(),
+                "dps_psnr_traj": dps_result["psnr_trajectory"],
+                "adps_psnr_traj": adps_result["psnr_trajectory"],
                 "pigdm_psnr_traj": pigdm_result["psnr_trajectory"],
                 "fakgd_psnr_traj": fakgd_result["psnr_trajectory"],
                 "x_gt": x_gt.cpu(),
@@ -293,15 +336,23 @@ def run_reconstruction(args):
     print(f"\n{'='*60}")
     print(f"SUMMARY ({slices_done} slices, R={args.acceleration})")
     print(f"{'='*60}")
+    dps_psnrs = [r["dps_psnr"] for r in all_results]
+    adps_psnrs = [r["adps_psnr"] for r in all_results]
     pigdm_psnrs = [r["pigdm_psnr"] for r in all_results]
     fakgd_psnrs = [r["fakgd_psnr"] for r in all_results]
     deltas = [r["delta_psnr"] for r in all_results]
+    dps_ssims = [r["dps_ssim"] for r in all_results]
+    adps_ssims = [r["adps_ssim"] for r in all_results]
     pigdm_ssims = [r["pigdm_ssim"] for r in all_results]
     fakgd_ssims = [r["fakgd_ssim"] for r in all_results]
     delta_ssims = [r["delta_ssim"] for r in all_results]
+    print(f"  DPS   mean PSNR: {np.mean(dps_psnrs):.2f} ± {np.std(dps_psnrs):.2f} dB")
+    print(f"  ADPS  mean PSNR: {np.mean(adps_psnrs):.2f} ± {np.std(adps_psnrs):.2f} dB")
     print(f"  ΠGDM  mean PSNR: {np.mean(pigdm_psnrs):.2f} ± {np.std(pigdm_psnrs):.2f} dB")
     print(f"  FA-KGD mean PSNR: {np.mean(fakgd_psnrs):.2f} ± {np.std(fakgd_psnrs):.2f} dB")
-    print(f"  Δ PSNR:           {np.mean(deltas):+.2f} ± {np.std(deltas):.2f} dB")
+    print(f"  Δ PSNR (FA-KGD vs ΠGDM): {np.mean(deltas):+.2f} ± {np.std(deltas):.2f} dB")
+    print(f"  DPS   mean SSIM: {np.mean(dps_ssims):.4f} ± {np.std(dps_ssims):.4f}")
+    print(f"  ADPS  mean SSIM: {np.mean(adps_ssims):.4f} ± {np.std(adps_ssims):.4f}")
     print(f"  ΠGDM  mean SSIM: {np.mean(pigdm_ssims):.4f} ± {np.std(pigdm_ssims):.4f}")
     print(f"  FA-KGD mean SSIM: {np.mean(fakgd_ssims):.4f} ± {np.std(fakgd_ssims):.4f}")
     print(f"  Δ SSIM:           {np.mean(delta_ssims):+.4f} ± {np.std(delta_ssims):.4f}")
@@ -313,10 +364,14 @@ def run_reconstruction(args):
             "config": vars(args),
             "per_slice": all_results,
             "summary": {
+                "dps_mean_psnr": float(np.mean(dps_psnrs)),
+                "adps_mean_psnr": float(np.mean(adps_psnrs)),
                 "pigdm_mean_psnr": float(np.mean(pigdm_psnrs)),
                 "fakgd_mean_psnr": float(np.mean(fakgd_psnrs)),
                 "delta_psnr_mean": float(np.mean(deltas)),
                 "delta_psnr_std": float(np.std(deltas)),
+                "dps_mean_ssim": float(np.mean(dps_ssims)),
+                "adps_mean_ssim": float(np.mean(adps_ssims)),
                 "pigdm_mean_ssim": float(np.mean(pigdm_ssims)),
                 "fakgd_mean_ssim": float(np.mean(fakgd_ssims)),
                 "delta_ssim_mean": float(np.mean(delta_ssims)),
@@ -361,6 +416,13 @@ def main():
     # Measurement noise
     parser.add_argument("--sigma_base", type=float, default=0.001, help="Base noise variance")
     parser.add_argument("--beta_noise", type=float, default=5.0, help="Freq-dependent noise slope")
+
+    # DPS
+    parser.add_argument("--dps_step_size", type=float, default=10.0, help="DPS gradient step size (zeta)")
+
+    # ADPS
+    parser.add_argument("--adps_step_size", type=float, default=10.0, help="ADPS likelihood step size (l_ss)")
+    parser.add_argument("--adps_s_churn", type=float, default=0.0, help="ADPS stochastic churn (S_churn)")
 
     # Oracle
     parser.add_argument("--oracle_eta", type=float, default=0.1, help="Oracle denoiser noise level")
