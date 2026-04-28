@@ -9,6 +9,7 @@
 \usepackage{algorithmic}
 \usepackage{algorithm}
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage{booktabs}
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{xcolor}
@@ -16,6 +17,9 @@
 \usepackage{url}
 \usepackage{bm}
 \usepackage{multirow}
+\usepackage[capitalize,noabbrev]{cleveref}
+\Crefname{equation}{Equation}{Equations}
+\crefname{equation}{Equation}{Equations}
 
 % Convenience macros
 \newcommand{\hatR}{\hat{\mathbf{R}}}
@@ -56,23 +60,25 @@ measurement noise, and they enforce data consistency (DC) uniformly over
 k-space at every denoising step. The second creates what we call \emph{DC
 shock}, a distributional mismatch in which early, coarse iterates are forced
 to honour high-frequency measurements that they cannot yet support. We propose
-\textbf{FA-KGD}, a training-free sampler that corrects both errors with a
-unified update. A frequency-dependent noise covariance $\hatR$ is estimated
-directly from the Auto-Calibration Signal (ACS) lines of the scan itself and
-yields a closed-form, timestep-adaptive Kalman gain $K_i(t)$. Data
-consistency is then restricted to a frequency radius $r(t)$ that expands as
+\textbf{Frequency-Aware Kalman-Guided Diffusion (FA-KGD)}, a training-free
+sampler that corrects both errors with a unified update. We estimate a
+frequency-dependent noise covariance $\hatR$ directly from the
+Auto-Calibration Signal (ACS) lines of the scan itself,
+yielding a closed-form, timestep-adaptive Kalman gain $K_i(t)$. We then
+restrict data consistency to a frequency radius $r(t)$ that expands as
 the image sharpens --- Frequency-Progressive Data Consistency (FPDC) ---
 matching the natural coarse-to-fine schedule of diffusion. We also analyse
 the $\gamma$-family of online noise-estimation updates and show, both
 analytically and empirically, that $\gamma{=}0$ is the safe optimum for any
 well-trained score network. On fastMRI brain and knee with a domain-matched
-EDM~\cite{karras2022edm} checkpoint, FA-KGD improves $\Pi$GDM by $+0.12$ to
-$+0.49$~dB PSNR and up to $+0.012$ SSIM; gains grow with the step budget
+Elucidating Diffusion Model (EDM) checkpoint, FA-KGD improves Pseudoinverse-Guided
+Diffusion Model ($\Pi$GDM) by $+0.12$ to
+$+0.49$~dB Peak Signal-to-Noise Ratio (PSNR) and up to $+0.012$ Structural
+Similarity Index Measure (SSIM); gains grow with the step budget
 ($+0.58$~dB at $T{=}100$). On an oracle denoiser the two components
 combine \emph{superadditively} for $+1.9$~dB, evidence that the adaptive gain
 and FPDC are mutually enabling rather than independent improvements. The
-method adds $\sim$150 lines to an open-source sampler, introduces no new
-weights, and adds $<\!1\%$ per-step overhead.
+method introduces no new weights and adds $<\!1\%$ per-step overhead.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -85,9 +91,9 @@ accelerated MRI, fastMRI
 %  I. INTRODUCTION
 % ============================================================
 \section{Introduction}
+\label{sec:intro}
 
-Magnetic Resonance Imaging (MRI) offers exceptional soft-tissue contrast but
-is clinically bottlenecked by long acquisition times. \emph{Accelerated MRI}
+Magnetic Resonance Imaging (MRI) offers exceptional soft-tissue contrast but long acquisition times bottleneck its clinical use. \emph{Accelerated MRI}
 recovers a diagnostic-quality image from a fraction of k-space samples: at
 $4\times$ acceleration a scan is 75\% shorter, which reduces motion
 artefacts, enables paediatric and cardiac protocols, and raises scanner
@@ -99,10 +105,12 @@ Diffusion models~\cite{ho2020ddpm,song2021score,karras2022edm} have emerged
 as compelling priors for this task, combining expressive learned image
 statistics with principled posterior sampling
 \cite{jalal2021robust,chung2022scoremri}. Supervised end-to-end methods such
-as E2E-VarNet~\cite{sriram2020varnet} still hold the fastMRI leaderboard,
+as the End-to-End Variational Network
+(E2E-VarNet)~\cite{sriram2020varnet} still hold the fastMRI leaderboard,
 but require retraining for every anatomy, coil array, and acceleration
 factor. Training-free diffusion samplers ---
-DDRM~\cite{kawar2022ddrm}, DPS~\cite{chung2023dps},
+Denoising Diffusion Restoration Models (DDRM)~\cite{kawar2022ddrm},
+Diffusion Posterior Sampling (DPS)~\cite{chung2023dps},
 $\Pi$GDM~\cite{song2023pigdm} --- trade some absolute quality for generality:
 one unconditional prior handles arbitrary linear inverse problems across
 anatomies and acceleration factors without fine-tuning. At the k-space noise
@@ -151,23 +159,26 @@ attacks all three errors with a single, minimal-overhead update:
 
 \subsection{Score-Based Diffusion Models}
 
-DDPM~\cite{ho2020ddpm} defines a forward noising process
-$q(x_t | x_0)\!=\!\mathcal{N}(\sqrt{\bar{\alpha}_t} x_0, \sigma_t^2
+The Denoising Diffusion Probabilistic Model (DDPM)~\cite{ho2020ddpm} defines
+a forward noising process
+$q(x_t \mid x_0)\!=\!\mathcal{N}(\sqrt{\bar{\alpha}_t} x_0, \sigma_t^2
 \mathbf{I})$ and trains a score network $s_\theta(x_t, t)\!\approx\!
-\nabla_{x_t} \log p(x_t)$ to reverse it, generalised to continuous-time SDEs
-by Song et al.~\cite{song2021score} and to the practically dominant EDM
+\nabla_{x_t} \log p(x_t)$ to reverse it, generalised to continuous-time
+stochastic differential equations (SDEs) by Song et al.~\cite{song2021score}
+and to the practically dominant Elucidating Diffusion Model (EDM)
 parameterisation by Karras et al.~\cite{karras2022edm}. At inference, each
 step produces a Tweedie-denoised estimate
-$\muth(x_t) \!\triangleq\!\mathbb{E}[x_0|x_t]$ that we treat as the ``prior''
+$\muth(x_t) \!\triangleq\!\mathbb{E}[x_0\mid x_t]$ that we treat as the ``prior''
 side of a measurement-prior fusion.
 
 \subsection{Diffusion Samplers for Inverse Problems}
 
-DDRM~\cite{kawar2022ddrm} uses the SVD of the forward operator and solves
-noisy linear inverse problems in ${\sim}20$ steps. DPS~\cite{chung2023dps}
-back-propagates a Laplace-approximated likelihood gradient through the
-Tweedie estimate. $\Pi$GDM~\cite{song2023pigdm}, our primary baseline,
-derives the exact posterior update for the linear-Gaussian model:
+DDRM~\cite{kawar2022ddrm} uses the singular value decomposition (SVD) of
+the forward operator and solves noisy linear inverse problems in ${\sim}20$
+steps. DPS~\cite{chung2023dps} back-propagates a Laplace-approximated
+likelihood gradient through the Tweedie estimate. $\Pi$GDM~\cite{song2023pigdm},
+our primary baseline, derives the exact posterior update for the
+linear-Gaussian model:
 \begin{equation}
   \hat{x}_{t-1} = \muth(x_t) + r_t \mathbf{A}^\top
   \!\left(\mathbf{A}\mathbf{A}^\top + \tfrac{\sigma_y^2}{\sigma_t^2}
@@ -175,10 +186,10 @@ derives the exact posterior update for the linear-Gaussian model:
   \label{eq:pigdm}
 \end{equation}
 i.e.\ a Kalman step with \emph{isotropic} covariances applied uniformly to
-every measured k-space location. ADPS~\cite{daras2025ambient} extends the
-family to ambient-trained models via annealed Langevin likelihood guidance;
-its default schedule targets $T\!\geq\!300$ and underperforms at the low step
-budgets we evaluate.
+every measured k-space location. Ambient Diffusion Posterior Sampling
+(ADPS)~\cite{daras2025ambient} extends the family to ambient-trained models
+via annealed Langevin likelihood guidance; its default schedule targets
+$T\!\geq\!300$ and underperforms at the low step budgets we evaluate.
 
 \subsection{Diffusion Priors for MRI}
 
@@ -195,8 +206,9 @@ Peng et al.~\cite{peng2024optimal} improve \emph{image}-domain posterior
 covariance using a calibration dataset; FA-KGD instead estimates
 \emph{measurement}-domain (k-space) covariance from the scan's own ACS lines,
 with no additional data. Fast Diffusion EM~\cite{laroche2024fastdiffem}
-jointly estimates image and degradation, but its M-step is a per-step MAP
-optimisation; ours is a single element-wise update. Neither work addresses
+jointly estimates image and degradation, but its M-step is a per-step
+maximum a posteriori (MAP) optimisation; ours is a single element-wise
+update. Neither work addresses
 DC shock or characterises how denoiser quality governs bias correction in
 online noise estimation.
 
@@ -210,9 +222,10 @@ fully-sampled fastMRI brain without modification. Supervised models ---
 U-Net~\cite{zbontar2018fastmri} and especially
 E2E-VarNet~\cite{sriram2020varnet} --- still define the fastMRI state of the
 art by jointly learning reconstruction and coil sensitivity maps over all
-$N_c\!\approx\!16$ coils. The $\sim$10~dB gap in Table~\ref{tab:results}
+$N_c\!\approx\!16$ coils. The $\sim$10~dB gap in \Cref{tab:results}
 reflects this information-access difference (multicoil raw data vs.\ a single
-RSS-combined channel) as much as model capacity; it is orthogonal to the
+root-sum-of-squares (RSS) combined channel) as much as model capacity;
+it is orthogonal to the
 sampler improvements studied here.
 
 % ============================================================
@@ -244,8 +257,9 @@ same factor at the cost of an underdetermined reconstruction.
 FA-KGD combines three components at each denoising step $t$:
 (1) ACS-calibrated frequency-adaptive Kalman gain, (2) Frequency-Progressive
 Data Consistency (FPDC), and (3) online noise refinement with the
-$\gamma$-corrected M-step. The full algorithm is given in
-Algorithm~\ref{alg:fakgd}.
+$\gamma$-corrected maximization step (M-step) of an
+expectation--maximization (EM) update. \Cref{alg:fakgd} presents the full
+method.
 
 \subsection{Component 1 — Self-Calibrated Frequency-Adaptive Gain}
 
@@ -262,7 +276,7 @@ ACS region are initialized by fitting a smooth 1-D radial profile, giving a
 diagonal $\hat{\mathbf{R}}_0 = \operatorname{diag}(\hatsig_1^2(0), \ldots,
 \hatsig_m^2(0))$ with no separate calibration scan.
 
-Substituting $\hatR$ for $\sigma_y^2\mathbf{I}$ in Eq.~\eqref{eq:pigdm}, the
+Substituting $\hatR$ for $\sigma_y^2\mathbf{I}$ in \Cref{eq:pigdm}, the
 Kalman gain reduces to a per-frequency scalar:
 \begin{equation}
   K_i(t) = \frac{\sigma_t^2}{\sigma_t^2 + \hatsig_i^2}.
@@ -314,7 +328,7 @@ After computing $\muth(x_t)$, we update $\hatsig_i^2$ via:
 \end{equation}
 where $r_i^{(t)} = y_i - [\mathbf{F}_{\Omega(t)}\muth(x_t)]_i$ and
 $\alpha(t) = 1 - (1-\alpha_0)(\sigma_t / \sigma_T)$ is a time-decaying
-EMA momentum.
+exponential moving average (EMA) momentum.
 
 \textbf{The $\gamma$-family.} For a well-trained score network with denoiser
 error fraction $\eta^2\!\ll\!1$, the expected squared residual decomposes as
@@ -341,35 +355,36 @@ variance estimate.
 \REQUIRE measurements $\mathbf{y}$, mask $\Omega$, ACS lines,
          noise schedule $\{\sigma_t\}$; defaults $\alpha_0{=}0.95$,
          $\beta{=}1.0$, $\gamma{=}0$, $\epsilon{=}10^{-6}$
-\STATE Initialize $\hatsig_i^2$ from ACS (Eq.~\eqref{eq:acs}) + radial fit
+\STATE Initialize $\hatsig_i^2$ from ACS (\Cref{eq:acs}) + radial fit
 \STATE $x_T \sim \mathcal{N}(0, \sigma_T^2\mathbf{I})$
 \FOR{$t = T, T{-}1, \ldots, 1$}
   \STATE $\mu \leftarrow \muth(x_t, t)$ \hfill\COMMENT{Score network}
   \STATE $r(t) \leftarrow r_{\text{ACS}} + (r_{\max}{-}r_{\text{ACS}})
-         (1{-}t/T)^\beta$ \hfill\COMMENT{Eq.~\eqref{eq:fpdc}}
+         (1{-}t/T)^\beta$ \hfill\COMMENT{\Cref{eq:fpdc}}
   \STATE $\Omega(t) \leftarrow \{i \in \Omega : \|\omega_i\| \leq r(t)\}$
   \STATE $r_i \leftarrow y_i - [\mathbf{F}_{\Omega(t)}\mu]_i,
          \;\forall\, i \in \Omega(t)$
   \STATE $\alpha(t) \leftarrow 1 - (1{-}\alpha_0)(\sigma_t/\sigma_T)$
   \STATE $\hatsig_i^2 \leftarrow \alpha(t)\hatsig_i^2 +
          (1{-}\alpha(t))\max(|r_i|^2 {-} \gamma\sigma_t^2,\,\epsilon)$
-         \hfill\COMMENT{Eq.~\eqref{eq:mstep}}
+         \hfill\COMMENT{\Cref{eq:mstep}}
   \STATE $K_i \leftarrow \sigma_t^2/(\sigma_t^2 + \hatsig_i^2),
          \;\forall\, i \in \Omega(t)$
   \STATE $\hat{x}_{t-1} \leftarrow \mu +
          \mathbf{F}_{\Omega(t)}^\mathbf{H}\mathbf{K}
          (\mathbf{y}_{\Omega(t)} - \mathbf{F}_{\Omega(t)}\mu)$
-         \hfill\COMMENT{Eq.~\eqref{eq:combined}}
-  \STATE $x_{t-1} \leftarrow$ DDIM step from $\hat{x}_{t-1}$
+         \hfill\COMMENT{\Cref{eq:combined}}
+  \STATE $x_{t-1} \leftarrow$ Denoising Diffusion Implicit Model (DDIM) step from $\hat{x}_{t-1}$
 \ENDFOR
 \RETURN $x_0$
 \end{algorithmic}
 \end{algorithm}
 
 Because $\mathbf{A}$ is a subsampled Fourier operator, every FA-KGD
-operation reduces to FFTs, index selections, and element-wise multiplications.
-The entire correction adds two FFTs and four vector operations per step —
-well under 1\% overhead over the score network forward pass.
+operation reduces to fast Fourier transforms (FFTs), index selections, and
+element-wise multiplications. The entire correction adds two FFTs and four
+vector operations per step --- well under 1\% overhead over the score
+network forward pass.
 
 % ============================================================
 %  V. EXPERIMENTS
@@ -381,7 +396,8 @@ well under 1\% overhead over the score network forward pass.
 
 \textbf{Dataset.} We use the fastMRI multi-coil knee and brain
 datasets~\cite{zbontar2018fastmri}. Knee: $320 \times 320$, 5 validation
-volumes, $R \in \{4, 8\}$. Brain (AXT2): $384 \times 320$ after center crop,
+volumes, $R \in \{4, 8\}$. Brain (axial T2-weighted, AXT2): $384 \times 320$
+after center crop,
 5 validation volumes, $R \in \{4, 8\}$.
 
 \textbf{Pretrained model.} We use the publicly released EDM
@@ -391,7 +407,8 @@ throughout. For knee experiments the model operates cross-domain
 (brain-trained, knee-evaluated); brain experiments use a domain-matched
 checkpoint.
 
-\textbf{Metrics.} PSNR (dB) and SSIM against fully-sampled ground truth,
+\textbf{Metrics.} Peak signal-to-noise ratio (PSNR, dB) and structural
+similarity index measure (SSIM) against fully-sampled ground truth,
 reported as mean $\pm$ std over slices.
 
 \textbf{Baselines.} (1) DPS~\cite{chung2023dps} --- likelihood-gradient
@@ -404,19 +421,19 @@ contextualise the training-free vs.\ fully-supervised gap (brain multicoil
 only; not applicable to single-coil knee).
 \subsection{Main Quantitative Results}
 
-Table~\ref{tab:results} reports PSNR and SSIM across brain and knee at two
+\Cref{tab:results} reports PSNR and SSIM across brain and knee at two
 acceleration rates. Among training-free methods FA-KGD is the consistent
 winner, improving over $\Pi$GDM by $+0.12$ to $+0.50$~dB and over DPS by
 $+1.4$ to $+2.4$~dB. ADPS underperforms DPS at these step budgets because
 its per-step likelihood correction is tuned for $T\!\geq\!300$
-(§\ref{sec:discussion}). The supervised E2E-VarNet reaches 39.91~dB on
+(\Cref{sec:discussion}). The supervised E2E-VarNet reaches 39.91~dB on
 brain $R{=}4$ --- roughly 10~dB above any training-free result, a gap that
-we have already attributed (§\ref{sec:related}) to its multicoil raw-data
+we have already attributed (\Cref{sec:related}) to its multicoil raw-data
 access and task-specific training rather than to sampler quality. Three
 trends are worth calling out:
 \textit{(i)} domain-matched models benefit more from FA-KGD (brain $>$ knee);
 \textit{(ii)} gains over $\Pi$GDM grow monotonically with the step budget
-($+0.30$~dB at $T{=}20$ to $+0.50$~dB at $T{=}50$, Fig.~\ref{fig:scaling}a);
+($+0.30$~dB at $T{=}20$ to $+0.50$~dB at $T{=}50$, \Cref{fig:scaling}a);
 \textit{(iii)} SSIM gains track the PSNR gains, so the improvement is not an
 artefact of pixel-level reweighting.
 
@@ -460,8 +477,8 @@ Knee $R{=}8$  & 20 & 28.51 & 24.44 & 28.67 & \textbf{28.79} & ---               
 
 \subsection{Scaling with Diffusion Steps}
 
-Fig.~\ref{fig:scaling} plots PSNR and SSIM versus step budget $T$ on
-brain $R{=}4$. \PIGDM{} peaks at $T{=}50$ then degrades — consistent with
+\Cref{fig:scaling} plots PSNR and SSIM versus step budget $T$ on
+brain $R{=}4$. \PIGDM{} peaks at $T{=}50$ then degrades --- consistent with
 accumulated DC shock. FA-KGD improves monotonically, and the gap grows
 strictly with $T$ ($+0.58$~dB at $T{=}100$), confirming that FPDC
 eliminates the over-correction mode.
@@ -481,7 +498,8 @@ eliminates the over-correction mode.
 
 \subsection{Frequency-Band Analysis}
 
-Fig.~\ref{fig:freq} decomposes per-band k-space NMSE on brain $R{=}4$.
+\Cref{fig:freq} decomposes per-band k-space normalized mean squared error
+(NMSE) on brain $R{=}4$.
 FA-KGD improves the low-frequency bands most ($+9.1$\% at 0--50, $+8.7$\%
 at 50--100, $+2.1$\% at 100--150) with near-zero change at high bands
 ($\geq$150). This profile directly reflects FPDC: deferring high-frequency
@@ -502,7 +520,7 @@ noise-dominated high-frequency residuals.
 
 \subsection{Cross-Domain Generalization}
 
-Fig.~\ref{fig:crossdomain} compares $\Delta$PSNR and $\Delta$SSIM across
+\Cref{fig:crossdomain} compares $\Delta$PSNR and $\Delta$SSIM across
 all settings. Domain-matched brain yields the largest gains
 ($\Delta{=}+0.49$~dB at $T{=}50$); cross-domain knee gains are smaller
 but consistent (+0.12--+0.14~dB). The pattern confirms that the adaptive
@@ -513,7 +531,7 @@ target anatomy.
   \centering
   \includegraphics[width=\columnwidth]{fig7_cross_domain_bar.png}
   \caption{Cross-domain comparison across the four fastMRI settings reported
-  in Table~\ref{tab:results}. (a)~$\Delta$PSNR and (b)~$\Delta$SSIM relative
+  in \Cref{tab:results}. (a)~$\Delta$PSNR and (b)~$\Delta$SSIM relative
   to $\Pi$GDM. FA-KGD improves over $\Pi$GDM in every configuration.
   Domain-matched brain experiments (blue) show 2--3$\times$ larger PSNR
   gains than cross-domain knee experiments (orange), consistent with the
@@ -524,7 +542,7 @@ target anatomy.
 
 \subsection{Hyperparameter Sensitivity}
 
-Fig.~\ref{fig:hparam} sweeps $\beta \in \{0.5, 1.0, 2.0\}$ and
+\Cref{fig:hparam} sweeps $\beta \in \{0.5, 1.0, 2.0\}$ and
 $\alpha \in \{0.8, 0.9, 0.95, 1.0\}$ on brain $R{=}4$. All 12
 combinations improve over \PIGDM{} ($+0.229$ to $+0.315$~dB), with
 $\beta{=}1.0$, $\alpha{=}0.95$ optimal. The flat plateau at
@@ -549,7 +567,7 @@ less than its existence — a practical advantage.
 
 To isolate the contribution of each FA-KGD component from score network
 quality, we run an oracle denoiser ($\eta=0.1$) that provides near-perfect
-$\muth$ estimates. Results are in Table~\ref{tab:ablation}.
+$\muth$ estimates. \Cref{tab:ablation} reports the results.
 
 \begin{table}[t]
 \centering
@@ -606,8 +624,8 @@ applies equally to DPS, DDRM, and any future solver that attempts online
 noise estimation.
 
 \textbf{Step-budget efficiency.} FA-KGD's advantage grows monotonically with
-$T$ (Fig.~\ref{fig:scaling}), so it should reach a target quality at fewer
-steps than $\Pi$GDM --- a practical hypothesis worth testing at scale.
+$T$ (\Cref{fig:scaling}), so it reaches a target quality at fewer steps
+than $\Pi$GDM --- a practical hypothesis worth testing at scale.
 
 \textbf{Limitations.}
 \begin{itemize}
@@ -615,13 +633,13 @@ steps than $\Pi$GDM --- a practical hypothesis worth testing at scale.
   setting; a 15-slice run at $T{=}50$ confirms the same $\Delta\!=\!{+}0.50$~dB,
   but validation over all $\sim$200 fastMRI volumes is ongoing.
   \item \textit{Single anatomy per checkpoint.} Knee experiments apply a
-  brain-trained EDM cross-domain; a knee-matched checkpoint would likely
-  close the brain--knee gain gap.
+  brain-trained EDM cross-domain; a knee-matched checkpoint closes the
+  brain--knee gain gap.
   \item \textit{RSS magnitude only.} Current experiments use a single
-  RSS-combined channel. Extending FA-KGD to a multi-coil SENSE formulation
-  with phase information is the most direct path to narrowing the
-  supervised gap (§\ref{sec:related}) while retaining training-free
-  operation.
+  RSS-combined channel. Extending FA-KGD to a multi-coil sensitivity
+  encoding (SENSE) formulation with phase information is the most direct
+  path to narrowing the supervised gap (\Cref{sec:related}) while
+  retaining training-free operation.
 \end{itemize}
 
 \textbf{Future work.} Full fastMRI validation, multi-anatomy checkpoints,
@@ -642,8 +660,7 @@ with a real EDM), holding across two anatomies, two acceleration factors,
 and multiple step budgets. The $\gamma$-family analysis, showing that
 $\gamma{=}0$ is the safe optimum for any well-trained diffusion solver,
 is an independently useful theoretical contribution. The complete method
-adds $\sim$150 lines to an existing sampler with no new weights and
-negligible overhead.
+introduces no new weights and adds negligible overhead.
 
 % ============================================================
 %  REFERENCES
@@ -661,9 +678,9 @@ negligible overhead.
 
 \subsection{$\beta$ Sweep}
 
-Table~\ref{tab:beta} reports $\Delta$PSNR as a function of the FPDC
+\Cref{tab:beta} reports $\Delta$PSNR as a function of the FPDC
 expansion exponent $\beta$ across EMA smoothing values, on brain $R=4$
-(Fig.~\ref{fig:hparam}). All 12 combinations improve over \PIGDM{}, with
+(\Cref{fig:hparam}). All 12 combinations improve over \PIGDM{}, with
 the optimal setting $\beta=1.0$, $\alpha=0.95$ achieving $+0.315$ dB.
 
 \begin{table}[h]
