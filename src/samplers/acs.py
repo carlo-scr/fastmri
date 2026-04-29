@@ -123,4 +123,70 @@ def estimate_sigma_sq_pooled(
     return _radial_extrapolate(pooled, H, W, sy, sx)
 
 
-__all__ = ["estimate_sigma_sq_per_slice", "estimate_sigma_sq_pooled"]
+def estimate_sigma_sq_multicoil_acs(
+    y_kspace_multicoil: torch.Tensor,
+    method: str = "image_bg",
+    bg_patch_frac: float = 0.08,
+    center_fraction: float = 0.08,
+) -> torch.Tensor:
+    """Within-slice multicoil ACS noise variance estimator.
+
+    For real fastMRI data, thermal noise in k-space is (approximately) white
+    complex Gaussian — its variance is independent of frequency. We exploit
+    that by estimating per-coil noise variance from a *background* patch in
+    the image domain (signal ≈ 0 there → measured variance = noise variance),
+    then averaging over coils.
+
+    Because `fft2c` / `ifft2c` are orthonormal, the per-pixel variance is
+    preserved between k-space and image domain, so the returned `(H, W)`
+    map can be used directly as the k-space noise variance.
+
+    Args:
+        y_kspace_multicoil: complex k-space, shape `(Nc, H, W)`.
+        method: only `"image_bg"` is currently implemented (no ESPIRiT
+            dependency). Reserved name `"coil_diff"` would require sensitivity
+            maps and is left for future work.
+        bg_patch_frac: fraction of (H, W) used for each of the four corner
+            background patches.
+        center_fraction: kept for API symmetry with the other two estimators
+            (currently unused — image_bg uses corner patches, not the ACS box).
+
+    Returns:
+        Real `(H, W)` flat variance map (white-noise model).
+    """
+    if y_kspace_multicoil.dim() != 3:
+        raise ValueError(
+            f"y_kspace_multicoil must be (Nc, H, W); got {tuple(y_kspace_multicoil.shape)}"
+        )
+    if method != "image_bg":
+        raise NotImplementedError(f"method={method!r} not implemented (use 'image_bg')")
+
+    from src.samplers.mri_forward import ifft2c
+
+    Nc, H, W = y_kspace_multicoil.shape
+    coil_imgs = ifft2c(y_kspace_multicoil)  # (Nc, H, W) complex
+
+    ph = max(4, int(round(bg_patch_frac * H)))
+    pw = max(4, int(round(bg_patch_frac * W)))
+    # Four corners — anatomy is in the center for brain/knee
+    patches = [
+        coil_imgs[..., :ph, :pw],
+        coil_imgs[..., :ph, -pw:],
+        coil_imgs[..., -ph:, :pw],
+        coil_imgs[..., -ph:, -pw:],
+    ]
+    # Per-coil per-corner sample variance of complex pixels:
+    # var(complex) = E|z - mean|^2 (treats real and imag jointly as in scipy).
+    var_per_coil_corner = torch.stack(
+        [(p - p.mean(dim=(-2, -1), keepdim=True)).abs().pow(2).mean(dim=(-2, -1)) for p in patches],
+        dim=0,
+    )  # (4, Nc)
+    sigma_sq_scalar = float(var_per_coil_corner.mean().item())
+    return torch.full((H, W), sigma_sq_scalar, dtype=torch.float32)
+
+
+__all__ = [
+    "estimate_sigma_sq_per_slice",
+    "estimate_sigma_sq_pooled",
+    "estimate_sigma_sq_multicoil_acs",
+]

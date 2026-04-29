@@ -39,6 +39,7 @@ from src.samplers.adps import run_adps
 from src.samplers.acs import (
     estimate_sigma_sq_per_slice,
     estimate_sigma_sq_pooled,
+    estimate_sigma_sq_multicoil_acs,
 )
 from src.models.edm_loader import OracleDenoiser, load_edm_model, EDMDenoiser
 
@@ -83,6 +84,30 @@ def load_slice(h5_path: str, slice_idx: int, target_shape: tuple | None = None) 
     return img
 
 
+def load_slice_multicoil_kspace(
+    h5_path: str, slice_idx: int, target_shape: tuple | None = None
+) -> torch.Tensor | None:
+    """Load raw multicoil k-space for one slice and crop to target_shape.
+
+    Returns complex `(Nc, H, W)` k-space, matched in resolution to the RSS
+    image returned by `load_slice` (i.e., IFFT → center-crop → FFT).
+
+    Returns `None` if the file lacks a `kspace` dataset (e.g., RSS-only test
+    data) or if it is not multicoil.
+    """
+    with h5py.File(h5_path, "r") as f:
+        if "kspace" not in f:
+            return None
+        ks = f["kspace"][slice_idx]  # expected (Nc, H, W) for multicoil val
+        ks = torch.from_numpy(ks)
+    if ks.dim() != 3:
+        return None
+    coil_imgs = ifft2c(ks)
+    if target_shape is not None:
+        coil_imgs = _center_crop(coil_imgs, target_shape[0], target_shape[1])
+    return fft2c(coil_imgs)
+
+
 def normalize_image(img: torch.Tensor) -> tuple[torch.Tensor, float]:
     """Normalize complex image to [0, 1] magnitude range. Returns (img, scale)."""
     scale = img.abs().max().item()
@@ -103,6 +128,11 @@ def make_freq_dependent_noise(H: int, W: int, sigma_base: float = 0.001, beta_no
     r_norm = radius / radius.max()
     sigma_sq = sigma_base * (1 + beta_noise * r_norm ** 2)
     return sigma_sq
+
+
+def make_white_noise(H: int, W: int, sigma_base: float = 0.001) -> torch.Tensor:
+    """Flat σ² map (white k-space noise, matching real fastMRI thermal noise)."""
+    return torch.full((H, W), float(sigma_base), dtype=torch.float32)
 
 
 def add_measurement_noise(y_clean: torch.Tensor, sigma_sq_map: torch.Tensor) -> torch.Tensor:
@@ -177,16 +207,19 @@ def run_reconstruction(args):
         # that the pooled estimator and the per-slice loop see *the same*
         # measurement noise.
         target_shape = None
-        if args.mode == "edm" and args.target_resolution:
+        if args.target_resolution:
             target_shape = tuple(args.target_resolution)
         gen = torch.Generator(device="cpu").manual_seed(args.noise_seed + hash(h5_file.name) % (2**31))
 
         # Probe one slice for shape & build the noise variance map
         probe = load_slice(str(h5_file), 0, target_shape=target_shape)
         Hp, Wp = probe.shape
-        true_sigma_sq_vol = make_freq_dependent_noise(
-            Hp, Wp, sigma_base=args.sigma_base, beta_noise=args.beta_noise,
-        )
+        if args.noise_model == "white":
+            true_sigma_sq_vol = make_white_noise(Hp, Wp, sigma_base=args.sigma_base)
+        else:
+            true_sigma_sq_vol = make_freq_dependent_noise(
+                Hp, Wp, sigma_base=args.sigma_base, beta_noise=args.beta_noise,
+            )
         # Pre-load every k-space slice we'll use, with reproducible noise
         y_noisy_per_slice = {}
         scale_per_slice = {}
@@ -213,6 +246,42 @@ def run_reconstruction(args):
             print(
                 f"[{h5_file.name}] pooled ACS over {len(slice_indices)} slices, "
                 f"mean σ²={sigma_pooled_vol.mean().item():.3e}"
+            )
+
+        # Multicoil-ACS estimate: per-volume, computed once on slice 0's
+        # noisy multicoil k-space (image-domain background patch).
+        sigma_multicoil_vol = None
+        if args.noise_init == "multicoil_acs":
+            sl0 = next(iter(slice_indices))
+            y_mc_clean = load_slice_multicoil_kspace(
+                str(h5_file), sl0, target_shape=target_shape,
+            )
+            if y_mc_clean is None:
+                raise RuntimeError(
+                    f"{h5_file.name}: no multicoil k-space available for "
+                    "--noise_init multicoil_acs"
+                )
+            # Same per-volume noise model, sampled on the multicoil k-space.
+            # NB: the per-coil noise has the *same* per-pixel σ² as the RSS
+            # k-space we inject into in `y_noisy_per_slice`, so the estimator
+            # recovers the same scalar.
+            sigma_mc = true_sigma_sq_vol.sqrt()
+            gen_mc = torch.Generator(device="cpu").manual_seed(
+                args.noise_seed + 7919 + hash(h5_file.name) % (2**31)
+            )
+            n_re = torch.randn(y_mc_clean.shape, generator=gen_mc)
+            n_im = torch.randn(y_mc_clean.shape, generator=gen_mc)
+            y_mc_noisy = y_mc_clean + sigma_mc * (n_re + 1j * n_im) / np.sqrt(2)
+            sigma_multicoil_vol = estimate_sigma_sq_multicoil_acs(
+                y_mc_noisy, method="image_bg",
+                bg_patch_frac=args.bg_patch_frac,
+                center_fraction=args.center_fraction,
+            ).to(device)
+            true_mean = float(true_sigma_sq_vol.mean())
+            est_mean = float(sigma_multicoil_vol.mean())
+            print(
+                f"[{h5_file.name}] multicoil-ACS σ²={est_mean:.3e} "
+                f"(true={true_mean:.3e}, ratio={est_mean / max(true_mean, 1e-30):.3f})"
             )
 
         for sl in slice_indices:
@@ -253,6 +322,8 @@ def run_reconstruction(args):
                 ).to(device)
             elif args.noise_init == "pooled_acs":
                 sigma_i_sq_init = sigma_pooled_vol  # one estimate per volume
+            elif args.noise_init == "multicoil_acs":
+                sigma_i_sq_init = sigma_multicoil_vol  # one estimate per volume
             else:
                 raise ValueError(f"Unknown noise_init: {args.noise_init}")
 
@@ -273,73 +344,95 @@ def run_reconstruction(args):
             sigma_y_iso = np.sqrt(true_sigma_sq.mean().item())
 
             # --- Run DPS ---
-            print(f"\nRunning DPS (T={args.num_steps}, ζ={args.dps_step_size})...")
-            t0 = time.time()
-            dps_result = run_dps(
-                y=y, mask=mask, sigma_schedule=sigma_schedule,
-                denoiser_fn=denoiser, step_size=args.dps_step_size,
-                x_gt=x_gt, seed=args.seed,
-            )
-            dps_time = time.time() - t0
-            dps_psnr = dps_result["psnr_trajectory"][-1] if dps_result["psnr_trajectory"] else 0
-            print(f"  DPS: PSNR = {dps_psnr:.2f} dB  ({dps_time:.1f}s)")
+            dps_result = None
+            dps_time = 0.0
+            if "dps" in args.methods:
+                print(f"\nRunning DPS (T={args.num_steps}, ζ={args.dps_step_size})...")
+                t0 = time.time()
+                dps_result = run_dps(
+                    y=y, mask=mask, sigma_schedule=sigma_schedule,
+                    denoiser_fn=denoiser, step_size=args.dps_step_size,
+                    x_gt=x_gt, seed=args.seed,
+                )
+                dps_time = time.time() - t0
+                dps_psnr = dps_result["psnr_trajectory"][-1] if dps_result["psnr_trajectory"] else 0
+                print(f"  DPS: PSNR = {dps_psnr:.2f} dB  ({dps_time:.1f}s)")
+            else:
+                dps_psnr = float("nan")
 
             # --- Run ADPS ---
-            print(f"\nRunning ADPS (T={args.num_steps}, l_ss={args.adps_step_size}, S_churn={args.adps_s_churn})...")
-            t0 = time.time()
-            adps_result = run_adps(
-                y=y, mask=mask, sigma_schedule=sigma_schedule,
-                denoiser_fn=denoiser, step_size=args.adps_step_size,
-                s_churn=args.adps_s_churn,
-                x_gt=x_gt, seed=args.seed,
-            )
-            adps_time = time.time() - t0
-            adps_psnr = adps_result["psnr_trajectory"][-1] if adps_result["psnr_trajectory"] else 0
-            print(f"  ADPS: PSNR = {adps_psnr:.2f} dB  ({adps_time:.1f}s)")
+            adps_result = None
+            adps_time = 0.0
+            if "adps" in args.methods:
+                print(f"\nRunning ADPS (T={args.num_steps}, l_ss={args.adps_step_size}, S_churn={args.adps_s_churn})...")
+                t0 = time.time()
+                adps_result = run_adps(
+                    y=y, mask=mask, sigma_schedule=sigma_schedule,
+                    denoiser_fn=denoiser, step_size=args.adps_step_size,
+                    s_churn=args.adps_s_churn,
+                    x_gt=x_gt, seed=args.seed,
+                )
+                adps_time = time.time() - t0
+                adps_psnr = adps_result["psnr_trajectory"][-1] if adps_result["psnr_trajectory"] else 0
+                print(f"  ADPS: PSNR = {adps_psnr:.2f} dB  ({adps_time:.1f}s)")
+            else:
+                adps_psnr = float("nan")
 
             # --- Run ΠGDM ---
-            print(f"\nRunning ΠGDM (T={args.num_steps}, σ_y={sigma_y_iso:.4e})...")
-            t0 = time.time()
-            pigdm_result = run_pigdm(
-                y=y, mask=mask, sigma_schedule=sigma_schedule,
-                denoiser_fn=denoiser, sigma_y=sigma_y_iso,
-                x_gt=x_gt, seed=args.seed,
-            )
-            pigdm_time = time.time() - t0
-            pigdm_psnr = pigdm_result["psnr_trajectory"][-1] if pigdm_result["psnr_trajectory"] else 0
-            print(f"  ΠGDM: PSNR = {pigdm_psnr:.2f} dB  ({pigdm_time:.1f}s)")
+            pigdm_result = None
+            pigdm_time = 0.0
+            if "pigdm" in args.methods:
+                print(f"\nRunning ΠGDM (T={args.num_steps}, σ_y={sigma_y_iso:.4e})...")
+                t0 = time.time()
+                pigdm_result = run_pigdm(
+                    y=y, mask=mask, sigma_schedule=sigma_schedule,
+                    denoiser_fn=denoiser, sigma_y=sigma_y_iso,
+                    x_gt=x_gt, seed=args.seed,
+                )
+                pigdm_time = time.time() - t0
+                pigdm_psnr = pigdm_result["psnr_trajectory"][-1] if pigdm_result["psnr_trajectory"] else 0
+                print(f"  ΠGDM: PSNR = {pigdm_psnr:.2f} dB  ({pigdm_time:.1f}s)")
+            else:
+                pigdm_psnr = float("nan")
 
             # --- Run FA-KGD + FPDC ---
-            print(f"\nRunning FA-KGD+FPDC (β={args.beta_fpdc}, α={args.alpha_ema}, γ={args.gamma}, m_step={m_step_mode})...")
-            t0 = time.time()
-            fakgd_result = run_fakgd(
-                y=y, mask=mask, sigma_schedule=sigma_schedule,
-                denoiser_fn=denoiser, sigma_i_sq_init=sigma_i_sq_init,
-                r_acs=r_acs, r_max=r_max, beta_fpdc=args.beta_fpdc,
-                alpha_ema=args.alpha_ema, gamma=args.gamma,
-                m_step_mode=m_step_mode,
-                x_gt=x_gt, seed=args.seed, return_diagnostics=True,
-            )
-            fakgd_time = time.time() - t0
-            fakgd_psnr = fakgd_result["psnr_trajectory"][-1] if fakgd_result["psnr_trajectory"] else 0
-            print(f"  FA-KGD+FPDC: PSNR = {fakgd_psnr:.2f} dB  ({fakgd_time:.1f}s)")
-            print(f"  Δ PSNR = {fakgd_psnr - pigdm_psnr:+.2f} dB")
+            fakgd_result = None
+            fakgd_time = 0.0
+            if "fakgd" in args.methods:
+                print(f"\nRunning FA-KGD+FPDC (β={args.beta_fpdc}, α={args.alpha_ema}, γ={args.gamma}, m_step={m_step_mode})...")
+                t0 = time.time()
+                fakgd_result = run_fakgd(
+                    y=y, mask=mask, sigma_schedule=sigma_schedule,
+                    denoiser_fn=denoiser, sigma_i_sq_init=sigma_i_sq_init,
+                    r_acs=r_acs, r_max=r_max, beta_fpdc=args.beta_fpdc,
+                    alpha_ema=args.alpha_ema, gamma=args.gamma,
+                    m_step_mode=m_step_mode,
+                    x_gt=x_gt, seed=args.seed, return_diagnostics=True,
+                )
+                fakgd_time = time.time() - t0
+                fakgd_psnr = fakgd_result["psnr_trajectory"][-1] if fakgd_result["psnr_trajectory"] else 0
+                print(f"  FA-KGD+FPDC: PSNR = {fakgd_psnr:.2f} dB  ({fakgd_time:.1f}s)")
+                if not np.isnan(pigdm_psnr):
+                    print(f"  Δ PSNR = {fakgd_psnr - pigdm_psnr:+.2f} dB")
+            else:
+                fakgd_psnr = float("nan")
 
-            # Compute SSIM
+            # Compute SSIM (only for methods that ran)
             gt_mag = x_gt.abs().cpu().numpy()
-            dps_mag = dps_result["recon"].abs().cpu().numpy()
-            adps_mag = adps_result["recon"].abs().cpu().numpy()
-            pigdm_mag = pigdm_result["recon"].abs().cpu().numpy()
-            fakgd_mag = fakgd_result["recon"].abs().cpu().numpy()
             data_range = gt_mag.max() - gt_mag.min()
-            dps_ssim = ssim_fn(gt_mag, dps_mag, data_range=data_range)
-            adps_ssim = ssim_fn(gt_mag, adps_mag, data_range=data_range)
-            pigdm_ssim = ssim_fn(gt_mag, pigdm_mag, data_range=data_range)
-            fakgd_ssim = ssim_fn(gt_mag, fakgd_mag, data_range=data_range)
-            print(f"  DPS   SSIM = {dps_ssim:.4f}")
-            print(f"  ADPS  SSIM = {adps_ssim:.4f}")
-            print(f"  ΠGDM  SSIM = {pigdm_ssim:.4f}")
-            print(f"  FA-KGD SSIM = {fakgd_ssim:.4f}  (Δ = {fakgd_ssim - pigdm_ssim:+.4f})")
+            def _ssim_or_nan(res):
+                if res is None:
+                    return float("nan")
+                m = res["recon"].abs().cpu().numpy()
+                return float(ssim_fn(gt_mag, m, data_range=data_range))
+            dps_ssim = _ssim_or_nan(dps_result)
+            adps_ssim = _ssim_or_nan(adps_result)
+            pigdm_ssim = _ssim_or_nan(pigdm_result)
+            fakgd_ssim = _ssim_or_nan(fakgd_result)
+            for name, val in (("DPS", dps_ssim), ("ADPS", adps_ssim),
+                              ("ΠGDM", pigdm_ssim), ("FA-KGD", fakgd_ssim)):
+                if not np.isnan(val):
+                    print(f"  {name:>6s} SSIM = {val:.4f}")
 
             # Store results
             slice_result = {
@@ -362,22 +455,20 @@ def run_reconstruction(args):
             }
             all_results.append(slice_result)
 
-            # Save reconstructions
+            # Save reconstructions (only for methods that ran)
             save_dir = os.path.join(args.output_dir, h5_file.stem)
             os.makedirs(save_dir, exist_ok=True)
-            torch.save({
-                "dps_recon": dps_result["recon"].cpu(),
-                "adps_recon": adps_result["recon"].cpu(),
-                "pigdm_recon": pigdm_result["recon"].cpu(),
-                "fakgd_recon": fakgd_result["recon"].cpu(),
-                "dps_psnr_traj": dps_result["psnr_trajectory"],
-                "adps_psnr_traj": adps_result["psnr_trajectory"],
-                "pigdm_psnr_traj": pigdm_result["psnr_trajectory"],
-                "fakgd_psnr_traj": fakgd_result["psnr_trajectory"],
+            payload: dict = {
                 "x_gt": x_gt.cpu(),
                 "mask": mask.cpu(),
                 "scale": scale,
-            }, os.path.join(save_dir, f"slice_{sl:03d}.pt"))
+            }
+            for name, res in (("dps", dps_result), ("adps", adps_result),
+                              ("pigdm", pigdm_result), ("fakgd", fakgd_result)):
+                if res is not None:
+                    payload[f"{name}_recon"] = res["recon"].cpu()
+                    payload[f"{name}_psnr_traj"] = res["psnr_trajectory"]
+            torch.save(payload, os.path.join(save_dir, f"slice_{sl:03d}.pt"))
 
             slices_done += 1
 
@@ -492,9 +583,21 @@ def main():
     parser.add_argument("--noise_seed", type=int, default=12345,
                         help="Per-volume noise seed (mixed with file name)")
     parser.add_argument("--noise_init", type=str, default="oracle",
-                        choices=["oracle", "per_slice_acs", "pooled_acs"],
+                        choices=["oracle", "per_slice_acs", "pooled_acs", "multicoil_acs"],
                         help="How to initialise σ²_i for FA-KGD: oracle (true), "
-                             "per_slice_acs (one slice's ACS), or pooled_acs (volume).")
+                             "per_slice_acs (one slice's ACS), pooled_acs (volume),"
+                             " or multicoil_acs (within-slice multicoil background patch).")
+    parser.add_argument("--noise_model", type=str, default="freq_dep",
+                        choices=["freq_dep", "white"],
+                        help="Synthetic measurement-noise model: freq_dep (legacy, "
+                             "frequency-dependent) or white (flat, matches real fastMRI "
+                             "thermal noise; required for multicoil_acs estimator).")
+    parser.add_argument("--bg_patch_frac", type=float, default=0.08,
+                        help="Background-patch fraction for multicoil_acs estimator.")
+    parser.add_argument("--methods", type=str, nargs="+",
+                        default=["dps", "adps", "pigdm", "fakgd"],
+                        choices=["dps", "adps", "pigdm", "fakgd"],
+                        help="Which methods to run (default: all four).")
     parser.add_argument("--whole_volume", action="store_true",
                         help="If set, process every slice of every visited volume "
                              "(needed for clean per-volume metrics).")
