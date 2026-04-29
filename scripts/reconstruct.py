@@ -36,6 +36,10 @@ from src.samplers.pigdm import run_pigdm
 from src.samplers.fakgd import run_fakgd
 from src.samplers.dps import run_dps
 from src.samplers.adps import run_adps
+from src.samplers.acs import (
+    estimate_sigma_sq_per_slice,
+    estimate_sigma_sq_pooled,
+)
 from src.models.edm_loader import OracleDenoiser, load_edm_model, EDMDenoiser
 
 
@@ -161,9 +165,55 @@ def run_reconstruction(args):
             key = "reconstruction_rss" if "reconstruction_rss" in f else "kspace"
             num_slices_in_vol = f[key].shape[0]
 
-        # Pick middle slices (most informative anatomy)
-        mid = num_slices_in_vol // 2
-        slice_indices = range(max(0, mid - 2), min(num_slices_in_vol, mid + 3))
+        # Slice selection: either middle-5 (default) or whole volume
+        if args.whole_volume:
+            slice_indices = range(num_slices_in_vol)
+        else:
+            mid = num_slices_in_vol // 2
+            slice_indices = range(max(0, mid - 2), min(num_slices_in_vol, mid + 3))
+
+        # --- Per-volume noise pre-pass (needed for pooled ACS estimator) ---
+        # We add noise to every slice with a deterministic, per-volume seed so
+        # that the pooled estimator and the per-slice loop see *the same*
+        # measurement noise.
+        target_shape = None
+        if args.mode == "edm" and args.target_resolution:
+            target_shape = tuple(args.target_resolution)
+        gen = torch.Generator(device="cpu").manual_seed(args.noise_seed + hash(h5_file.name) % (2**31))
+
+        # Probe one slice for shape & build the noise variance map
+        probe = load_slice(str(h5_file), 0, target_shape=target_shape)
+        Hp, Wp = probe.shape
+        true_sigma_sq_vol = make_freq_dependent_noise(
+            Hp, Wp, sigma_base=args.sigma_base, beta_noise=args.beta_noise,
+        )
+        # Pre-load every k-space slice we'll use, with reproducible noise
+        y_noisy_per_slice = {}
+        scale_per_slice = {}
+        x_gt_per_slice = {}
+        for sl in slice_indices:
+            x_gt_sl = load_slice(str(h5_file), sl, target_shape=target_shape)
+            x_gt_sl, scale_sl = normalize_image(x_gt_sl)
+            y_clean = fft2c(x_gt_sl)
+            sigma = true_sigma_sq_vol.sqrt()
+            noise_re = torch.randn(y_clean.shape, generator=gen)
+            noise_im = torch.randn(y_clean.shape, generator=gen)
+            y_noisy = y_clean + sigma * (noise_re + 1j * noise_im) / np.sqrt(2)
+            y_noisy_per_slice[sl] = y_noisy
+            scale_per_slice[sl] = scale_sl
+            x_gt_per_slice[sl] = x_gt_sl
+
+        # Pooled estimate: stack all noisy slice k-spaces into (Nz_used, H, W)
+        sigma_pooled_vol = None
+        if args.noise_init == "pooled_acs":
+            y_stack = torch.stack([y_noisy_per_slice[s] for s in slice_indices], dim=0)
+            sigma_pooled_vol = estimate_sigma_sq_pooled(
+                y_stack, center_fraction=args.center_fraction,
+            ).to(device)
+            print(
+                f"[{h5_file.name}] pooled ACS over {len(slice_indices)} slices, "
+                f"mean σ²={sigma_pooled_vol.mean().item():.3e}"
+            )
 
         for sl in slice_indices:
             if slices_done >= args.num_slices:
@@ -173,15 +223,14 @@ def run_reconstruction(args):
             print(f"Volume: {h5_file.name}, Slice: {sl}")
             print(f"{'='*60}")
 
-            # Load and normalize (crop to model resolution if needed)
-            target_shape = None
-            if args.mode == "edm" and args.target_resolution:
-                target_shape = tuple(args.target_resolution)
-            x_gt = load_slice(str(h5_file), sl, target_shape=target_shape).to(device)
-            x_gt, scale = normalize_image(x_gt)
+            # Pull from the per-volume pre-pass
+            x_gt = x_gt_per_slice[sl].to(device)
+            scale = scale_per_slice[sl]
+            y_noisy = y_noisy_per_slice[sl].to(device)
             H, W = x_gt.shape
+            true_sigma_sq = true_sigma_sq_vol.to(device)
 
-            # Create mask and measurements
+            # Mask
             mask_1d = create_mask(
                 W,
                 center_fraction=args.center_fraction,
@@ -189,23 +238,23 @@ def run_reconstruction(args):
                 seed=args.mask_seed,
             ).to(device)
             mask = mask_1d.expand(H, -1)
-
-            y_full = fft2c(x_gt)
-
-            # Add frequency-dependent measurement noise (matches NB04 setup)
-            true_sigma_sq = make_freq_dependent_noise(
-                H, W, sigma_base=args.sigma_base, beta_noise=args.beta_noise,
-            ).to(device)
-            y_noisy = add_measurement_noise(y_full, true_sigma_sq)
             y = mask * y_noisy
 
-            # Noise initialization
-            if m_step_mode == "full":
-                # 2× overestimate tests EM convergence
-                sigma_i_sq_init = 2.0 * true_sigma_sq
+            # σ²_i initialisation strategy
+            if args.noise_init == "oracle":
+                # True noise variance (cheating upper bound)
+                if m_step_mode == "full":
+                    sigma_i_sq_init = 2.0 * true_sigma_sq  # tests EM convergence
+                else:
+                    sigma_i_sq_init = true_sigma_sq.clone()
+            elif args.noise_init == "per_slice_acs":
+                sigma_i_sq_init = estimate_sigma_sq_per_slice(
+                    y_noisy, center_fraction=args.center_fraction,
+                ).to(device)
+            elif args.noise_init == "pooled_acs":
+                sigma_i_sq_init = sigma_pooled_vol  # one estimate per volume
             else:
-                # Fixed or clamped: use best estimate directly
-                sigma_i_sq_init = true_sigma_sq.clone()
+                raise ValueError(f"Unknown noise_init: {args.noise_init}")
 
             # FPDC parameters
             radius_grid = build_radius_grid(H, W).to(device)
@@ -357,6 +406,26 @@ def run_reconstruction(args):
     print(f"  FA-KGD mean SSIM: {np.mean(fakgd_ssims):.4f} ± {np.std(fakgd_ssims):.4f}")
     print(f"  Δ SSIM:           {np.mean(delta_ssims):+.4f} ± {np.std(delta_ssims):.4f}")
 
+    # --- Per-volume aggregation (mean over slices, then mean over volumes) ---
+    from collections import defaultdict
+    per_vol = defaultdict(lambda: defaultdict(list))
+    for r in all_results:
+        for k in ("dps_psnr", "adps_psnr", "pigdm_psnr", "fakgd_psnr",
+                  "dps_ssim", "adps_ssim", "pigdm_ssim", "fakgd_ssim"):
+            per_vol[r["volume"]][k].append(r[k])
+    vol_means = {
+        k: [float(np.mean(per_vol[v][k])) for v in per_vol]
+        for k in ("dps_psnr", "adps_psnr", "pigdm_psnr", "fakgd_psnr",
+                  "dps_ssim", "adps_ssim", "pigdm_ssim", "fakgd_ssim")
+    }
+    print(f"\nPer-volume aggregation ({len(per_vol)} volumes):")
+    for k in ("dps_psnr", "adps_psnr", "pigdm_psnr", "fakgd_psnr"):
+        vals = vol_means[k]
+        print(f"  {k:>12s}: {np.mean(vals):.2f} ± {np.std(vals):.2f} dB")
+    for k in ("dps_ssim", "adps_ssim", "pigdm_ssim", "fakgd_ssim"):
+        vals = vol_means[k]
+        print(f"  {k:>12s}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
+
     # Save summary
     summary_path = os.path.join(args.output_dir, "results.json")
     with open(summary_path, "w") as f:
@@ -377,6 +446,10 @@ def run_reconstruction(args):
                 "delta_ssim_mean": float(np.mean(delta_ssims)),
                 "delta_ssim_std": float(np.std(delta_ssims)),
                 "num_slices": slices_done,
+            },
+            "per_volume": {
+                v: {k: float(np.mean(per_vol[v][k])) for k in vol_means}
+                for v in per_vol
             },
         }, f, indent=2)
     print(f"\nResults saved to {summary_path}")
@@ -416,6 +489,15 @@ def main():
     # Measurement noise
     parser.add_argument("--sigma_base", type=float, default=0.001, help="Base noise variance")
     parser.add_argument("--beta_noise", type=float, default=5.0, help="Freq-dependent noise slope")
+    parser.add_argument("--noise_seed", type=int, default=12345,
+                        help="Per-volume noise seed (mixed with file name)")
+    parser.add_argument("--noise_init", type=str, default="oracle",
+                        choices=["oracle", "per_slice_acs", "pooled_acs"],
+                        help="How to initialise σ²_i for FA-KGD: oracle (true), "
+                             "per_slice_acs (one slice's ACS), or pooled_acs (volume).")
+    parser.add_argument("--whole_volume", action="store_true",
+                        help="If set, process every slice of every visited volume "
+                             "(needed for clean per-volume metrics).")
 
     # DPS
     parser.add_argument("--dps_step_size", type=float, default=10.0, help="DPS gradient step size (zeta)")
