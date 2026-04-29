@@ -248,40 +248,46 @@ def run_reconstruction(args):
                 f"mean σ²={sigma_pooled_vol.mean().item():.3e}"
             )
 
-        # Multicoil-ACS estimate: per-volume, computed once on slice 0's
-        # noisy multicoil k-space (image-domain background patch).
+        # Multicoil-ACS estimate: per-volume, pooled over the first K edge
+        # slices (edge slices contain less anatomy → cleaner corner patches).
+        # Per-slice estimates are averaged after the (robust) min-of-corners
+        # aggregation inside the estimator.
         sigma_multicoil_vol = None
         if args.noise_init == "multicoil_acs":
-            sl0 = next(iter(slice_indices))
-            y_mc_clean = load_slice_multicoil_kspace(
-                str(h5_file), sl0, target_shape=target_shape,
-            )
-            if y_mc_clean is None:
-                raise RuntimeError(
-                    f"{h5_file.name}: no multicoil k-space available for "
-                    "--noise_init multicoil_acs"
+            slice_list = list(slice_indices)
+            K = max(1, min(args.acs_pool_slices, len(slice_list)))
+            pool_slices = slice_list[:K]
+            estimates = []
+            for sli in pool_slices:
+                y_mc_clean = load_slice_multicoil_kspace(
+                    str(h5_file), sli, target_shape=target_shape,
                 )
-            # Same per-volume noise model, sampled on the multicoil k-space.
-            # NB: the per-coil noise has the *same* per-pixel σ² as the RSS
-            # k-space we inject into in `y_noisy_per_slice`, so the estimator
-            # recovers the same scalar.
-            sigma_mc = true_sigma_sq_vol.sqrt()
-            gen_mc = torch.Generator(device="cpu").manual_seed(
-                args.noise_seed + 7919 + hash(h5_file.name) % (2**31)
-            )
-            n_re = torch.randn(y_mc_clean.shape, generator=gen_mc)
-            n_im = torch.randn(y_mc_clean.shape, generator=gen_mc)
-            y_mc_noisy = y_mc_clean + sigma_mc * (n_re + 1j * n_im) / np.sqrt(2)
-            sigma_multicoil_vol = estimate_sigma_sq_multicoil_acs(
-                y_mc_noisy, method="image_bg",
-                bg_patch_frac=args.bg_patch_frac,
-                center_fraction=args.center_fraction,
-            ).to(device)
+                if y_mc_clean is None:
+                    raise RuntimeError(
+                        f"{h5_file.name}: no multicoil k-space available for "
+                        "--noise_init multicoil_acs"
+                    )
+                sigma_mc = true_sigma_sq_vol.sqrt()
+                gen_mc = torch.Generator(device="cpu").manual_seed(
+                    args.noise_seed + 7919 + sli + hash(h5_file.name) % (2**31)
+                )
+                n_re = torch.randn(y_mc_clean.shape, generator=gen_mc)
+                n_im = torch.randn(y_mc_clean.shape, generator=gen_mc)
+                y_mc_noisy = y_mc_clean + sigma_mc * (n_re + 1j * n_im) / np.sqrt(2)
+                est_map = estimate_sigma_sq_multicoil_acs(
+                    y_mc_noisy, method="image_bg",
+                    bg_patch_frac=args.bg_patch_frac,
+                    center_fraction=args.center_fraction,
+                    aggregator=args.acs_aggregator,
+                )
+                estimates.append(est_map)
+            sigma_multicoil_vol = torch.stack(estimates, dim=0).mean(dim=0).to(device)
             true_mean = float(true_sigma_sq_vol.mean())
             est_mean = float(sigma_multicoil_vol.mean())
             print(
                 f"[{h5_file.name}] multicoil-ACS σ²={est_mean:.3e} "
-                f"(true={true_mean:.3e}, ratio={est_mean / max(true_mean, 1e-30):.3f})"
+                f"(true={true_mean:.3e}, ratio={est_mean / max(true_mean, 1e-30):.3f}, "
+                f"pooled K={K} slices, agg={args.acs_aggregator})"
             )
 
         for sl in slice_indices:
@@ -594,6 +600,13 @@ def main():
                              "thermal noise; required for multicoil_acs estimator).")
     parser.add_argument("--bg_patch_frac", type=float, default=0.08,
                         help="Background-patch fraction for multicoil_acs estimator.")
+    parser.add_argument("--acs_pool_slices", type=int, default=3,
+                        help="Number of (edge) slices to pool for multicoil_acs "
+                             "estimator (default 3 → averages 3 per-slice estimates).")
+    parser.add_argument("--acs_aggregator", type=str, default="min",
+                        choices=["min", "mean", "median"],
+                        help="Per-slice corner aggregator for multicoil_acs "
+                             "(min is robust to signal leakage into one corner).")
     parser.add_argument("--methods", type=str, nargs="+",
                         default=["dps", "adps", "pigdm", "fakgd"],
                         choices=["dps", "adps", "pigdm", "fakgd"],

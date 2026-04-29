@@ -128,14 +128,21 @@ def estimate_sigma_sq_multicoil_acs(
     method: str = "image_bg",
     bg_patch_frac: float = 0.08,
     center_fraction: float = 0.08,
+    aggregator: str = "min",
 ) -> torch.Tensor:
-    """Within-slice multicoil ACS noise variance estimator.
+    """Within-slice multicoil noise variance estimator.
 
     For real fastMRI data, thermal noise in k-space is (approximately) white
     complex Gaussian — its variance is independent of frequency. We exploit
     that by estimating per-coil noise variance from a *background* patch in
     the image domain (signal ≈ 0 there → measured variance = noise variance),
-    then averaging over coils.
+    then aggregating over coils and corners.
+
+    Robustness: signal leakage into a corner *adds* positive bias, so the
+    minimum over corners is the cleanest estimate (assuming at least one
+    corner is signal-free). For each corner we average over coils first so
+    `Nc` independent samples reduce the per-corner variance estimator's own
+    noise by ~1/Nc, then take the minimum across the four corners.
 
     Because `fft2c` / `ifft2c` are orthonormal, the per-pixel variance is
     preserved between k-space and image domain, so the returned `(H, W)`
@@ -150,6 +157,9 @@ def estimate_sigma_sq_multicoil_acs(
             background patches.
         center_fraction: kept for API symmetry with the other two estimators
             (currently unused — image_bg uses corner patches, not the ACS box).
+        aggregator: how to combine the four corner estimates. `"min"`
+            (default) is robust to signal leakage into one or more corners;
+            `"mean"` and `"median"` are also accepted.
 
     Returns:
         Real `(H, W)` flat variance map (white-noise model).
@@ -160,6 +170,8 @@ def estimate_sigma_sq_multicoil_acs(
         )
     if method != "image_bg":
         raise NotImplementedError(f"method={method!r} not implemented (use 'image_bg')")
+    if aggregator not in ("min", "mean", "median"):
+        raise ValueError(f"aggregator must be one of min/mean/median, got {aggregator!r}")
 
     from src.samplers.mri_forward import ifft2c
 
@@ -168,20 +180,24 @@ def estimate_sigma_sq_multicoil_acs(
 
     ph = max(4, int(round(bg_patch_frac * H)))
     pw = max(4, int(round(bg_patch_frac * W)))
-    # Four corners — anatomy is in the center for brain/knee
     patches = [
         coil_imgs[..., :ph, :pw],
         coil_imgs[..., :ph, -pw:],
         coil_imgs[..., -ph:, :pw],
         coil_imgs[..., -ph:, -pw:],
     ]
-    # Per-coil per-corner sample variance of complex pixels:
-    # var(complex) = E|z - mean|^2 (treats real and imag jointly as in scipy).
-    var_per_coil_corner = torch.stack(
-        [(p - p.mean(dim=(-2, -1), keepdim=True)).abs().pow(2).mean(dim=(-2, -1)) for p in patches],
+    # Per-corner sample variance, averaged over coils
+    var_per_corner = torch.stack(
+        [(p - p.mean(dim=(-2, -1), keepdim=True)).abs().pow(2).mean(dim=(-2, -1)).mean()
+         for p in patches],
         dim=0,
-    )  # (4, Nc)
-    sigma_sq_scalar = float(var_per_coil_corner.mean().item())
+    )  # (4,)
+    if aggregator == "min":
+        sigma_sq_scalar = float(var_per_corner.min().item())
+    elif aggregator == "median":
+        sigma_sq_scalar = float(var_per_corner.median().item())
+    else:
+        sigma_sq_scalar = float(var_per_corner.mean().item())
     return torch.full((H, W), sigma_sq_scalar, dtype=torch.float32)
 
 
