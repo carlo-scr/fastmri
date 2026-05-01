@@ -45,8 +45,23 @@ from src.models.edm_loader import OracleDenoiser, load_edm_model, EDMDenoiser
 
 
 def _center_crop(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
-    """Center crop the last two dimensions."""
+    """Center crop the last two dimensions; zero-pad if source is smaller.
+
+    Some fastMRI brain volumes (e.g. certain AXFLAIR files) have an
+    `reconstruction_rss` / k-space matrix narrower than the requested
+    target_resolution. Plain slicing then yields a tensor that's smaller
+    than (h, w) and crashes the denoiser U-Net deep down. Pad symmetrically
+    in any dimension that's too small, then crop.
+    """
     H, W = x.shape[-2], x.shape[-1]
+    pad_h = max(0, h - H)
+    pad_w = max(0, w - W)
+    if pad_h or pad_w:
+        # F.pad order is (W_left, W_right, H_top, H_bottom)
+        ph0, pw0 = pad_h // 2, pad_w // 2
+        ph1, pw1 = pad_h - ph0, pad_w - pw0
+        x = torch.nn.functional.pad(x, (pw0, pw1, ph0, ph1))
+        H, W = x.shape[-2], x.shape[-1]
     sh = (H - h) // 2
     sw = (W - w) // 2
     return x[..., sh : sh + h, sw : sw + w]
