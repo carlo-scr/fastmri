@@ -420,7 +420,7 @@ def run_reconstruction(args):
             fakgd_result = None
             fakgd_time = 0.0
             if "fakgd" in args.methods:
-                print(f"\nRunning FA-KGD+FPDC (β={args.beta_fpdc}, α={args.alpha_ema}, γ={args.gamma}, m_step={m_step_mode})...")
+                print(f"\nRunning FA-KGD+FPDC (β={args.beta_fpdc}, α={args.alpha_ema}, γ={args.gamma}, m_step={m_step_mode}, start_frac={args.m_step_start_frac})...")
                 t0 = time.time()
                 fakgd_result = run_fakgd(
                     y=y, mask=mask, sigma_schedule=sigma_schedule,
@@ -428,6 +428,7 @@ def run_reconstruction(args):
                     r_acs=r_acs, r_max=r_max, beta_fpdc=args.beta_fpdc,
                     alpha_ema=args.alpha_ema, gamma=args.gamma,
                     m_step_mode=m_step_mode,
+                    m_step_start_frac=args.m_step_start_frac,
                     x_gt=x_gt, seed=args.seed, return_diagnostics=True,
                 )
                 fakgd_time = time.time() - t0
@@ -597,6 +598,12 @@ def main():
     parser.add_argument("--m_step_mode", type=str, default="auto",
                         choices=["full", "clamp", "off", "auto"],
                         help="M-step mode: full (oracle), clamp (real model), off, auto (picks by mode)")
+    parser.add_argument("--m_step_start_frac", type=float, default=1.0,
+                        help="Only run M-step once σ_t < frac*σ_max. "
+                             "Default 1.0 = run from step 0 (original behaviour). "
+                             "Use e.g. 0.5 with --m_step_mode full + flat init "
+                             "(multicoil_acs) to recover frequency structure "
+                             "without denoiser-error contamination at high σ_t.")
 
     # Measurement noise
     parser.add_argument("--sigma_base", type=float, default=0.001, help="Base noise variance")

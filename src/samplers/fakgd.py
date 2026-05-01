@@ -55,6 +55,7 @@ def run_fakgd(
     gamma: float = 0.0,
     eps: float = 1e-8,
     m_step_mode: str = "full",  # "full", "clamp", "off"
+    m_step_start_frac: float = 1.0,  # only run M-step once sigma_t < frac*sigma_max
     # Optional
     x_gt: Optional[torch.Tensor] = None,
     seed: int = 0,
@@ -80,6 +81,15 @@ def run_fakgd(
             "clamp": EMA update clamped to never exceed σ_i_sq_init
                 (prevents explosion from denoiser error at high σ_t).
             "off": no M-step, use fixed σ_i_sq_init throughout.
+        m_step_start_frac: only run the M-step once σ_t falls below
+            `start_frac * σ_max`. Default 1.0 keeps the original behaviour
+            (run from step 0). Setting e.g. 0.5 freezes σ_i² during the
+            high-noise half of sampling, where residual ≈ denoiser error
+            rather than measurement noise; this lets `m_step_mode="full"`
+            actually grow σ_i² at high frequencies (where true noise is
+            larger) without the denoiser-error blow-up that motivates
+            `clamp`. Use together with `noise_init=multicoil_acs` (flat
+            init) to recover frequency structure from the residuals.
         x_gt: Ground truth for PSNR tracking (optional).
         seed: Random seed.
         return_diagnostics: If True, return gain maps and sigma trajectories.
@@ -129,7 +139,11 @@ def run_fakgd(
         alpha_t = 1.0 - (1.0 - alpha_ema) * (sigma_t / sigma_max)
 
         # --- M-step: online noise variance update ---
-        if m_step_mode != "off":
+        # Gate by σ_t: at high σ_t the residual is dominated by denoiser
+        # error, not measurement noise, so updating σ_i² there poisons the
+        # estimate. Default start_frac=1.0 = always update (original behaviour).
+        m_step_active = m_step_mode != "off" and sigma_t <= m_step_start_frac * sigma_max
+        if m_step_active:
             residual_sq = residual.abs() ** 2
             innovation = torch.clamp(residual_sq - gamma * sigma_t**2, min=eps)
             update_mask = mask_t > 0
@@ -191,6 +205,7 @@ class FAKGDSampler:
         beta_fpdc: float = 1.0,
         eps: float = 1e-8,
         m_step_mode: str = "full",
+        m_step_start_frac: float = 1.0,
     ):
         self.denoiser_fn = denoiser_fn
         self.alpha_ema = alpha_ema
@@ -198,6 +213,7 @@ class FAKGDSampler:
         self.beta_fpdc = beta_fpdc
         self.eps = eps
         self.m_step_mode = m_step_mode
+        self.m_step_start_frac = m_step_start_frac
 
     def reconstruct(
         self,
@@ -224,6 +240,7 @@ class FAKGDSampler:
             gamma=self.gamma,
             eps=self.eps,
             m_step_mode=self.m_step_mode,
+            m_step_start_frac=self.m_step_start_frac,
             x_gt=x_gt,
             seed=seed,
             return_diagnostics=return_diagnostics,
