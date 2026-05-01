@@ -598,12 +598,12 @@ def main():
     parser.add_argument("--m_step_mode", type=str, default="auto",
                         choices=["full", "clamp", "off", "auto"],
                         help="M-step mode: full (oracle), clamp (real model), off, auto (picks by mode)")
-    parser.add_argument("--m_step_start_frac", type=float, default=1.0,
-                        help="Only run M-step once σ_t < frac*σ_max. "
-                             "Default 1.0 = run from step 0 (original behaviour). "
-                             "Use e.g. 0.5 with --m_step_mode full + flat init "
-                             "(multicoil_acs) to recover frequency structure "
-                             "without denoiser-error contamination at high σ_t.")
+        parser.add_argument("--m_step_start_frac", type=float, default=0.0,
+                        help="Only run M-step once denoising progress reaches this fraction. "
+                            "Default 0.0 = run from step 0 (original behaviour). "
+                            "Use e.g. 0.5 with --m_step_mode full + flat init "
+                            "(multicoil_acs) to start the M-step halfway through sampling, "
+                            "after the highest-noise steps have passed.")
 
     # Measurement noise
     parser.add_argument("--sigma_base", type=float, default=0.001, help="Base noise variance")
