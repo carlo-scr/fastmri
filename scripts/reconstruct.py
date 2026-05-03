@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import os
 import sys
 import json
@@ -157,6 +158,12 @@ def add_measurement_noise(y_clean: torch.Tensor, sigma_sq_map: torch.Tensor) -> 
     return y_clean + noise
 
 
+def stable_name_seed(name: str) -> int:
+    """Deterministic 31-bit seed component for a file name."""
+    digest = hashlib.blake2b(name.encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, byteorder="little") % (2**31)
+
+
 def run_reconstruction(args):
     """Main reconstruction loop."""
     device = torch.device(args.device)
@@ -224,7 +231,8 @@ def run_reconstruction(args):
         target_shape = None
         if args.target_resolution:
             target_shape = tuple(args.target_resolution)
-        gen = torch.Generator(device="cpu").manual_seed(args.noise_seed + hash(h5_file.name) % (2**31))
+        file_seed = stable_name_seed(h5_file.name)
+        gen = torch.Generator(device="cpu").manual_seed(args.noise_seed + file_seed)
 
         # Probe one slice for shape & build the noise variance map
         probe = load_slice(str(h5_file), 0, target_shape=target_shape)
@@ -284,7 +292,7 @@ def run_reconstruction(args):
                     )
                 sigma_mc = true_sigma_sq_vol.sqrt()
                 gen_mc = torch.Generator(device="cpu").manual_seed(
-                    args.noise_seed + 7919 + sli + hash(h5_file.name) % (2**31)
+                    args.noise_seed + 7919 + sli + file_seed
                 )
                 n_re = torch.randn(y_mc_clean.shape, generator=gen_mc)
                 n_im = torch.randn(y_mc_clean.shape, generator=gen_mc)
@@ -598,7 +606,7 @@ def main():
     parser.add_argument("--m_step_mode", type=str, default="auto",
                         choices=["full", "clamp", "off", "auto"],
                         help="M-step mode: full (oracle), clamp (real model), off, auto (picks by mode)")
-        parser.add_argument("--m_step_start_frac", type=float, default=0.0,
+    parser.add_argument("--m_step_start_frac", type=float, default=0.0,
                         help="Only run M-step once denoising progress reaches this fraction. "
                             "Default 0.0 = run from step 0 (original behaviour). "
                             "Use e.g. 0.5 with --m_step_mode full + flat init "
