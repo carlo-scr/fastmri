@@ -57,28 +57,19 @@ for Accelerated MRI Reconstruction}
 Training-free diffusion samplers for accelerated MRI make two structural
 errors: they treat measurement noise as isotropic and they enforce data
 consistency (DC) uniformly across k-space at every denoising step. The
-second produces what we call \emph{DC shock}: coarse early iterates are
-forced to honour high-frequency measurements they cannot yet support,
-Gibbs ringing accumulates, and reconstruction quality \emph{regresses} as
+latter produces what we call \emph{DC shock}: coarse early iterates are
+forced to honour high-frequency measurements they cannot yet support, so
+Gibbs ringing accumulates and reconstruction quality \emph{regresses} as
 the step budget grows. We propose \textbf{Frequency-Aware Kalman-Guided
-Diffusion (FA-KGD)}, a training-free sampler that fixes both errors in a
-single update: a closed-form, frequency-adaptive Kalman gain $K_i(t)$
-driven by an ACS-calibrated noise covariance $\hatR$, and
-Frequency-Progressive Data Consistency (FPDC), a k-space radius schedule
-$r(t)$ that expands as the iterate sharpens. A short analysis of online
-noise-estimation updates also shows that the naive bias correction
-over-corrects by $1/\eta^2$ for any well-trained score network, a result
-that applies to any diffusion-based linear inverse solver.
-On fastMRI brain and knee with a domain-matched EDM checkpoint FA-KGD
-improves $\Pi$GDM by $+0.12$--$+0.49$~dB PSNR and up to $+0.012$ SSIM.
-A $192$-slice study under frequency-dependent noise exposes a monotone
-scaling law: $\Delta$PSNR doubles each time the step budget doubles,
-reaching $+0.51$~dB at $T{=}100$ for $R{=}4$ and $+0.25$~dB for $R{=}8$
-(paired Wilcoxon $p<10^{-30}$, every cell). $\Pi$GDM regresses over the
-same range while FA-KGD does not, so step budget converts directly into
-FA-KGD's lead. On an oracle denoiser the two components combine
-\emph{superadditively} for $+1.9$~dB against $0+0.7$~dB in isolation. The
-method introduces no new weights and adds $<\!1\%$ per-step overhead.
+Diffusion (FA-KGD)}, a training-free sampler that addresses both issues
+in a single update: a closed-form, frequency-adaptive Kalman gain driven
+by an ACS-calibrated noise covariance, paired with Frequency-Progressive
+Data Consistency, a k-space radius schedule that expands as the iterate
+sharpens. On fastMRI brain and knee with a domain-matched EDM
+checkpoint, FA-KGD consistently improves over $\Pi$GDM in PSNR and SSIM,
+and uniquely turns a larger step budget into a larger reconstruction
+gain rather than a regression. The method introduces no new weights and
+adds negligible per-step overhead.
 \end{abstract}
 
 \begin{IEEEkeywords}
