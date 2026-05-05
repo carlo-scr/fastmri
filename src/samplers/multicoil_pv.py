@@ -269,6 +269,29 @@ def run_fakgd_mc_pv(
                     score_per_col = (P / (sigma_i_sq + eps)).sum(dim=0)
                     score_per_col = score_per_col * (1.0 - mask_col)
                     new_cols = torch.topk(score_per_col, k=k).indices.tolist()
+                elif active_score == "energy":
+                    # Image-conditional: weight columns by predicted k-space
+                    # energy of S * mu_theta(x_t). Measures "where the
+                    # diffusion prior thinks the signal lives", independent
+                    # of the (saturated) PV gate.
+                    pred_k = fft2c(sens * mu.unsqueeze(0))           # (Nc,H,W)
+                    score_per_col = (pred_k.abs() ** 2).sum(dim=(0, 1))  # (W,)
+                    score_per_col = score_per_col * (1.0 - mask_col)
+                    new_cols = torch.topk(score_per_col, k=k).indices.tolist()
+                elif active_score == "residual_oracle":
+                    # ORACLE upper bound: pick columns with the most
+                    # *unexplained* k-space energy under current iterate,
+                    # measured against the (in real MRI unavailable) full
+                    # k-space. This is the best a residual-based scoring
+                    # could ever do; not a deployable method.
+                    if y_mc_full is not None:
+                        pred_k = fft2c(sens * mu.unsqueeze(0))
+                        unexp = (y_mc_full - pred_k).abs() ** 2     # (Nc,H,W)
+                        score_per_col = unexp.sum(dim=(0, 1))        # (W,)
+                    else:
+                        score_per_col = (residual.abs() ** 2).sum(dim=(0, 1))
+                    score_per_col = score_per_col * (1.0 - mask_col)
+                    new_cols = torch.topk(score_per_col, k=k).indices.tolist()
                 elif active_score == "random":
                     # Use a deterministic CPU generator so different seeds give
                     # reproducible random-adaptive masks.

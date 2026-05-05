@@ -325,6 +325,56 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         _record('random_adaptive', r['recon'], n_R_cols + args.active_lines,
                 time.time() - t0)
 
+    # ---- energy_active (image-conditional, P-free; primary new score) ----
+    # Score(c) = sum_{c,r} |F(S * mu_theta(x_t))[c,r,col]|^2 over unsampled
+    # cols. Uses the diffusion prior's predicted k-space energy directly,
+    # bypassing the (saturated) PV gate. No oracle access; legal in real MRI.
+    if 'energy_active' in args.methods and args.active_lines > 0:
+        t0 = time.time()
+        r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
+                            sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
+                            sigma_i_sq_init=sigma_i_sq,
+                            use_pv_gate=True, refine_sens=False,
+                            pv_eps_probe=args.pv_eps_probe,
+                            pv_centered=args.pv_centered,
+                            pv_radial_smooth=args.pv_radial_smooth,
+                            pv_radial_degree=args.pv_radial_degree,
+                            pv_normalize=args.pv_normalize,
+                            pv_n_probes=args.pv_n_probes,
+                            active_lines=args.active_lines,
+                            active_rounds=args.active_rounds,
+                            active_after_frac=args.active_after_frac,
+                            active_until_frac=args.active_until_frac,
+                            active_score='energy',
+                            y_mc_full=mc_kn, seed=args.seed)
+        _record('energy_active', r['recon'], n_R_cols + args.active_lines,
+                time.time() - t0)
+
+    # ---- oracle_active (UPPER BOUND: residual-vs-truth scoring) ----
+    # Score(c) = sum_{c,r} |y_full - F(S*mu)|^2 over unsampled cols.
+    # Requires y_mc_full -> ORACLE; gives the ceiling for any residual-
+    # driven scoring. Reported as upper bound, not a deployable method.
+    if 'oracle_active' in args.methods and args.active_lines > 0:
+        t0 = time.time()
+        r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
+                            sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
+                            sigma_i_sq_init=sigma_i_sq,
+                            use_pv_gate=True, refine_sens=False,
+                            pv_eps_probe=args.pv_eps_probe,
+                            pv_centered=args.pv_centered,
+                            pv_radial_smooth=args.pv_radial_smooth,
+                            pv_radial_degree=args.pv_radial_degree,
+                            pv_normalize=args.pv_normalize,
+                            pv_n_probes=args.pv_n_probes,
+                            active_lines=args.active_lines,
+                            active_rounds=args.active_rounds,
+                            active_after_frac=args.active_after_frac,
+                            active_until_frac=args.active_until_frac,
+                            active_score='residual_oracle',
+                            y_mc_full=mc_kn, seed=args.seed)
+        _record('oracle_active', r['recon'], n_R_cols + args.active_lines,
+                time.time() - t0)
+
     # ---- equi_adaptive (mid-diffusion gap-filling acquisition) ----
     # Deterministic non-PV baseline: greedily fill the largest column gaps.
     if 'equi_adaptive' in args.methods and args.active_lines > 0:
@@ -441,6 +491,7 @@ def main():
                    default=['pigdm_mc', 'fakgd_mc', 'pv', 'pv_active',
                             'random_adaptive', 'static_match'],
                    choices=['pigdm_mc', 'fakgd_mc', 'pv', 'pv_active',
+                            'energy_active', 'oracle_active',
                             'random_adaptive', 'equi_adaptive', 'static_match'])
 
     # Output
@@ -550,17 +601,21 @@ def main():
             summary[m]['K_div_mean']      = float(kd.mean())
             summary[m]['P_ang_frac_mean'] = float(pa.mean())
 
-    # Paired Wilcoxon for pv_active vs each non-PV adaptive/static baseline
-    if 'pv_active' in summary:
-        try:
-            from scipy.stats import wilcoxon
-            for ref in ('static_match', 'random_adaptive', 'equi_adaptive'):
+    # Paired Wilcoxon for each adaptive method vs each non-self baseline.
+    try:
+        from scipy.stats import wilcoxon
+        candidates = ['pv_active', 'energy_active', 'oracle_active']
+        baselines  = ['static_match', 'random_adaptive', 'equi_adaptive']
+        for cand in candidates:
+            if cand not in summary:
+                continue
+            for ref in baselines + [c for c in candidates if c != cand]:
                 if ref not in summary:
                     continue
-                paired = [(r['methods']['pv_active']['psnr_sense'],
+                paired = [(r['methods'][cand]['psnr_sense'],
                            r['methods'][ref]['psnr_sense'])
                           for r in all_results
-                          if 'pv_active' in r['methods'] and ref in r['methods']]
+                          if cand in r['methods'] and ref in r['methods']]
                 if not paired:
                     continue
                 a = np.array([p[0] for p in paired]); b = np.array([p[1] for p in paired])
@@ -569,16 +624,16 @@ def main():
                     stat, pval = wilcoxon(d, alternative='greater')
                 except ValueError:
                     pval = float('nan')
-                print(f'\n  pv_active − {ref:15s}  ΔSENSE={d.mean():+.3f}±{d.std():.3f} dB '
+                print(f'  {cand:14s} − {ref:15s}  ΔSENSE={d.mean():+.3f}±{d.std():.3f} dB '
                       f'(n={len(d)}, Wilcoxon p={pval:.2e})')
-                summary[f'_pv_vs_{ref}'] = {
+                summary[f'_{cand}_vs_{ref}'] = {
                     'delta_psnr_sense_mean': float(d.mean()),
                     'delta_psnr_sense_std':  float(d.std()),
                     'wilcoxon_p_greater':    float(pval),
                     'n':                     int(len(d)),
                 }
-        except ImportError:
-            pass
+    except ImportError:
+        pass
 
     out_json = os.path.join(args.output_dir, 'results.json')
     with open(out_json, 'w') as f:
