@@ -216,10 +216,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         'methods': {},
     }
 
-    def _record(name, recon, total_cols, runtime):
+    def _record(name, recon, total_cols, runtime, diagnostics=None):
         rec_mag = recon.abs() if torch.is_complex(recon) else recon
         rec_mag = rec_mag.to(device)
-        out['methods'][name] = {
+        rec = {
             'psnr_rss':    _psnr(rss, rec_mag, eval_size=args.eval_size),
             'psnr_sense':  _psnr(sense_oracle, rec_mag, eval_size=args.eval_size),
             'ssim_rss':    _ssim(rss, rec_mag, eval_size=args.eval_size),
@@ -227,6 +227,16 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
             'budget_cols': int(total_cols),
             'runtime_s':   float(runtime),
         }
+        if diagnostics is not None:
+            kdiv = diagnostics.get('K_div_vs_pigdm') or []
+            pang = diagnostics.get('P_ang_frac') or []
+            if kdiv:
+                rec['K_div_mean'] = float(np.mean(kdiv))
+                rec['K_div_max']  = float(np.max(kdiv))
+            if pang:
+                rec['P_ang_frac_mean'] = float(np.mean(pang))
+                rec['P_ang_frac_max']  = float(np.max(pang))
+        out['methods'][name] = rec
 
     y_R = mask_R * mc_kn
 
@@ -262,8 +272,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             pv_radial_degree=args.pv_radial_degree,
                             pv_normalize=args.pv_normalize,
                             pv_n_probes=args.pv_n_probes,
-                            active_lines=0, seed=args.seed)
-        _record('pv', r['recon'], n_R_cols, time.time() - t0)
+                            active_lines=0, seed=args.seed,
+                            return_diagnostics=True)
+        _record('pv', r['recon'], n_R_cols, time.time() - t0,
+                diagnostics=r.get('diagnostics'))
 
     # ---- pv_active (PV + active acquisition) ----
     if 'pv_active' in args.methods and args.active_lines > 0:
@@ -283,9 +295,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             active_after_frac=args.active_after_frac,
                             active_until_frac=args.active_until_frac,
                             active_score='pv',
-                            y_mc_full=mc_kn, seed=args.seed)
+                            y_mc_full=mc_kn, seed=args.seed,
+                            return_diagnostics=True)
         _record('pv_active', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0)
+                time.time() - t0, diagnostics=r.get('diagnostics'))
 
     # ---- random_adaptive (mid-diffusion uniform-random acquisition) ----
     # Same multi-round schedule and budget as PVAS; columns picked uniformly
@@ -522,6 +535,20 @@ def main():
               f'PSNR_RSS={psnr_rss.mean():.3f}±{psnr_rss.std():.3f}  '
               f'PSNR_SENSE={psnr_sense.mean():.3f}±{psnr_sense.std():.3f}  '
               f'SSIM_RSS={ssim_rss.mean():.4f}  SSIM_SENSE={ssim_sense.mean():.4f}')
+        # PV diagnostics: K-divergence vs PiGDM and angular fraction of P
+        kdiv = [r['methods'][m].get('K_div_mean')
+                for r in all_results if m in r['methods']
+                and 'K_div_mean' in r['methods'][m]]
+        pang = [r['methods'][m].get('P_ang_frac_mean')
+                for r in all_results if m in r['methods']
+                and 'P_ang_frac_mean' in r['methods'][m]]
+        if kdiv and pang:
+            kd = np.array(kdiv); pa = np.array(pang)
+            print(f'                  PV-diag: K_div(vs PiGDM)={kd.mean():.4f}±{kd.std():.4f}  '
+                  f'P_ang_frac={pa.mean():.4f}±{pa.std():.4f}  '
+                  f'(0 ⇒ gate ≡ PiGDM / P purely radial)')
+            summary[m]['K_div_mean']      = float(kd.mean())
+            summary[m]['P_ang_frac_mean'] = float(pa.mean())
 
     # Paired Wilcoxon for pv_active vs each non-PV adaptive/static baseline
     if 'pv_active' in summary:
