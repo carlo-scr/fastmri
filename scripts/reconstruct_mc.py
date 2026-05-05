@@ -258,6 +258,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             use_pv_gate=True, refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
+                            pv_radial_smooth=args.pv_radial_smooth,
+                            pv_radial_degree=args.pv_radial_degree,
+                            pv_normalize=args.pv_normalize,
+                            pv_n_probes=args.pv_n_probes,
                             active_lines=0, seed=args.seed)
         _record('pv', r['recon'], n_R_cols, time.time() - t0)
 
@@ -270,6 +274,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             use_pv_gate=True, refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
+                            pv_radial_smooth=args.pv_radial_smooth,
+                            pv_radial_degree=args.pv_radial_degree,
+                            pv_normalize=args.pv_normalize,
+                            pv_n_probes=args.pv_n_probes,
                             active_lines=args.active_lines,
                             active_rounds=args.active_rounds,
                             active_after_frac=args.active_after_frac,
@@ -291,6 +299,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             use_pv_gate=True, refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
+                            pv_radial_smooth=args.pv_radial_smooth,
+                            pv_radial_degree=args.pv_radial_degree,
+                            pv_normalize=args.pv_normalize,
+                            pv_n_probes=args.pv_n_probes,
                             active_lines=args.active_lines,
                             active_rounds=args.active_rounds,
                             active_after_frac=args.active_after_frac,
@@ -310,6 +322,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             use_pv_gate=True, refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
+                            pv_radial_smooth=args.pv_radial_smooth,
+                            pv_radial_degree=args.pv_radial_degree,
+                            pv_normalize=args.pv_normalize,
+                            pv_n_probes=args.pv_n_probes,
                             active_lines=args.active_lines,
                             active_rounds=args.active_rounds,
                             active_after_frac=args.active_after_frac,
@@ -382,6 +398,24 @@ def main():
     p.add_argument('--pv_eps_probe', type=float, default=5e-2)
     p.add_argument('--pv_centered', action='store_true', default=True)
     p.add_argument('--no_pv_centered', dest='pv_centered', action='store_false')
+    # Radial smoothing destroys the angular structure of P that PV is
+    # supposed to expose; default OFF after the v1 post-mortem (PV ≡ PiGDM
+    # under smoothing+normalize). Re-enable with --pv_radial_smooth to
+    # reproduce v1.
+    p.add_argument('--pv_radial_smooth', dest='pv_radial_smooth',
+                   action='store_true', default=False)
+    p.add_argument('--no_pv_radial_smooth', dest='pv_radial_smooth',
+                   action='store_false')
+    p.add_argument('--pv_radial_degree', type=int, default=4)
+    # Normalization rescales P so mean(P)=sigma_t^2 — helpful when P is noisy,
+    # harmful when P actually has structure (it cancels with sigma_ci^2 in K).
+    p.add_argument('--pv_normalize', dest='pv_normalize',
+                   action='store_true', default=False)
+    p.add_argument('--no_pv_normalize', dest='pv_normalize',
+                   action='store_false')
+    # Multi-probe Hutchinson averaging — reduces P variance so the angular
+    # structure isn't drowned out by single-probe noise.
+    p.add_argument('--pv_n_probes', type=int, default=2)
 
     # Active sampling params
     p.add_argument('--active_lines', type=int, default=0)

@@ -54,6 +54,7 @@ def estimate_posterior_variance_kspace(
     centered: bool = True,
     radial_smooth: bool = True,
     radial_degree: int = 4,
+    n_probes: int = 1,
     generator: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Hutchinson estimate of the per-frequency posterior variance P̂_i(t).
@@ -74,39 +75,40 @@ def estimate_posterior_variance_kspace(
     """
     H, W = x_t.shape[-2], x_t.shape[-1]
     device = x_t.device
-
-    # Probe vector — k-space white, transformed to image
-    v_kspace = _complex_white(H, W, device, generator=generator)
-    v_img = torch.fft.ifftshift(torch.fft.ifft2(torch.fft.fftshift(v_kspace),
-                                                 norm="ortho"))
-    # Renormalise so ||v_img||² ≈ HW (roughly unit-RMS perturbation)
-    v_norm = v_img.abs().pow(2).mean().sqrt().clamp(min=1e-12)
-    v_img = v_img / v_norm
-    v_kspace = v_kspace / v_norm  # keep them paired
-
-    # Choose ε so the perturbation is small relative to current iterate
     eps = eps_probe * sigma_t
 
-    if centered:
-        mu_p = denoiser_fn(x_t + eps * v_img, sigma_t)
-        mu_m = denoiser_fn(x_t - eps * v_img, sigma_t)
-        Jv = (mu_p - mu_m) / (2.0 * eps)
-    else:
-        mu_p = denoiser_fn(x_t + eps * v_img, sigma_t)
-        Jv = (mu_p - mu) / eps
+    P_acc = torch.zeros((H, W), device=device)
+    Jv_last = None
+    for _ in range(max(1, n_probes)):
+        # Probe vector — k-space white, transformed to image
+        v_kspace = _complex_white(H, W, device, generator=generator)
+        v_img = torch.fft.ifftshift(torch.fft.ifft2(
+            torch.fft.fftshift(v_kspace), norm="ortho"))
+        v_norm = v_img.abs().pow(2).mean().sqrt().clamp(min=1e-12)
+        v_img = v_img / v_norm
+        v_kspace = v_kspace / v_norm
 
-    # Push to k-space, square magnitude — gives stochastic diag estimate
-    Jv_k = fft2c(Jv)
-    P = (Jv_k.abs() ** 2) * (sigma_t ** 2)
-    # Normalise by probe energy (already ≈1, but safe)
-    P = P / v_kspace.abs().pow(2).mean().clamp(min=1e-12)
+        if centered:
+            mu_p = denoiser_fn(x_t + eps * v_img, sigma_t)
+            mu_m = denoiser_fn(x_t - eps * v_img, sigma_t)
+            Jv = (mu_p - mu_m) / (2.0 * eps)
+        else:
+            mu_p = denoiser_fn(x_t + eps * v_img, sigma_t)
+            Jv = (mu_p - mu) / eps
+
+        Jv_k = fft2c(Jv)
+        P_one = (Jv_k.abs() ** 2) * (sigma_t ** 2)
+        P_one = P_one / v_kspace.abs().pow(2).mean().clamp(min=1e-12)
+        P_acc = P_acc + P_one
+        Jv_last = Jv
+
+    P = P_acc / max(1, n_probes)
 
     if radial_smooth:
         P = _radial_polyfit(P, degree=radial_degree)
 
-    # Floor to a small positive value
     P = P.clamp(min=1e-12)
-    return P, Jv
+    return P, Jv_last
 
 
 def _radial_polyfit(P: torch.Tensor, degree: int = 4) -> torch.Tensor:

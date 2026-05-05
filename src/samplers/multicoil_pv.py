@@ -134,6 +134,7 @@ def run_fakgd_mc_pv(
     pv_radial_degree: int = 4,
     pv_centered: bool = True,
     pv_normalize: bool = True,            # rescale P̂ so its mean ≈ σ_t²
+    pv_n_probes: int = 1,
     # (B) in-loop sens refinement
     refine_sens: bool = True,
     sens_refresh_every: int = 4,
@@ -212,6 +213,7 @@ def run_fakgd_mc_pv(
                 centered=pv_centered,
                 radial_smooth=pv_radial_smooth,
                 radial_degree=pv_radial_degree,
+                n_probes=pv_n_probes,
                 generator=gen_probe,
             )                                            # (H,W) real positive
             if pv_normalize:
@@ -314,6 +316,39 @@ def run_fakgd_mc_pv(
 
         if return_diagnostics:
             diagnostics["num_lines_per_step"].append(int((mask.sum(dim=0) > 0).sum().item()))
+            # Per-step divergence of PV gain from the scalar PiGDM gain — if
+            # this stays ~0 the PV gate is collapsing (Issue #1 in the
+            # post-mortem). Reference: K_pigdm = sigma_t^2/(sigma_t^2+sigma^2_ci)
+            if P is not None:
+                K_ref = (sigma_t ** 2) / (sigma_t ** 2 + sig_ci_sq)
+                kdiv = (K - K_ref).abs().mean().item() / max(
+                    K_ref.abs().mean().item(), 1e-12)
+                diagnostics.setdefault("K_div_vs_pigdm", []).append(kdiv)
+                # Angular structure of P: how much non-radial variance survives
+                # the smoother. Computed as 1 − Var(radial_mean(P)) / Var(P).
+                P_flat = P.detach()
+                p_var = float(P_flat.var().clamp(min=1e-12).item())
+                # cheap radial mean: fftshifted radius bucketing
+                if "_rgrid" not in diagnostics:
+                    fy = torch.arange(H, device=device).float() - H / 2
+                    fx = torch.arange(W, device=device).float() - W / 2
+                    diagnostics["_rgrid"] = (
+                        torch.sqrt(fy[:, None] ** 2 + fx[None, :] ** 2)
+                        .round().long())
+                rg = diagnostics["_rgrid"]
+                P_shifted = torch.fft.fftshift(P_flat)
+                rad_mean = torch.zeros(int(rg.max().item()) + 1,
+                                        device=device)
+                cnt = torch.zeros_like(rad_mean)
+                rad_mean.scatter_add_(0, rg.flatten(),
+                                      P_shifted.flatten())
+                cnt.scatter_add_(0, rg.flatten(),
+                                  torch.ones_like(P_shifted.flatten()))
+                rad_mean = rad_mean / cnt.clamp(min=1)
+                radial_pred = rad_mean[rg]
+                ang_var = float((P_shifted - radial_pred).var().item())
+                diagnostics.setdefault("P_ang_frac", []).append(
+                    ang_var / max(p_var, 1e-12))
             if step in [0, T // 4, T // 2, 3 * T // 4, T - 1] and P is not None:
                 diagnostics["P_maps"][step] = P.detach().cpu().numpy()
                 diagnostics["K_maps"][step] = K.detach().mean(dim=0).cpu().numpy()
@@ -331,5 +366,6 @@ def run_fakgd_mc_pv(
     out = {"recon": x_t, "psnr_trajectory": psnr_traj,
            "sens_final": sens, "mask_final": mask}
     if return_diagnostics:
+        diagnostics.pop("_rgrid", None)
         out["diagnostics"] = diagnostics
     return out
