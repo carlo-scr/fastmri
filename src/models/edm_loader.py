@@ -47,6 +47,21 @@ def load_edm_model(
     if adps_root is None:
         adps_root = str(Path(__file__).resolve().parents[2] / "external" / "adps")
 
+    # Auto-clone ADPS if missing so the EDM pickle (which references
+    # nvlabs's `dnnlib` and `torch_utils` packages) can resolve its classes.
+    if not (Path(adps_root) / "torch_utils").is_dir() or not (Path(adps_root) / "dnnlib").is_dir():
+        import subprocess
+        Path(adps_root).parent.mkdir(parents=True, exist_ok=True)
+        if Path(adps_root).exists():
+            import shutil
+            shutil.rmtree(adps_root)
+        print(f"[edm_loader] cloning ADPS into {adps_root} ...", flush=True)
+        subprocess.check_call([
+            "git", "clone", "--depth", "1",
+            "https://github.com/utcsilab/ambient-diffusion-mri.git",
+            adps_root,
+        ])
+
     # Add ADPS repo to path so pickle can resolve dnnlib / torch_utils classes
     if adps_root not in sys.path:
         sys.path.insert(0, adps_root)
