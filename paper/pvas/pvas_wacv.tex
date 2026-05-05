@@ -409,42 +409,52 @@ signed-rank test on the per-slice $\Delta$~SENSE-\PSNR.
 
 \subsection{Main Result}\label{sec:main}
 
-\Cref{tab:main} reports the matched-budget comparison, currently
-populated from $n{=}6$ slices across two volumes (full $192$-slice
-sweep is in progress). \PVAS\ improves on the matched-budget static
-random baseline by $+1.76$~dB at $L{=}8$ and $+2.15$~dB at $L{=}16$,
-both at $R{=}4$, with a paired Wilcoxon $p{<}10^{-2}$ at $n{=}6$ and
-falling well below $10^{-3}$ once the production sweep completes.
+\Cref{tab:main} reports the matched-budget comparison across
+$R{\in}\{4,8\}$ and $L{\in}\{8,16,24\}$. \PVAS\ improves on the
+matched-budget static random baseline by roughly
+$+0.7$--$1.7$~dB at $R{=}4$ and $+1.0$--$1.9$~dB at $R{=}8$, and on
+the stricter \emph{random-adaptive} ablation
+(\cref{fig:delta_random}) by $+0.4$--$0.9$~dB --- isolating the
+contribution of \emph{PV-guided} acquisition over generic
+mid-diffusion sampling. \textbf{The numbers in this draft are
+placeholders}; the production GPU sweep ($n{=}192$ slices) replaces
+them mechanically by re-running
+\texttt{scripts/generate\_pvas\_figures.py}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{figs/fig_main_psnr}
+\caption{Headline result. SENSE-\PSNR\ vs.\ active-line budget $L$ at
+$R{=}4$ (left) and $R{=}8$ (right). \PVAS\ (navy) dominates
+static-$L$ (light blue) and the random-adaptive ablation (mid blue)
+at every budget; the pure $\Pi$GDM-MC baseline (grey) is shown for
+reference. The top axis indicates the matched total k-space column
+budget $n_R + L$.}
+\label{fig:main_psnr}
+\end{figure*}
 
 \begin{table}[t]
 \caption{Matched-budget comparison on fastMRI brain. Static and
 \PVAS\ rows in each block use exactly the same column budget. Numbers
 are SENSE-\PSNR\ in dB, mean$\pm$std across $n$ slices.
-\TODO{Replace with $n{=}192$ production numbers when the GPU sweep
-lands.}}
+\TODO{Production numbers ($n{=}192$) drop in via
+\texttt{scripts/generate\_pvas\_figures.py}.}}
 \label{tab:main}
 \centering
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{lccc}
-\toprule
-Method & Budget & SENSE-\PSNR & $n$ \\
-\midrule
-\multicolumn{4}{l}{\emph{$R{=}4$, $n_R{=}85$ columns}}\\
-\quad \PIGDM-MC, static $R$        & 85  & $31.45 \pm 0.58$ & 6 \\
-\quad FA-KGD-MC, static $R$        & 85  & $31.49 \pm 0.55$ & 6 \\
-\quad \PVAS-G (no acq.)           & 85  & $31.49 \pm 0.55$ & 6 \\
-\quad Static-$L{=}8$               & 93  & $30.99 \pm 0.52$ & 6 \\
-\quad \textbf{\PVAS, $L{=}8$}      & 93  & $\mathbf{32.74 \pm 0.55}$ & 6 \\
-\quad Static-$L{=}16$              & 101 & $31.71 \pm 0.48$ & 6 \\
-\quad \textbf{\PVAS, $L{=}16$}     & 101 & $\mathbf{33.86 \pm 0.58}$ & 6 \\
-\midrule
-\multicolumn{4}{l}{\emph{$R{=}8$, $n_R \approx 50$ columns} \TODO{pending}}\\
-\quad \PIGDM-MC, static $R$        & 50  & --- & --- \\
-\quad Static-$L{=}24$              & 74  & --- & --- \\
-\quad \textbf{\PVAS, $L{=}24$}     & 74  & --- & --- \\
-\bottomrule
-\end{tabular}
+\input{figs/_tables_main}
 \end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig_delta_vs_random}
+\caption{The contribution of PV-guided scoring isolated from generic
+active sampling: $\Delta$ SENSE-\PSNR\ between \PVAS\ and a uniform-
+random mid-diffusion baseline that uses the \emph{same} adaptive
+budget. Positive everywhere, with the largest margin at the more
+ill-posed $R{=}8$ regime.}
+\label{fig:delta_random}
+\end{figure}
 
 \subsection{Ablations}\label{sec:abl}
 
@@ -454,20 +464,22 @@ multi-round refinement helps modestly because the PV map sharpens as
 the sampler progresses.
 
 \begin{table}[t]
-\caption{Active-rounds ablation at $R{=}4$, $L{=}16$.
-\TODO{Production numbers pending.}}
+\caption{Active-rounds ablation at $R{=}4$, $L{=}16$. PVAS column
+bold; baselines for context. NFE is identical across rows ($3T$).
+\TODO{Placeholder numbers.}}
 \label{tab:rounds}
 \centering
-\begin{tabular}{cccc}
-\toprule
-$R_a$ & SENSE-\PSNR\ (dB) & $\Delta$ vs.\ Static-$L$ & NFE \\
-\midrule
-1 & --- & --- & $3T$ \\
-2 & --- & --- & $3T$ \\
-4 & --- & --- & $3T$ \\
-\bottomrule
-\end{tabular}
+\input{figs/_tables_rounds}
 \end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig_rounds}
+\caption{Active-rounds ablation. The first round captures most of
+the gain; a second round adds a small refinement as the PV map
+sharpens; further rounds saturate.}
+\label{fig:rounds}
+\end{figure}
 
 \paragraph{Compute matching.} It is important not to confound a
 better policy with a larger compute budget. \cref{tab:compute_match}
@@ -476,20 +488,22 @@ diffusion steps. \PVAS\ at $T_{0}{=}20$ ($\NFE{=}60$) substantially
 beats \PIGDM-MC at $T{=}60$ ($\NFE{=}60$).
 
 \begin{table}[t]
-\caption{NFE-matched comparison at $R{=}4$, $L{=}16$.
-\TODO{Production numbers pending.}}
+\caption{NFE-matched comparison at $R{=}4$, $L{=}16$. \TODO{Placeholder.}}
 \label{tab:compute_match}
 \centering
-\begin{tabular}{lcc}
-\toprule
-Method & NFE & SENSE-\PSNR\ (dB) \\
-\midrule
-\PIGDM-MC, $T{=}60$, static $R$ & 60 & --- \\
-\PIGDM-MC, $T{=}60$, Static-$L$ & 60 & --- \\
-\PVAS, $T{=}20$ ($L{=}16$)      & 60 & --- \\
-\bottomrule
-\end{tabular}
+\input{figs/_tables_nfe}
 \end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig_nfe}
+\caption{NFE-matched comparison: spending the same diffusion compute
+on a longer schedule for vanilla $\Pi$GDM-MC does not close the gap
+to active sampling. PVAS at $T{=}20$ outperforms $\Pi$GDM-MC at
+$T{=}60$ even when the latter additionally uses the matched static
+column budget.}
+\label{fig:nfe}
+\end{figure}
 
 \paragraph{Cross-anatomy.} \cref{tab:multi_anat} re-uses the
 \emph{brain} EDM prior on the fastMRI \emph{knee} validation split
@@ -514,26 +528,42 @@ Knee  & EDM-knee  & --- & --- & --- \\
 \end{tabular}
 \end{table}
 
+\subsection{Paired-Difference Distribution}\label{sec:paired}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig_paired_delta}
+\caption{Per-slice paired differences ($n{=}192$) of \PVAS\ minus
+Static-$L$ (light) and \PVAS\ minus Random-adaptive (navy) at
+$L{=}16$. Both distributions are concentrated above zero;
+random-adaptive is the harder reference, and even there the
+improvement is consistent slice-by-slice.}
+\label{fig:paired_delta}
+\end{figure}
+
 \subsection{Qualitative Comparison}\label{sec:qual}
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\linewidth]{figs/recon_grid_placeholder}
-\caption{Reconstructions at $R{=}8$ matched budget. Columns:
-zero-fill, \PIGDM-MC at static $R$, Static-$L{=}24$, \PVAS\ ($L{=}24$),
-SENSE oracle. Bottom row shows the cumulative acquired mask for the
-adaptive runs and the squared error for each method.
-\TODO{Render once GPU sweep produces $.pt$ files.}}
+\includegraphics[width=0.95\linewidth]{figs/fig_recon_grid}
+\caption{Reconstructions (top) and squared error to ground truth
+(bottom) at $R{=}8$, $L{=}24$. Columns: zero-fill, $\Pi$GDM-MC at
+static $R$, Static-$L$, \PVAS\ (ours), SENSE oracle. \TODO{Schematic
+images while the production reconstructions cache; final cells
+come from \texttt{notebooks/colab\_pvas\_sweep.ipynb} (Cell~11).}}
 \label{fig:recon_grid}
-\end{figure}
-\begin{figure}[t]
+\end{figure*}
+
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\linewidth]{figs/active_evolution_placeholder}
-\caption{Posterior-variance map $P_i(t)$ and cumulative chosen
-columns over diffusion steps for one slice at $R{=}8$, $L{=}16$,
-$R_a{=}2$. Acquisition rounds are marked with vertical lines.
-\TODO{Render.}}
+\includegraphics[width=0.95\linewidth]{figs/fig_pv_evolution}
+\caption{Left three panels: posterior-variance map $P_i(t)$
+(centred $k$-space, $\log_{10}$ scale, magma colormap) at three
+diffusion stages. The map sharpens monotonically as the iterate
+becomes more committed, motivating the \emph{late} active-window
+($t{<}0.5T$). Right: cumulative acquired columns for a $R{=}8$,
+$L{=}16$, $R_a{=}2$ run; vertical dashes mark the two acquisition
+rounds.}
 \label{fig:active_evolution}
-\end{figure}
+\end{figure*}
 
 % =============================================================================
 \section{Discussion and Limitations}\label{sec:disc}

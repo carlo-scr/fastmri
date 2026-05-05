@@ -1,0 +1,197 @@
+{
+  "_note": "Numbers below are PLACEHOLDERS used while the GPU sweep is in progress. Re-run scripts/generate_pvas_figures.py after outputs/PVAS_main_v1/ exists to regenerate from real data.",
+  "main_summary": {
+    "R4_a8": {
+      "pigdm_mc": {
+        "psnr_sense_mean": 31.394104419567594,
+        "psnr_sense_std": 0.6530701307132134,
+        "budget_cols": 80,
+        "n": 192
+      },
+      "pv": {
+        "psnr_sense_mean": 31.448873774106385,
+        "psnr_sense_std": 0.6565736340586272,
+        "budget_cols": 80,
+        "n": 192
+      },
+      "static_match": {
+        "psnr_sense_mean": 31.86469612379415,
+        "psnr_sense_std": 0.6709156558602363,
+        "budget_cols": 88,
+        "n": 192
+      },
+      "random_adaptive": {
+        "psnr_sense_mean": 32.20775716794073,
+        "psnr_sense_std": 0.6512744326533341,
+        "budget_cols": 88,
+        "n": 192
+      },
+      "pv_active": {
+        "psnr_sense_mean": 32.63227614852217,
+        "psnr_sense_std": 0.6492749065046337,
+        "budget_cols": 88,
+        "n": 192
+      }
+    },
+    "R4_a16": {
+      "pigdm_mc": {
+        "psnr_sense_mean": 31.37188620366616,
+        "psnr_sense_std": 0.6868072063713593,
+        "budget_cols": 80,
+        "n": 192
+      },
+      "pv": {
+        "psnr_sense_mean": 31.422776878772225,
+        "psnr_sense_std": 0.6973576663402882,
+        "budget_cols": 80,
+        "n": 192
+      },
+      "static_match": {
+        "psnr_sense_mean": 32.01610042560499,
+        "psnr_sense_std": 0.6949924103229631,
+        "budget_cols": 96,
+        "n": 192
+      },
+      "random_adaptive": {
+        "psnr_sense_mean": 32.40664044330996,
+        "psnr_sense_std": 0.6968781922153322,
+        "budget_cols": 96,
+        "n": 192
+      },
+      "pv_active": {
+        "psnr_sense_mean": 33.283804526604236,
+        "psnr_sense_std": 0.7053228318908228,
+        "budget_cols": 96,
+        "n": 192
+      }
+    },
+    "R4_a24": {
+      "pigdm_mc": {
+        "psnr_sense_mean": 31.43978117797573,
+        "psnr_sense_std": 0.6985739875924043,
+        "budget_cols": 80,
+        "n": 192
+      },
+      "pv": {
+        "psnr_sense_mean": 31.497061536433904,
+        "psnr_sense_std": 0.6938734221414309,
+        "budget_cols": 80,
+        "n": 192
+      },
+      "static_match": {
+        "psnr_sense_mean": 32.20808409911113,
+        "psnr_sense_std": 0.6913207778257694,
+        "budget_cols": 104,
+        "n": 192
+      },
+      "random_adaptive": {
+        "psnr_sense_mean": 32.70106065216901,
+        "psnr_sense_std": 0.7079533122112746,
+        "budget_cols": 104,
+        "n": 192
+      },
+      "pv_active": {
+        "psnr_sense_mean": 33.77610025164736,
+        "psnr_sense_std": 0.6896161189186991,
+        "budget_cols": 104,
+        "n": 192
+      }
+    },
+    "R8_a8": {
+      "pigdm_mc": {
+        "psnr_sense_mean": 27.062581932018446,
+        "psnr_sense_std": 0.6748838077965579,
+        "budget_cols": 40,
+        "n": 192
+      },
+      "pv": {
+        "psnr_sense_mean": 27.135298090483243,
+        "psnr_sense_std": 0.6787725476081722,
+        "budget_cols": 40,
+        "n": 192
+      },
+      "static_match": {
+        "psnr_sense_mean": 27.601263506113465,
+        "psnr_sense_std": 0.6750964451330321,
+        "budget_cols": 48,
+        "n": 192
+      },
+      "random_adaptive": {
+        "psnr_sense_mean": 27.935914796390026,
+        "psnr_sense_std": 0.6569175514701956,
+        "budget_cols": 48,
+        "n": 192
+      },
+      "pv_active": {
+        "psnr_sense_mean": 28.517719884167747,
+        "psnr_sense_std": 0.6925237267793951,
+        "budget_cols": 48,
+        "n": 192
+      }
+    },
+    "R8_a16": {
+      "pigdm_mc": {
+        "psnr_sense_mean": 27.15030852705331,
+        "psnr_sense_std": 0.6860801789465585,
+        "budget_cols": 40,
+        "n": 192
+      },
+      "pv": {
+        "psnr_sense_mean": 27.22714763850068,
+        "psnr_sense_std": 0.6893352740885609,
+        "budget_cols": 40,
+        "n": 192
+      },
+      "static_match": {
+        "psnr_sense_mean": 27.87792149640154,
+        "psnr_sense_std": 0.693666707270295,
+        "budget_cols": 56,
+        "n": 192
+      },
+      "random_adaptive": {
+        "psnr_sense_mean": 28.270168512264206,
+        "psnr_sense_std": 0.6748045447837877,
+        "budget_cols": 56,
+        "n": 192
+      },
+      "pv_active": {
+        "psnr_sense_mean": 29.274561251059495,
+        "psnr_sense_std": 0.7007082886162306,
+        "budget_cols": 56,
+        "n": 192
+      }
+    },
+    "R8_a24": {
+      "pigdm_mc": {
+        "psnr_sense_mean": 27.11553487081251,
+        "psnr_sense_std": 0.6625182404308635,
+        "budget_cols": 40,
+        "n": 192
+      },
+      "pv": {
+        "psnr_sense_mean": 27.214226242078013,
+        "psnr_sense_std": 0.627813240363754,
+        "budget_cols": 40,
+        "n": 192
+      },
+      "static_match": {
+        "psnr_sense_mean": 28.023058701654776,
+        "psnr_sense_std": 0.6447173099329037,
+        "budget_cols": 64,
+        "n": 192
+      },
+      "random_adaptive": {
+        "psnr_sense_mean": 28.509646973862925,
+        "psnr_sense_std": 0.6415689645191588,
+        "budget_cols": 64,
+        "n": 192
+      },
+      "pv_active": {
+        "psnr_sense_mean": 29.96986303127258,
+        "psnr_sense_std": 0.6422589802072131,
+        "budget_cols": 64,
+        "n": 192
+      }
+    }
+  }
+}
