@@ -145,6 +145,7 @@ def run_fakgd_mc_pv(
     active_rounds: int = 1,               # split across this many timesteps (>=1)
     active_after_frac: float = 0.5,       # first round at this fraction of T
     active_until_frac: float = 0.85,      # last round at this fraction of T
+    active_score: str = "pv",             # "pv" | "random" | "equispaced"
     y_mc_full: Optional[torch.Tensor] = None,   # full k-space (Nc,H,W) for retrospective query
     x_gt: Optional[torch.Tensor] = None,
     seed: int = 0,
@@ -254,18 +255,57 @@ def run_fakgd_mc_pv(
                 diagnostics["sens_iters"].append(step)
 
         # ----- (D) active line selection (multi-round) -----
-        if (active_per_round
-            and step in active_per_round
-            and P is not None):
+        if active_per_round and step in active_per_round:
             n_lines_now = active_per_round[step]
             mask_col = (mask.sum(dim=0) > 0).float()
-            score_per_col = (P / (sigma_i_sq + eps)).sum(dim=0)
-            score_per_col = score_per_col * (1.0 - mask_col)
-            n_avail = int((1.0 - mask_col).sum().item())
+            avail_idx = torch.nonzero(mask_col < 0.5, as_tuple=False).flatten()
+            n_avail = int(avail_idx.numel())
             k = min(n_lines_now, n_avail)
+            new_cols: list = []
             if k > 0:
-                top = torch.topk(score_per_col, k=k)
-                new_cols = top.indices.tolist()
+                if active_score == "pv" and P is not None:
+                    score_per_col = (P / (sigma_i_sq + eps)).sum(dim=0)
+                    score_per_col = score_per_col * (1.0 - mask_col)
+                    new_cols = torch.topk(score_per_col, k=k).indices.tolist()
+                elif active_score == "random":
+                    # Use a deterministic CPU generator so different seeds give
+                    # reproducible random-adaptive masks.
+                    g_act = torch.Generator(device="cpu").manual_seed(
+                        seed + 7919 * (step + 1))
+                    perm = torch.randperm(n_avail, generator=g_act)
+                    new_cols = avail_idx[perm[:k]].tolist()
+                elif active_score == "equispaced":
+                    # Pick the columns that maximally fill the largest gaps in
+                    # the current 1-D mask. Greedy: each pick goes to the
+                    # midpoint of the longest unselected run.
+                    sel = (mask_col > 0.5).cpu().numpy().astype(bool).copy()
+                    chosen = []
+                    import numpy as _np
+                    for _ in range(k):
+                        # find longest run of False
+                        best_len, best_mid = -1, -1
+                        i = 0
+                        L = sel.size
+                        while i < L:
+                            if not sel[i]:
+                                j = i
+                                while j < L and not sel[j]:
+                                    j += 1
+                                run_len = j - i
+                                if run_len > best_len:
+                                    best_len = run_len
+                                    best_mid = (i + j - 1) // 2
+                                i = j
+                            else:
+                                i += 1
+                        if best_mid < 0:
+                            break
+                        sel[best_mid] = True
+                        chosen.append(best_mid)
+                    new_cols = chosen
+                else:
+                    raise ValueError(f"unknown active_score={active_score!r}")
+            if y_mc_full is not None and new_cols:
                 if return_diagnostics:
                     diagnostics["active_cols"].extend(new_cols)
                 for c in new_cols:

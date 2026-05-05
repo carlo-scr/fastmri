@@ -1,0 +1,165 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{jalal2021robust,chung2022scoremri,song2023pigdm,chung2023dps,peng2024optimal}
+\citation{laroche2024fastdiffem}
+\citation{ours2025}
+\citation{bahadir2020loupe}
+\citation{aggarwal2020jmodl}
+\citation{bakker2020experimental}
+\citation{pineda2020activerl}
+\citation{jalal2021robust}
+\citation{chung2022scoremri}
+\citation{peng2024optimal}
+\citation{laroche2024fastdiffem}
+\citation{ours2025}
+\citation{song2023pigdm}
+\citation{daras2025ambient}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{I}{1}{Introduction}{section.1}{}}
+\newlabel{sec:intro@cref}{{[section][1][]I}{[1][1][]1}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {I-}0a}The non-adaptive bottleneck.}{1}{paragraph.1.0.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {I-}0b}Our claim.}{1}{paragraph.1.0.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {I-}0c}Contributions.}{1}{paragraph.1.0.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{1}{section.2}\protected@file@percent }
+\newlabel{sec:related}{{II}{1}{Related Work}{section.2}{}}
+\newlabel{sec:related@cref}{{[section][2][]II}{[1][1][]1}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-}0a}Diffusion priors for MRI.}{1}{paragraph.2.0.0.1}\protected@file@percent }
+\citation{bahadir2020loupe}
+\citation{aggarwal2020jmodl}
+\citation{pineda2020activerl}
+\citation{bakker2020experimental}
+\citation{yin2021endtoend}
+\citation{sanchez2020sequential}
+\citation{efron2011tweedie}
+\citation{kim2021tweedie}
+\citation{hutchinson1990estimation}
+\citation{lustig2007sparse}
+\citation{karras2022edm}
+\citation{efron2011tweedie}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-}0b}Adaptive and active acquisition.}{2}{paragraph.2.0.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-}0c}Posterior variance from Tweedie's formula.}{2}{paragraph.2.0.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-}0d}Compressed-sensing baselines.}{2}{paragraph.2.0.0.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Background and Notation}{2}{section.3}\protected@file@percent }
+\newlabel{sec:bg}{{III}{2}{Background and Notation}{section.3}{}}
+\newlabel{sec:bg@cref}{{[section][3][]III}{[1][2][]2}{}{}{}}
+\newlabel{eq:fwd}{{1}{2}{Background and Notation}{equation.1}{}}
+\newlabel{eq:fwd@cref}{{[equation][1][]1}{[1][2][]2}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-}0a}Diffusion sampling.}{2}{paragraph.3.0.0.1}\protected@file@percent }
+\newlabel{eq:pigdm}{{2}{2}{Diffusion sampling}{equation.2}{}}
+\newlabel{eq:pigdm@cref}{{[equation][2][]2}{[1][2][]2}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-}0b}Why a scalar gain is suboptimal.}{2}{paragraph.3.0.0.2}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces \textsc  {PV-Estimate} (per diffusion step)}}{2}{algorithm.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{alg:pv}{{1}{2}{\textsc {PV-Estimate} (per diffusion step)}{algorithm.1}{}}
+\newlabel{alg:pv@cref}{{[algorithm][1][]1}{[1][2][]2}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Posterior Variance Estimator}{2}{section.4}\protected@file@percent }
+\newlabel{sec:pv}{{IV}{2}{Posterior Variance Estimator}{section.4}{}}
+\newlabel{sec:pv@cref}{{[section][4][]IV}{[1][2][]2}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-}0a}Tweedie second-moment identity.}{2}{paragraph.4.0.0.1}\protected@file@percent }
+\newlabel{eq:tweedie2}{{3}{2}{Tweedie second-moment identity}{equation.3}{}}
+\newlabel{eq:tweedie2@cref}{{[equation][3][]3}{[1][2][]2}{}{}{}}
+\newlabel{eq:hutch}{{4}{2}{Tweedie second-moment identity}{equation.4}{}}
+\newlabel{eq:hutch@cref}{{[equation][4][]4}{[1][2][]2}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-}0b}Radial smoothing.}{2}{paragraph.4.0.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-}0c}Cost.}{2}{paragraph.4.0.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Posterior-Variance-Gated Data Consistency}{2}{section.5}\protected@file@percent }
+\newlabel{sec:pvgate}{{V}{2}{Posterior-Variance-Gated Data Consistency}{section.5}{}}
+\newlabel{sec:pvgate@cref}{{[section][5][]V}{[1][2][]2}{}{}{}}
+\newlabel{eq:pvgate}{{5}{2}{Posterior-Variance-Gated Data Consistency}{equation.5}{}}
+\newlabel{eq:pvgate@cref}{{[equation][5][]5}{[1][2][]2}{}{}{}}
+\citation{zbontar2018fastmri}
+\citation{uecker2014espirit}
+\citation{karras2022edm}
+\citation{song2023pigdm}
+\citation{ours2025}
+\citation{ours2025}
+\citation{lustig2007sparse}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces \textsc  {PVAS}: PV-gated multi-coil sampler with active acquisition}}{3}{algorithm.2}\protected@file@percent }
+\newlabel{alg:active}{{2}{3}{\textsc {PVAS}: PV-gated multi-coil sampler with active acquisition}{algorithm.2}{}}
+\newlabel{alg:active@cref}{{[algorithm][2][]2}{[1][3][]3}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-}0a}Stability.}{3}{paragraph.5.0.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Active Line Acquisition}{3}{section.6}\protected@file@percent }
+\newlabel{sec:active}{{VI}{3}{Active Line Acquisition}{section.6}{}}
+\newlabel{sec:active@cref}{{[section][6][]VI}{[1][3][]3}{}{}{}}
+\newlabel{eq:scorefn}{{6}{3}{Active Line Acquisition}{equation.6}{}}
+\newlabel{eq:scorefn@cref}{{[equation][6][]6}{[1][3][]3}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-}0a}Budget accounting.}{3}{paragraph.6.0.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-}0b}Compute / acquisition trade-off.}{3}{paragraph.6.0.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Experiments}{3}{section.7}\protected@file@percent }
+\newlabel{sec:exp}{{VII}{3}{Experiments}{section.7}{}}
+\newlabel{sec:exp@cref}{{[section][7][]VII}{[1][3][]3}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-A}}Setup}{3}{subsection.7.1}\protected@file@percent }
+\newlabel{sec:setup}{{\mbox  {VII-A}}{3}{Setup}{subsection.7.1}{}}
+\newlabel{sec:setup@cref}{{[subsection][1][7]\mbox  {VII-A}}{[1][3][]3}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-A}0a}Data.}{3}{paragraph.7.1.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-A}0b}Diffusion prior.}{3}{paragraph.7.1.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-A}0c}Methods.}{3}{paragraph.7.1.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-A}0d}Metrics.}{3}{paragraph.7.1.0.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-B}}Main Result}{3}{subsection.7.2}\protected@file@percent }
+\newlabel{sec:main}{{\mbox  {VII-B}}{3}{Main Result}{subsection.7.2}{}}
+\newlabel{sec:main@cref}{{[subsection][2][7]\mbox  {VII-B}}{[1][3][]3}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Ablations}{3}{subsection.7.3}\protected@file@percent }
+\newlabel{sec:abl}{{\mbox  {VII-C}}{3}{Ablations}{subsection.7.3}{}}
+\newlabel{sec:abl@cref}{{[subsection][3][7]\mbox  {VII-C}}{[1][3][]3}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-C}0a}Active rounds.}{3}{paragraph.7.3.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-C}0b}Compute matching.}{3}{paragraph.7.3.0.2}\protected@file@percent }
+\citation{bakker2020experimental,pineda2020activerl}
+\bibstyle{IEEEtran}
+\bibdata{pvas}
+\bibcite{jalal2021robust}{1}
+\bibcite{chung2022scoremri}{2}
+\bibcite{song2023pigdm}{3}
+\bibcite{chung2023dps}{4}
+\bibcite{peng2024optimal}{5}
+\bibcite{laroche2024fastdiffem}{6}
+\bibcite{ours2025}{7}
+\bibcite{bahadir2020loupe}{8}
+\bibcite{aggarwal2020jmodl}{9}
+\bibcite{bakker2020experimental}{10}
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Matched-budget comparison on fastMRI brain. Static and \textsc  {pvas}\ rows in each block use exactly the same column budget. Numbers are SENSE-\textsc  {psnr}\ in dB, mean$\pm $std across $n$ slices. \textcolor {red}{\textbf  {[Replace with $n{=}192$ production numbers when the GPU sweep lands.]}}}}{4}{table.caption.1}\protected@file@percent }
+\newlabel{tab:main}{{I}{4}{Matched-budget comparison on fastMRI brain. Static and \PVAS \ rows in each block use exactly the same column budget. Numbers are SENSE-\PSNR \ in dB, mean$\pm $std across $n$ slices. \TODO {Replace with $n{=}192$ production numbers when the GPU sweep lands.}}{table.caption.1}{}}
+\newlabel{tab:main@cref}{{[table][1][]I}{[1][3][]4}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Active-rounds ablation at $R{=}4$, $L{=}16$. \textcolor {red}{\textbf  {[Production numbers pending.]}}}}{4}{table.caption.2}\protected@file@percent }
+\newlabel{tab:rounds}{{II}{4}{Active-rounds ablation at $R{=}4$, $L{=}16$. \TODO {Production numbers pending.}}{table.caption.2}{}}
+\newlabel{tab:rounds@cref}{{[table][2][]II}{[1][3][]4}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-C}0c}Cross-anatomy.}{4}{paragraph.7.3.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-D}}Qualitative Comparison}{4}{subsection.7.4}\protected@file@percent }
+\newlabel{sec:qual}{{\mbox  {VII-D}}{4}{Qualitative Comparison}{subsection.7.4}{}}
+\newlabel{sec:qual@cref}{{[subsection][4][7]\mbox  {VII-D}}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VIII}Discussion and Limitations}{4}{section.8}\protected@file@percent }
+\newlabel{sec:disc}{{VIII}{4}{Discussion and Limitations}{section.8}{}}
+\newlabel{sec:disc@cref}{{[section][8][]VIII}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0a}Where the gain comes from.}{4}{paragraph.8.0.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0b}What we tried that did not work.}{4}{paragraph.8.0.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0c}Retrospective vs prospective.}{4}{paragraph.8.0.0.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces NFE-matched comparison at $R{=}4$, $L{=}16$. \textcolor {red}{\textbf  {[Production numbers pending.]}}}}{4}{table.caption.3}\protected@file@percent }
+\newlabel{tab:compute_match}{{III}{4}{NFE-matched comparison at $R{=}4$, $L{=}16$. \TODO {Production numbers pending.}}{table.caption.3}{}}
+\newlabel{tab:compute_match@cref}{{[table][3][]III}{[1][3][]4}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Cross-anatomy generalisation at matched budget. \textcolor {red}{\textbf  {[Knee sweep pending.]}}}}{4}{table.caption.4}\protected@file@percent }
+\newlabel{tab:multi_anat}{{IV}{4}{Cross-anatomy generalisation at matched budget. \TODO {Knee sweep pending.}}{table.caption.4}{}}
+\newlabel{tab:multi_anat@cref}{{[table][4][]IV}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0d}Estimator variance.}{4}{paragraph.8.0.0.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IX}Conclusion}{4}{section.9}\protected@file@percent }
+\newlabel{sec:conc}{{IX}{4}{Conclusion}{section.9}{}}
+\newlabel{sec:conc@cref}{{[section][9][]IX}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {section}{References}{4}{section*.7}\protected@file@percent }
+\bibcite{pineda2020activerl}{11}
+\bibcite{daras2025ambient}{12}
+\bibcite{yin2021endtoend}{13}
+\bibcite{sanchez2020sequential}{14}
+\bibcite{efron2011tweedie}{15}
+\bibcite{kim2021tweedie}{16}
+\bibcite{hutchinson1990estimation}{17}
+\bibcite{lustig2007sparse}{18}
+\bibcite{karras2022edm}{19}
+\bibcite{zbontar2018fastmri}{20}
+\bibcite{uecker2014espirit}{21}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Reconstructions at $R{=}8$ matched budget. Columns: zero-fill, $\Pi $GDM-MC at static $R$, Static-$L{=}24$, \textsc  {pvas}\ ($L{=}24$), SENSE oracle. Bottom row shows the cumulative acquired mask for the adaptive runs and the squared error for each method. \textcolor {red}{\textbf  {[Render once GPU sweep produces $.pt$ files.]}}}}{5}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:recon_grid}{{1}{5}{Reconstructions at $R{=}8$ matched budget. Columns: zero-fill, \PIGDM -MC at static $R$, Static-$L{=}24$, \PVAS \ ($L{=}24$), SENSE oracle. Bottom row shows the cumulative acquired mask for the adaptive runs and the squared error for each method. \TODO {Render once GPU sweep produces $.pt$ files.}}{figure.caption.5}{}}
+\newlabel{fig:recon_grid@cref}{{[figure][1][]1}{[1][4][]5}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Posterior-variance map $P_i(t)$ and cumulative chosen columns over diffusion steps for one slice at $R{=}8$, $L{=}16$, $R_a{=}2$. Acquisition rounds are marked with vertical lines. \textcolor {red}{\textbf  {[Render.]}}}}{5}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:active_evolution}{{2}{5}{Posterior-variance map $P_i(t)$ and cumulative chosen columns over diffusion steps for one slice at $R{=}8$, $L{=}16$, $R_a{=}2$. Acquisition rounds are marked with vertical lines. \TODO {Render.}}{figure.caption.6}{}}
+\newlabel{fig:active_evolution@cref}{{[figure][2][]2}{[1][4][]5}{}{}{}}
+\gdef \@abspage@last{5}
