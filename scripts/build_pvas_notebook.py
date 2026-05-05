@@ -43,7 +43,7 @@ cells.append(code("""# Cell 1 — verify GPU
 !nvidia-smi | head -20
 """))
 
-cells.append(code("""# Cell 2 — clone repo (main) or git pull if already present
+cells.append(code("""# Cell 2 — clone repo (main) + ADPS (provides dnnlib/torch_utils for EDM pickle)
 import os, subprocess, sys
 REPO   = '/content/fastmri'
 BRANCH = 'main'  # dev/multicoil-sense was merged into main
@@ -57,6 +57,12 @@ if not os.path.exists(REPO):
 %cd $REPO
 !git pull --ff-only origin {BRANCH} || true
 !git --no-pager log -1 --oneline
+
+# ADPS source tree (dnnlib + torch_utils) is required to unpickle the EDM checkpoint.
+if not os.path.isdir('external/adps/dnnlib'):
+    !rm -rf external/adps
+    !git clone --depth 1 https://github.com/utcsilab/ambient-diffusion-mri.git external/adps
+!ls external/adps/dnnlib external/adps/torch_utils | head -5
 """))
 
 cells.append(code("""# Cell 3 — install deps + preflight checks
