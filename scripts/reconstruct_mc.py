@@ -119,7 +119,8 @@ def _add_kspace_noise(mc_k: torch.Tensor, sig_c: torch.Tensor,
     g = torch.Generator(device='cpu').manual_seed(seed)
     nz = (torch.randn(mc_k.shape, generator=g)
           + 1j * torch.randn(mc_k.shape, generator=g)) / np.sqrt(2)
-    return mc_k + (sig_c.sqrt().view(Nc, 1, 1) * nz).to(mc_k.dtype)
+    nz = nz.to(mc_k.device)
+    return mc_k + (sig_c.to(mc_k.device).sqrt().view(Nc, 1, 1) * nz).to(mc_k.dtype)
 
 
 def _load_volume(h5_path: str, target_shape: tuple[int, int]):
