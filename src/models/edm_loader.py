@@ -66,6 +66,14 @@ def load_edm_model(
     if adps_root not in sys.path:
         sys.path.insert(0, adps_root)
 
+    # ADPS's dnnlib.util imports s3fs at module load; install it lazily if absent.
+    try:
+        import s3fs  # noqa: F401
+    except ModuleNotFoundError:
+        import subprocess
+        print("[edm_loader] installing missing dep: s3fs", flush=True)
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "s3fs"])
+
     snapshot = os.path.join(model_dir, "network-snapshot.pkl")
 
     if method == "auto":
