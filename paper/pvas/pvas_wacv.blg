@@ -1,0 +1,56 @@
+This is BibTeX, Version 0.99d (TeX Live 2025)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: pvas_wacv.aux
+The style file: IEEEtran.bst
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Database file #1: pvas.bib
+-- IEEEtran.bst version 1.14 (2015/08/26) by Michael Shell.
+-- http://www.michaelshell.org/tex/ieeetran/bibtex/
+-- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
+
+Done.
+You've used 21 entries,
+            4087 wiz_defined-function locations,
+            926 strings with 11386 characters,
+and the built_in function-call counts, 14368 in all, are:
+= -- 1059
+> -- 426
+< -- 76
++ -- 221
+- -- 88
+* -- 684
+:= -- 2121
+add.period$ -- 42
+call.type$ -- 21
+change.case$ -- 21
+chr.to.int$ -- 171
+cite$ -- 21
+duplicate$ -- 1087
+empty$ -- 1297
+format.name$ -- 106
+if$ -- 3364
+int.to.chr$ -- 0
+int.to.str$ -- 21
+missing$ -- 217
+newline$ -- 86
+num.names$ -- 21
+pop$ -- 558
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 2
+skip$ -- 1125
+stack$ -- 0
+substring$ -- 431
+swap$ -- 778
+text.length$ -- 19
+text.prefix$ -- 0
+top$ -- 5
+type$ -- 21
+warning$ -- 0
+while$ -- 46
+width$ -- 23
+write$ -- 209
