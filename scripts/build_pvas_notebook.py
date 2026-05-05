@@ -66,7 +66,7 @@ if not os.path.isdir('external/adps/dnnlib'):
 """))
 
 cells.append(code("""# Cell 3 — install deps + preflight checks
-!pip install -q h5py scikit-image scipy pyyaml
+!pip install -q h5py scikit-image scipy pyyaml s3fs
 !pip install -q --upgrade "numpy>=1.26,<2.3"
 
 import subprocess
