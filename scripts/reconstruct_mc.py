@@ -62,7 +62,18 @@ from src.models.edm_loader import load_edm_model, EDMDenoiser
 # ---------------------------------------------------------------------------
 
 def _center_crop(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    """Center-crop (and zero-pad if input is smaller) so the result is exactly h×w."""
     H, W = x.shape[-2], x.shape[-1]
+    # Pad first if smaller than target (some fastMRI volumes are <384x320)
+    pad_h = max(0, h - H)
+    pad_w = max(0, w - W)
+    if pad_h or pad_w:
+        ph0, ph1 = pad_h // 2, pad_h - pad_h // 2
+        pw0, pw1 = pad_w // 2, pad_w - pad_w // 2
+        # F.pad takes (W_left, W_right, H_top, H_bottom) for last 2 dims
+        from torch.nn.functional import pad as _pad
+        x = _pad(x, (pw0, pw1, ph0, ph1))
+        H, W = x.shape[-2], x.shape[-1]
     sh = (H - h) // 2
     sw = (W - w) // 2
     return x[..., sh:sh + h, sw:sw + w]
