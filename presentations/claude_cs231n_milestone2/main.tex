@@ -95,39 +95,47 @@
 \begin{frame}{Method overview}
   \begin{center}
     \begin{tikzpicture}[
-      box/.style={draw=deepnavy, rounded corners=2pt, fill=softgray, very thick,
-                  align=center, minimum width=2.20cm, minimum height=0.85cm,
-                  font=\small},
-      fakgdbox/.style={draw=stanfordred, rounded corners=2pt, fill=white, very thick,
-                  align=center, minimum width=2.20cm, minimum height=0.85cm,
-                  font=\small},
-      arrow/.style={-{Latex[length=2.2mm]}, very thick, draw=deepnavy},
-      feedback/.style={-{Latex[length=2.2mm]}, very thick, draw=accentgold, dashed}
+      box/.style={draw=deepnavy, rounded corners=3pt, fill=softgray, very thick,
+                  align=center, minimum width=2.25cm, minimum height=0.95cm,
+                  font=\small, inner sep=4pt},
+      fakgdbox/.style={draw=stanfordred, rounded corners=3pt, fill=white, very thick,
+                  align=center, minimum width=2.25cm, minimum height=0.95cm,
+                  font=\small, inner sep=4pt},
+      arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=deepnavy},
+      feedback/.style={-{Latex[length=2.4mm]}, very thick, draw=accentgold, dashed},
+      edgelab/.style={font=\scriptsize, inner sep=1pt, fill=white},
+      goldlab/.style={font=\scriptsize, inner sep=1pt, text=accentgold!85!black, fill=white}
     ]
-      % --- main left-to-right pipeline (top row) ---
+      % ---- top row: main pipeline ----
       \node[box]                              (y)       {Measured\\k-space $y_\Omega$};
-      \node[box, right=0.7cm of y]            (denoise) {Frozen EDM\\$\muth(x_t,t)$};
-      \node[fakgdbox, right=0.7cm of denoise] (fpdc)    {FPDC mask\\$\Omega(t)$};
-      \node[box, right=0.7cm of fpdc]         (gain)    {Kalman gain\\$K_i(t)$};
-      \node[box, right=0.7cm of gain]         (step)    {DDIM step\\$\to x_{t-1}$};
+      \node[box,      right=0.85cm of y]      (denoise) {Frozen EDM\\$\muth(x_t,t)$};
+      \node[fakgdbox, right=0.85cm of denoise] (fpdc)   {FPDC mask\\$\Omega(t)$};
+      \node[box,      right=0.85cm of fpdc]   (gain)    {Kalman gain\\$K_i(t)$};
+      \node[box,      right=0.85cm of gain]   (step)    {DDIM step\\$\to x_{t-1}$};
 
       \draw[arrow] (y)       -- (denoise);
       \draw[arrow] (denoise) -- (fpdc);
       \draw[arrow] (fpdc)    -- (gain);
       \draw[arrow] (gain)    -- (step);
 
-      % --- iterate loop, drawn above the row to avoid crossings ---
-      \draw[arrow] (step.north) -- ++(0,0.55) -| node[above, pos=0.25, font=\scriptsize] {iterate $x_{t-1} \to x_t$} (denoise.north);
+      % ---- iterate loop above ----
+      \coordinate (above) at ($(denoise.north)!0.5!(step.north) + (0,1.05)$);
+      \draw[arrow] (step.north) |- (above) -| (denoise.north)
+        node[edgelab, pos=0.25, above] {iterate $x_{t-1}\to x_t$};
 
-      % --- calibration / feedback below the gain ---
-      \node[fakgdbox, below=1.1cm of gain]  (sigma)  {$\hatsig_i^2$ store};
-      \node[fakgdbox, left=0.7cm of sigma]  (acs)    {ACS pooled\\init $\hatsig^2(r;\theta)$};
-      \node[fakgdbox, right=0.7cm of sigma] (mstep)  {EM M-step\\(residual)};
+      % ---- bottom row: calibration cluster ----
+      \node[fakgdbox, below=1.5cm of fpdc]  (acs)    {ACS init\\$\hatsig^2(r;\theta)$};
+      \node[fakgdbox, below=1.5cm of gain]  (sigma)  {$\hatsig_i^2$ store};
+      \node[fakgdbox, below=1.5cm of step]  (mstep)  {EM M-step};
 
       \draw[arrow] (acs)    -- (sigma);
       \draw[arrow] (sigma)  -- (gain);
-      \draw[feedback] (gain.east) -- ++(0.35,0) |- (mstep.east);
-      \draw[feedback] (mstep) -- (sigma);
+
+      % ---- closed-loop EM feedback (dashed gold) ----
+      \draw[feedback] (gain.south east) -- ($(gain.south east)+(0.4,-0.25)$) |- (mstep.north east)
+        node[goldlab, pos=0.30, right] {residual $r_i$};
+      \draw[feedback] (mstep.west) -- (sigma.east)
+        node[goldlab, midway, below] {refresh};
     \end{tikzpicture}
   \end{center}
   \vspace{0.2em}
