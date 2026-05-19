@@ -104,7 +104,7 @@
       arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=deepnavy},
       feedback/.style={-{Latex[length=2.4mm]}, very thick, draw=accentgold, dashed},
       edgelab/.style={font=\scriptsize, inner sep=1pt, fill=white},
-      goldlab/.style={font=\scriptsize, inner sep=1pt, text=accentgold!85!black, fill=white}
+      goldlab/.style={font=\tiny, inner sep=1pt, text=accentgold!75!black}
     ]
       % ---- top row: main pipeline ----
       \node[box]                              (y)       {Measured\\k-space $y_\Omega$};
@@ -123,17 +123,17 @@
       \draw[arrow] (step.north) |- (above) -| (denoise.north)
         node[edgelab, pos=0.25, above] {iterate $x_{t-1}\to x_t$};
 
-      % ---- bottom row: calibration cluster ----
-      \node[fakgdbox, below=1.5cm of fpdc]  (acs)    {ACS init\\$\hatsig^2(r;\theta)$};
-      \node[fakgdbox, below=1.5cm of gain]  (sigma)  {$\hatsig_i^2$ store};
-      \node[fakgdbox, below=1.5cm of step]  (mstep)  {EM M-step};
+      % ---- bottom row: pushed left under {y, EDM, FPDC} ----
+      \node[fakgdbox, below=1.7cm of y]       (acs)    {ACS init\\$\hatsig^2(r;\theta)$};
+      \node[fakgdbox, below=1.7cm of denoise] (sigma)  {$\hatsig_i^2$ store};
+      \node[fakgdbox, below=1.7cm of fpdc]    (mstep)  {EM M-step};
 
-      \draw[arrow] (acs)    -- (sigma);
-      \draw[arrow] (sigma)  -- (gain);
+      \draw[arrow] (acs) -- (sigma);
+      \draw[arrow] (sigma.north east) -- (gain.south west);
 
-      % ---- closed-loop EM feedback (dashed gold) ----
-      \draw[feedback] (gain.south east) -- ($(gain.south east)+(0.4,-0.25)$) |- (mstep.north east)
-        node[goldlab, pos=0.30, right] {residual $r_i$};
+      % ---- closed-loop EM feedback (dashed gold, straight diagonals) ----
+      \draw[feedback] (gain.south) -- (mstep.north east)
+        node[goldlab, midway, above, sloped] {residual $r_i$};
       \draw[feedback] (mstep.west) -- (sigma.east)
         node[goldlab, midway, below] {refresh};
     \end{tikzpicture}
