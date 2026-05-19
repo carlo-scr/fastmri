@@ -16,6 +16,12 @@
 \citation{ours2025}
 \citation{song2023pigdm}
 \citation{daras2025ambient}
+\citation{bahadir2020loupe}
+\citation{aggarwal2020jmodl}
+\citation{pineda2020activerl}
+\citation{bakker2020experimental}
+\citation{yin2021endtoend}
+\citation{sanchez2020sequential}
 \@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
 \newlabel{sec:intro}{{I}{1}{Introduction}{section.1}{}}
 \newlabel{sec:intro@cref}{{[section][1][]I}{[1][1][]1}{}{}{}}
@@ -26,12 +32,6 @@
 \newlabel{sec:related}{{II}{1}{Related Work}{section.2}{}}
 \newlabel{sec:related@cref}{{[section][2][]II}{[1][1][]1}{}{}{}}
 \@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-}0a}Diffusion priors for MRI.}{1}{paragraph.2.0.0.1}\protected@file@percent }
-\citation{bahadir2020loupe}
-\citation{aggarwal2020jmodl}
-\citation{pineda2020activerl}
-\citation{bakker2020experimental}
-\citation{yin2021endtoend}
-\citation{sanchez2020sequential}
 \citation{efron2011tweedie}
 \citation{kim2021tweedie}
 \citation{hutchinson1990estimation}
@@ -50,13 +50,13 @@
 \newlabel{eq:pigdm}{{2}{2}{Diffusion sampling}{equation.2}{}}
 \newlabel{eq:pigdm@cref}{{[equation][2][]2}{[1][2][]2}{}{}{}}
 \@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-}0b}Why a scalar gain is suboptimal.}{2}{paragraph.3.0.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Posterior Variance Estimator}{2}{section.4}\protected@file@percent }
+\newlabel{sec:pv}{{IV}{2}{Posterior Variance Estimator}{section.4}{}}
+\newlabel{sec:pv@cref}{{[section][4][]IV}{[1][2][]2}{}{}{}}
 \@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces \textsc  {PV-Estimate} (per diffusion step)}}{2}{algorithm.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{alg:pv}{{1}{2}{\textsc {PV-Estimate} (per diffusion step)}{algorithm.1}{}}
 \newlabel{alg:pv@cref}{{[algorithm][1][]1}{[1][2][]2}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {IV}Posterior Variance Estimator}{2}{section.4}\protected@file@percent }
-\newlabel{sec:pv}{{IV}{2}{Posterior Variance Estimator}{section.4}{}}
-\newlabel{sec:pv@cref}{{[section][4][]IV}{[1][2][]2}{}{}{}}
 \@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-}0a}Tweedie second-moment identity.}{2}{paragraph.4.0.0.1}\protected@file@percent }
 \newlabel{eq:tweedie2}{{3}{2}{Tweedie second-moment identity}{equation.3}{}}
 \newlabel{eq:tweedie2@cref}{{[equation][3][]3}{[1][2][]2}{}{}{}}
@@ -105,7 +105,29 @@
 \newlabel{sec:abl@cref}{{[subsection][3][7]\mbox  {VII-C}}{[1][3][]3}{}{}{}}
 \@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-C}0a}Active rounds.}{3}{paragraph.7.3.0.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-C}0b}Compute matching.}{3}{paragraph.7.3.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-C}0c}Cross-anatomy.}{3}{paragraph.7.3.0.3}\protected@file@percent }
 \citation{bakker2020experimental,pineda2020activerl}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Headline result. SENSE-\textsc  {psnr}\ vs.\ active-line budget $L$ at $R{=}4$ (left) and $R{=}8$ (right). \textsc  {pvas}\ (navy) dominates static-$L$ (light blue) and the random-adaptive ablation (mid blue) at every budget; the pure $\Pi $GDM-MC baseline (grey) is shown for reference. The top axis indicates the matched total k-space column budget $n_R + L$.}}{4}{figure.caption.1}\protected@file@percent }
+\newlabel{fig:main_psnr}{{1}{4}{Headline result. SENSE-\PSNR \ vs.\ active-line budget $L$ at $R{=}4$ (left) and $R{=}8$ (right). \PVAS \ (navy) dominates static-$L$ (light blue) and the random-adaptive ablation (mid blue) at every budget; the pure $\Pi $GDM-MC baseline (grey) is shown for reference. The top axis indicates the matched total k-space column budget $n_R + L$}{figure.caption.1}{}}
+\newlabel{fig:main_psnr@cref}{{[figure][1][]1}{[1][3][]4}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces The contribution of PV-guided scoring isolated from generic active sampling: $\Delta $ SENSE-\textsc  {psnr}\ between \textsc  {pvas}\ and a uniform- random mid-diffusion baseline that uses the \emph  {same} adaptive budget. Positive everywhere, with the largest margin at the more ill-posed $R{=}8$ regime.}}{4}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:delta_random}{{2}{4}{The contribution of PV-guided scoring isolated from generic active sampling: $\Delta $ SENSE-\PSNR \ between \PVAS \ and a uniform- random mid-diffusion baseline that uses the \emph {same} adaptive budget. Positive everywhere, with the largest margin at the more ill-posed $R{=}8$ regime}{figure.caption.3}{}}
+\newlabel{fig:delta_random@cref}{{[figure][2][]2}{[1][3][]4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-D}}Paired-Difference Distribution}{4}{subsection.7.4}\protected@file@percent }
+\newlabel{sec:paired}{{\mbox  {VII-D}}{4}{Paired-Difference Distribution}{subsection.7.4}{}}
+\newlabel{sec:paired@cref}{{[subsection][4][7]\mbox  {VII-D}}{[1][3][]4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-E}}Qualitative Comparison}{4}{subsection.7.5}\protected@file@percent }
+\newlabel{sec:qual}{{\mbox  {VII-E}}{4}{Qualitative Comparison}{subsection.7.5}{}}
+\newlabel{sec:qual@cref}{{[subsection][5][7]\mbox  {VII-E}}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VIII}Discussion and Limitations}{4}{section.8}\protected@file@percent }
+\newlabel{sec:disc}{{VIII}{4}{Discussion and Limitations}{section.8}{}}
+\newlabel{sec:disc@cref}{{[section][8][]VIII}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0a}Where the gain comes from.}{4}{paragraph.8.0.0.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Active-rounds ablation. The first round captures most of the gain; a second round adds a small refinement as the PV map sharpens; further rounds saturate.}}{4}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:rounds}{{3}{4}{Active-rounds ablation. The first round captures most of the gain; a second round adds a small refinement as the PV map sharpens; further rounds saturate}{figure.caption.5}{}}
+\newlabel{fig:rounds@cref}{{[figure][3][]3}{[1][3][]4}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0b}What we tried that did not work.}{4}{paragraph.8.0.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0c}Retrospective vs prospective.}{4}{paragraph.8.0.0.3}\protected@file@percent }
 \bibstyle{IEEEtran}
 \bibdata{pvas}
 \bibcite{jalal2021robust}{1}
@@ -118,35 +140,25 @@
 \bibcite{bahadir2020loupe}{8}
 \bibcite{aggarwal2020jmodl}{9}
 \bibcite{bakker2020experimental}{10}
-\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Matched-budget comparison on fastMRI brain. Static and \textsc  {pvas}\ rows in each block use exactly the same column budget. Numbers are SENSE-\textsc  {psnr}\ in dB, mean$\pm $std across $n$ slices. \textcolor {red}{\textbf  {[Replace with $n{=}192$ production numbers when the GPU sweep lands.]}}}}{4}{table.caption.1}\protected@file@percent }
-\newlabel{tab:main}{{I}{4}{Matched-budget comparison on fastMRI brain. Static and \PVAS \ rows in each block use exactly the same column budget. Numbers are SENSE-\PSNR \ in dB, mean$\pm $std across $n$ slices. \TODO {Replace with $n{=}192$ production numbers when the GPU sweep lands.}}{table.caption.1}{}}
-\newlabel{tab:main@cref}{{[table][1][]I}{[1][3][]4}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Active-rounds ablation at $R{=}4$, $L{=}16$. \textcolor {red}{\textbf  {[Production numbers pending.]}}}}{4}{table.caption.2}\protected@file@percent }
-\newlabel{tab:rounds}{{II}{4}{Active-rounds ablation at $R{=}4$, $L{=}16$. \TODO {Production numbers pending.}}{table.caption.2}{}}
-\newlabel{tab:rounds@cref}{{[table][2][]II}{[1][3][]4}{}{}{}}
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VII-C}0c}Cross-anatomy.}{4}{paragraph.7.3.0.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-D}}Qualitative Comparison}{4}{subsection.7.4}\protected@file@percent }
-\newlabel{sec:qual}{{\mbox  {VII-D}}{4}{Qualitative Comparison}{subsection.7.4}{}}
-\newlabel{sec:qual@cref}{{[subsection][4][7]\mbox  {VII-D}}{[1][4][]4}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {VIII}Discussion and Limitations}{4}{section.8}\protected@file@percent }
-\newlabel{sec:disc}{{VIII}{4}{Discussion and Limitations}{section.8}{}}
-\newlabel{sec:disc@cref}{{[section][8][]VIII}{[1][4][]4}{}{}{}}
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0a}Where the gain comes from.}{4}{paragraph.8.0.0.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0b}What we tried that did not work.}{4}{paragraph.8.0.0.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0c}Retrospective vs prospective.}{4}{paragraph.8.0.0.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces NFE-matched comparison at $R{=}4$, $L{=}16$. \textcolor {red}{\textbf  {[Production numbers pending.]}}}}{4}{table.caption.3}\protected@file@percent }
-\newlabel{tab:compute_match}{{III}{4}{NFE-matched comparison at $R{=}4$, $L{=}16$. \TODO {Production numbers pending.}}{table.caption.3}{}}
-\newlabel{tab:compute_match@cref}{{[table][3][]III}{[1][3][]4}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Cross-anatomy generalisation at matched budget. \textcolor {red}{\textbf  {[Knee sweep pending.]}}}}{4}{table.caption.4}\protected@file@percent }
-\newlabel{tab:multi_anat}{{IV}{4}{Cross-anatomy generalisation at matched budget. \TODO {Knee sweep pending.}}{table.caption.4}{}}
-\newlabel{tab:multi_anat@cref}{{[table][4][]IV}{[1][4][]4}{}{}{}}
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0d}Estimator variance.}{4}{paragraph.8.0.0.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {IX}Conclusion}{4}{section.9}\protected@file@percent }
-\newlabel{sec:conc}{{IX}{4}{Conclusion}{section.9}{}}
-\newlabel{sec:conc@cref}{{[section][9][]IX}{[1][4][]4}{}{}{}}
-\@writefile{toc}{\contentsline {section}{References}{4}{section*.7}\protected@file@percent }
 \bibcite{pineda2020activerl}{11}
 \bibcite{daras2025ambient}{12}
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Matched-budget comparison on fastMRI brain. Static and \textsc  {pvas}\ rows in each block use exactly the same column budget. Numbers are SENSE-\textsc  {psnr}\ in dB, mean$\pm $std across $n$ slices. \textcolor {red}{\textbf  {[Production numbers ($n{=}192$) drop in via \texttt  {scripts/generate\_pvas\_figures.py}.]}}}}{5}{table.caption.2}\protected@file@percent }
+\newlabel{tab:main}{{I}{5}{Matched-budget comparison on fastMRI brain. Static and \PVAS \ rows in each block use exactly the same column budget. Numbers are SENSE-\PSNR \ in dB, mean$\pm $std across $n$ slices. \TODO {Production numbers ($n{=}192$) drop in via \texttt {scripts/generate\_pvas\_figures.py}.}}{table.caption.2}{}}
+\newlabel{tab:main@cref}{{[table][1][]I}{[1][3][]5}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Active-rounds ablation at $R{=}4$, $L{=}16$. PVAS column bold; baselines for context. NFE is identical across rows ($3T$). \textcolor {red}{\textbf  {[Placeholder numbers.]}}}}{5}{table.caption.4}\protected@file@percent }
+\newlabel{tab:rounds}{{II}{5}{Active-rounds ablation at $R{=}4$, $L{=}16$. PVAS column bold; baselines for context. NFE is identical across rows ($3T$). \TODO {Placeholder numbers.}}{table.caption.4}{}}
+\newlabel{tab:rounds@cref}{{[table][2][]II}{[1][3][]5}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VIII-}0d}Estimator variance.}{5}{paragraph.8.0.0.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IX}Conclusion}{5}{section.9}\protected@file@percent }
+\newlabel{sec:conc}{{IX}{5}{Conclusion}{section.9}{}}
+\newlabel{sec:conc@cref}{{[section][9][]IX}{[1][5][]5}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces NFE-matched comparison at $R{=}4$, $L{=}16$. \textcolor {red}{\textbf  {[Placeholder.]}}}}{5}{table.caption.6}\protected@file@percent }
+\newlabel{tab:compute_match}{{III}{5}{NFE-matched comparison at $R{=}4$, $L{=}16$. \TODO {Placeholder.}}{table.caption.6}{}}
+\newlabel{tab:compute_match@cref}{{[table][3][]III}{[1][3][]5}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces NFE-matched comparison: spending the same diffusion compute on a longer schedule for vanilla $\Pi $GDM-MC does not close the gap to active sampling. PVAS at $T{=}20$ outperforms $\Pi $GDM-MC at $T{=}60$ even when the latter additionally uses the matched static column budget.}}{5}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:nfe}{{4}{5}{NFE-matched comparison: spending the same diffusion compute on a longer schedule for vanilla $\Pi $GDM-MC does not close the gap to active sampling. PVAS at $T{=}20$ outperforms $\Pi $GDM-MC at $T{=}60$ even when the latter additionally uses the matched static column budget}{figure.caption.7}{}}
+\newlabel{fig:nfe@cref}{{[figure][4][]4}{[1][3][]5}{}{}{}}
+\@writefile{toc}{\contentsline {section}{References}{5}{section*.12}\protected@file@percent }
 \bibcite{yin2021endtoend}{13}
 \bibcite{sanchez2020sequential}{14}
 \bibcite{efron2011tweedie}{15}
@@ -156,10 +168,16 @@
 \bibcite{karras2022edm}{19}
 \bibcite{zbontar2018fastmri}{20}
 \bibcite{uecker2014espirit}{21}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Reconstructions at $R{=}8$ matched budget. Columns: zero-fill, $\Pi $GDM-MC at static $R$, Static-$L{=}24$, \textsc  {pvas}\ ($L{=}24$), SENSE oracle. Bottom row shows the cumulative acquired mask for the adaptive runs and the squared error for each method. \textcolor {red}{\textbf  {[Render once GPU sweep produces $.pt$ files.]}}}}{5}{figure.caption.5}\protected@file@percent }
-\newlabel{fig:recon_grid}{{1}{5}{Reconstructions at $R{=}8$ matched budget. Columns: zero-fill, \PIGDM -MC at static $R$, Static-$L{=}24$, \PVAS \ ($L{=}24$), SENSE oracle. Bottom row shows the cumulative acquired mask for the adaptive runs and the squared error for each method. \TODO {Render once GPU sweep produces $.pt$ files.}}{figure.caption.5}{}}
-\newlabel{fig:recon_grid@cref}{{[figure][1][]1}{[1][4][]5}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Posterior-variance map $P_i(t)$ and cumulative chosen columns over diffusion steps for one slice at $R{=}8$, $L{=}16$, $R_a{=}2$. Acquisition rounds are marked with vertical lines. \textcolor {red}{\textbf  {[Render.]}}}}{5}{figure.caption.6}\protected@file@percent }
-\newlabel{fig:active_evolution}{{2}{5}{Posterior-variance map $P_i(t)$ and cumulative chosen columns over diffusion steps for one slice at $R{=}8$, $L{=}16$, $R_a{=}2$. Acquisition rounds are marked with vertical lines. \TODO {Render.}}{figure.caption.6}{}}
-\newlabel{fig:active_evolution@cref}{{[figure][2][]2}{[1][4][]5}{}{}{}}
-\gdef \@abspage@last{5}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Cross-anatomy generalisation at matched budget. \textcolor {red}{\textbf  {[Knee sweep pending.]}}}}{6}{table.caption.8}\protected@file@percent }
+\newlabel{tab:multi_anat}{{IV}{6}{Cross-anatomy generalisation at matched budget. \TODO {Knee sweep pending.}}{table.caption.8}{}}
+\newlabel{tab:multi_anat@cref}{{[table][4][]IV}{[1][3][]6}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Per-slice paired differences ($n{=}192$) of \textsc  {pvas}\ minus Static-$L$ (light) and \textsc  {pvas}\ minus Random-adaptive (navy) at $L{=}16$. Both distributions are concentrated above zero; random-adaptive is the harder reference, and even there the improvement is consistent slice-by-slice.}}{6}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:paired_delta}{{5}{6}{Per-slice paired differences ($n{=}192$) of \PVAS \ minus Static-$L$ (light) and \PVAS \ minus Random-adaptive (navy) at $L{=}16$. Both distributions are concentrated above zero; random-adaptive is the harder reference, and even there the improvement is consistent slice-by-slice}{figure.caption.9}{}}
+\newlabel{fig:paired_delta@cref}{{[figure][5][]5}{[1][3][]6}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Reconstructions (top) and squared error to ground truth (bottom) at $R{=}8$, $L{=}24$. Columns: zero-fill, $\Pi $GDM-MC at static $R$, Static-$L$, \textsc  {pvas}\ (ours), SENSE oracle. \textcolor {red}{\textbf  {[Schematic images while the production reconstructions cache; final cells come from \texttt  {notebooks/colab\_pvas\_sweep.ipynb} (Cell~11).]}}}}{7}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:recon_grid}{{6}{7}{Reconstructions (top) and squared error to ground truth (bottom) at $R{=}8$, $L{=}24$. Columns: zero-fill, $\Pi $GDM-MC at static $R$, Static-$L$, \PVAS \ (ours), SENSE oracle. \TODO {Schematic images while the production reconstructions cache; final cells come from \texttt {notebooks/colab\_pvas\_sweep.ipynb} (Cell~11).}}{figure.caption.10}{}}
+\newlabel{fig:recon_grid@cref}{{[figure][6][]6}{[1][4][]7}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Left three panels: posterior-variance map $P_i(t)$ (centred $k$-space, $\log _{10}$ scale, magma colormap) at three diffusion stages. The map sharpens monotonically as the iterate becomes more committed, motivating the \emph  {late} active-window ($t{<}0.5T$). Right: cumulative acquired columns for a $R{=}8$, $L{=}16$, $R_a{=}2$ run; vertical dashes mark the two acquisition rounds.}}{7}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:active_evolution}{{7}{7}{Left three panels: posterior-variance map $P_i(t)$ (centred $k$-space, $\log _{10}$ scale, magma colormap) at three diffusion stages. The map sharpens monotonically as the iterate becomes more committed, motivating the \emph {late} active-window ($t{<}0.5T$). Right: cumulative acquired columns for a $R{=}8$, $L{=}16$, $R_a{=}2$ run; vertical dashes mark the two acquisition rounds}{figure.caption.11}{}}
+\newlabel{fig:active_evolution@cref}{{[figure][7][]7}{[1][4][]7}{}{}{}}
+\gdef \@abspage@last{7}

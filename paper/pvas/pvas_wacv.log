@@ -1,8 +1,8 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  4 MAY 2026 20:25
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  13 MAY 2026 16:57
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**pvas_wacv.tex
+**pvas_wacv
 (./pvas_wacv.tex
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
@@ -527,24 +527,24 @@ File: l3backend-pdftex.def 2024-05-08 L3 backend support: PDF output (pdfTeX)
 ) (./pvas_wacv.aux)
 \openout1 = `pvas_wacv.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 54.
-LaTeX Font Info:    ... okay on input line 54.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
 
 -- Lines per column: 56 (exact).
 (/usr/local/texlive/2025basic/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
@@ -581,36 +581,36 @@ e
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Link coloring ON on input line 54.
+Package hyperref Info: Link coloring ON on input line 52.
  (./pvas_wacv.out) (./pvas_wacv.out)
 \@outlinefile=\write3
 \openout3 = `pvas_wacv.out'.
 
-LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 5
-6.
-
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ot1pcr.fd
-File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
-)
-LaTeX Font Info:    Trying to load font information for U+msa on input line 66.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 64.
 
 
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 66.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 64.
 
 
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-** WARNING: \IEEEPARstart is locked out when in conference mode (line 85).
+** WARNING: \IEEEPARstart is locked out when in conference mode (line 83).
 
 
 
-Underfull \hbox (badness 2426) in paragraph at lines 135--140
+Underfull \hbox (badness 2426) in paragraph at lines 133--138
 []\OT1/ptm/m/n/10 We show this es-ti-mate yields a \OT1/ptm/m/it/10 posterior-v
 ariance
+ []
+
+
+Underfull \hbox (badness 5908) in paragraph at lines 164--177
+ \OT1/ptm/m/it/10 b) Adap-tive and ac-tive ac-qui-si-tion.: [][] \OT1/ptm/m/n/1
+0 Joint mask--
  []
 
 
@@ -620,38 +620,32 @@ usr/local/texlive/2025basic/texmf-dist/fonts/enc/dvips/base/8r.enc}
 
 
 ]
-Underfull \hbox (badness 5908) in paragraph at lines 166--179
- \OT1/ptm/m/it/10 b) Adap-tive and ac-tive ac-qui-si-tion.: [][] \OT1/ptm/m/n/1
-0 Joint mask--
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 180--188
+Underfull \hbox (badness 10000) in paragraph at lines 178--186
  \OT1/ptm/m/it/10 c) Pos-te-rior vari-ance from Tweedie's for-mula.: [][]
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 189--193
+Underfull \hbox (badness 10000) in paragraph at lines 187--191
  \OT1/ptm/m/it/10 d) Compressed-sensing base-lines.: [][] \OT1/ptm/m/n/10 The c
 las-si-cal
  []
 
 
-Underfull \hbox (badness 1895) in paragraph at lines 222--230
+Underfull \hbox (badness 1895) in paragraph at lines 220--228
 \OT1/ptm/m/n/10 per-coil noise the \OT1/ptm/m/it/10 pos-te-rior \OT1/ptm/m/n/10
  vari-ance at $\OML/cmm/m/it/10 ^^V[]$ \OT1/ptm/m/n/10 is strongly
  []
 
 
-
-
-Underfull \hbox (badness 5091) in paragraph at lines 238--240
+Underfull \hbox (badness 5091) in paragraph at lines 236--238
  \OT1/ptm/m/it/10 a) Tweedie second-moment iden-tity.: [][] \OT1/ptm/m/n/10 Dif
 -fer-en-ti-at-ing
  []
 
+
+
 Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 275.
+put line 273.
 
 
 [2]
@@ -659,75 +653,130 @@ pdfTeX warning (ext4): destination with the same identifier (name{ALG@line.1})
 has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.352 \State
+l.350 \State
              $M \gets M_0$;\quad $\xt \gets \sigma_T \cdot \mathcal{CN}(0,I)$
 pdfTeX warning (ext4): destination with the same identifier (name{ALG@line.2}) 
 has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.353 \State
+l.351 \State
              $\{t_r\}_{r=1}^{R_a}$ uniformly spaced in $[t_{\text{a}}, t_{\t...
 
 pdfTeX warning (ext4): destination with the same identifier (name{ALG@line.3}) 
 has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.354 \For
+l.352 \For
           {$t = T$ \textbf{down to} $0$}
 pdfTeX warning (ext4): destination with the same identifier (name{ALG@line.4}) 
 has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.355   \State
+l.353   \State
                $\mu \gets \mu_\theta(\xt, \sigt)$
 pdfTeX warning (ext4): destination with the same identifier (name{ALG@line.5}) 
 has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.356   \State
+l.354   \State
                $P \gets \textsc{PV-Estimate}(\xt, \mu_\theta, \sigt)$
 pdfTeX warning (ext4): destination with the same identifier (name{ALG@line.6}) 
 has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.357   \State
+l.355   \State
                $K_{c,i} \gets P_i / (P_i + \sigma_{c,i}^{2})$ \Comment{\cref...
 
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 384--391
+Underfull \hbox (badness 10000) in paragraph at lines 382--389
  \OT1/ptm/m/it/10 b) Dif-fu-sion prior.: [][] \OT1/ptm/m/n/10 A 65.4M-parameter
  EDM
  []
 
+LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 4
+20.
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ot1pcr.fd
+File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
+)
+Underfull \hbox (badness 4608) in paragraph at lines 410--421
+\OT1/ptm/m/it/10 random-adaptive \OT1/ptm/m/n/10 ab-la-tion (Fig-ure [][]2[][])
+ by $\OT1/cmr/m/n/10 +0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 4$\OT1/ptm/m/n/10 --$\
+OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 9$ \OT1/ptm/m/n/10 dB
+ []
+
+
+Underfull \hbox (badness 4048) in paragraph at lines 410--421
+\OT1/ptm/m/n/10 --- iso-lat-ing the con-tri-bu-tion of \OT1/ptm/m/it/10 PV-guid
+ed \OT1/ptm/m/n/10 ac-qui-si-tion
+ []
+
+
+Underfull \hbox (badness 2261) in paragraph at lines 410--421
+\OT1/ptm/m/n/10 over generic mid-diffusion sam-pling. \OT1/ptm/b/n/10 The num-b
+ers in
+ []
+
+<figs/fig_main_psnr.pdf, id=185, 500.85808pt x 214.11104pt>
+File: figs/fig_main_psnr.pdf Graphic file (type pdf)
+<use figs/fig_main_psnr.pdf>
+Package pdftex.def Info: figs/fig_main_psnr.pdf  used on input line 424.
+(pdftex.def)             Requested size: 490.19843pt x 209.55948pt.
+(./figs/_tables_main.tex)
+<figs/fig_delta_vs_random.pdf, id=186, 303.24258pt x 201.69841pt>
+File: figs/fig_delta_vs_random.pdf Graphic file (type pdf)
+<use figs/fig_delta_vs_random.pdf>
+Package pdftex.def Info: figs/fig_delta_vs_random.pdf  used on input line 448.
+(pdftex.def)             Requested size: 252.0pt x 167.61891pt.
+ (./figs/_tables_rounds.tex)
+<figs/fig_rounds.pdf, id=188, 298.50208pt x 201.20784pt>
+File: figs/fig_rounds.pdf Graphic file (type pdf)
+<use figs/fig_rounds.pdf>
+Package pdftex.def Info: figs/fig_rounds.pdf  used on input line 475.
+(pdftex.def)             Requested size: 252.0pt x 169.8608pt.
+ (./figs/_tables_nfe.tex)
+<figs/fig_nfe.pdf, id=190, 331.40695pt x 187.91016pt>
+File: figs/fig_nfe.pdf Graphic file (type pdf)
+<use figs/fig_nfe.pdf>
+Package pdftex.def Info: figs/fig_nfe.pdf  used on input line 497.
+(pdftex.def)             Requested size: 252.0pt x 142.89061pt.
+<figs/fig_paired_delta.pdf, id=192, 500.86748pt x 193.69176pt>
+File: figs/fig_paired_delta.pdf Graphic file (type pdf)
+<use figs/fig_paired_delta.pdf>
+Package pdftex.def Info: figs/fig_paired_delta.pdf  used on input line 532.
+(pdftex.def)             Requested size: 252.0pt x 97.4515pt.
 
 
 [3]
-<figs/recon_grid_placeholder.pdf, id=214, 406.51875pt x 181.3977pt>
-File: figs/recon_grid_placeholder.pdf Graphic file (type pdf)
-<use figs/recon_grid_placeholder.pdf>
-Package pdftex.def Info: figs/recon_grid_placeholder.pdf  used on input line 52
-0.
-(pdftex.def)             Requested size: 252.0pt x 112.44603pt.
-<figs/active_evolution_placeholder.pdf, id=215, 406.51875pt x 181.3977pt>
-File: figs/active_evolution_placeholder.pdf Graphic file (type pdf)
-<use figs/active_evolution_placeholder.pdf>
-Package pdftex.def Info: figs/active_evolution_placeholder.pdf  used on input l
-ine 530.
-(pdftex.def)             Requested size: 252.0pt x 112.44603pt.
+<figs/fig_recon_grid.pdf, id=224, 412.03374pt x 223.36888pt>
+File: figs/fig_recon_grid.pdf Graphic file (type pdf)
+<use figs/fig_recon_grid.pdf>
+Package pdftex.def Info: figs/fig_recon_grid.pdf  used on input line 544.
+(pdftex.def)             Requested size: 490.19843pt x 265.74066pt.
+<figs/fig_pv_evolution.pdf, id=225, 445.33458pt x 195.38622pt>
+File: figs/fig_pv_evolution.pdf Graphic file (type pdf)
+<use figs/fig_pv_evolution.pdf>
+Package pdftex.def Info: figs/fig_pv_evolution.pdf  used on input line 555.
+(pdftex.def)             Requested size: 490.19843pt x 215.07753pt.
 
-Underfull \hbox (badness 1533) in paragraph at lines 549--556
+Underfull \hbox (badness 1533) in paragraph at lines 577--584
  \OT1/ptm/m/it/10 b) What we tried that did not work.: [][] \OT1/ptm/m/n/10 An 
 in-loop
  []
 
 
 
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+
+[4 <./figs/fig_main_psnr.pdf> <./figs/fig_delta_vs_random.pdf> <./figs/fig_roun
+ds.pdf>]
+
 (./pvas_wacv.bbl
 
-[4]
-
-)
+[5 <./figs/fig_nfe.pdf>])
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -741,23 +790,27 @@ Before submitting the final camera ready copy, remember to:
 
 
 
-[5 <./figs/recon_grid_placeholder.pdf> <./figs/active_evolution_placeholder.pdf
->] (./pvas_wacv.aux)
+
+
+[6
+
+ <./figs/fig_paired_delta.pdf>] [7 <./figs/fig_recon_grid.pdf> <./figs/fig_pv_e
+volution.pdf>] (./pvas_wacv.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `pvas_wacv.out' has not changed.
-(rerunfilecheck)             Checksum: 63D87C0388E88BB0A6177A3FA043638E;1918.
+(rerunfilecheck)             Checksum: C5193519033A309E1606C2441F7AFB0C;2130.
  ) 
 Here is how much of TeX's memory you used:
- 15372 strings out of 474662
- 257941 string characters out of 5751110
- 701528 words of memory out of 5000000
- 38110 multiletter control sequences out of 15000+600000
- 611566 words of font info for 142 fonts, out of 8000000 for 9000
+ 15466 strings out of 474662
+ 260163 string characters out of 5751110
+ 712528 words of memory out of 5000000
+ 38186 multiletter control sequences out of 15000+600000
+ 609237 words of font info for 141 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 75i,10n,79p,488b,591s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,10n,79p,537b,593s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8
 .pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cm
 ex10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/c
@@ -777,15 +830,16 @@ dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2025basic/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2025basic/
 texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texlive/2025bas
 ic/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texliv
-e/2025basic/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2
-025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025ba
-sic/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/texlive/2025basic/
-texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025basic/texmf
--dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on pvas_wacv.pdf (5 pages, 294012 bytes).
+e/2025basic/texmf-dist/fonts/type1/urw/courier/ucrb8a.pfb></usr/local/texlive/2
+025basic/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2025
+basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025basic
+/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/texlive/2025basic/tex
+mf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025basic/texmf-di
+st/fonts/type1/urw/times/utmri8a.pfb>
+Output written on pvas_wacv.pdf (7 pages, 1218868 bytes).
 PDF statistics:
- 420 PDF objects out of 1000 (max. 8388607)
- 309 compressed objects within 4 object streams
- 95 named destinations out of 1000 (max. 500000)
- 123 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 1076 PDF objects out of 1200 (max. 8388607)
+ 465 compressed objects within 5 object streams
+ 103 named destinations out of 1000 (max. 500000)
+ 156 words of extra memory for PDF output out of 10000 (max. 10000000)
 
