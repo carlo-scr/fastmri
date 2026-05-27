@@ -1,0 +1,146 @@
+% ============================================================
+%  FA-KGD — Milestone 1 Slides (Problem + Related Work)
+%  CS 231N, Stanford, Spring 2026
+% ============================================================
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{metropolis}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\definecolor{stanfordred}{RGB}{140,21,21}
+\setbeamercolor{progress bar}{fg=stanfordred}
+\setbeamercolor{title separator}{fg=stanfordred}
+\setbeamercolor{alerted text}{fg=stanfordred}
+
+\newcommand{\PIGDM}{$\Pi$GDM}
+
+\title{FA-KGD: Frequency-Aware Kalman-Guided Diffusion\\for Accelerated MRI Reconstruction}
+\subtitle{Milestone 1 --- Problem \& Related Work}
+\author{Carlo Schreiber \and Emma Sampietro \and Nino Alex Triandafilidis}
+\institute{CS 231N --- Stanford University}
+\date{May 15, 2026}
+
+\begin{document}
+
+% -----------------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% -----------------------------------------------------------
+\begin{frame}{Problem \& motivation}
+  \textbf{Accelerated MRI.} MRI scans take 15--60 minutes; long acquisitions cause motion artifacts and limit pediatric/cardiac protocols. Acquiring only $1/R$ of the k-space data ($R{=}4,8$) gives a 4--8$\times$ shorter scan, but the reconstruction becomes ill-posed:
+  \[
+    \mathbf{y} = \mathbf{A}\,x + \varepsilon,
+    \quad \mathbf{A}\in\mathbb{C}^{m\times n},\ m\ll n.
+  \]
+  Diffusion models are strong priors for solving this --- but existing training-free samplers make two structural errors:
+  \begin{enumerate}
+    \item \alert{Isotropic noise.} They assume $\mathbf{R}\!=\!\sigma_y^2\mathbf{I}$; real k-space SNR drops 1--2 orders of magnitude from centre to periphery.
+    \item \alert{``DC shock''.} Data consistency is enforced \emph{uniformly} on all frequencies at \emph{every} step --- forcing high-frequency residuals to zero on still-coarse iterates injects Gibbs-like ringing.
+  \end{enumerate}
+\end{frame}
+
+% -----------------------------------------------------------
+\begin{frame}{FA-KGD reduces reconstruction error at cortical edges}
+  \begin{center}
+    \includegraphics[width=0.6\textwidth]{fig1_reconstruction_comparison.png}
+  \end{center}
+  \vspace{-0.4em}
+  \footnotesize
+  Brain reconstructions at $4\times$ acceleration on fastMRI.
+  FA-KGD (ours) consistently improves over $\Pi$GDM in both PSNR and SSIM.
+  Error maps share the same colour scale: FA-KGD concentrates residual energy
+  away from high-contrast cortical and ventricular boundaries, where $\Pi$GDM's
+  DC shock manifests as Gibbs ringing.
+\end{frame}
+
+% -----------------------------------------------------------
+\begin{frame}{Related work \& positioning}
+  \textbf{\PIGDM{}} \cite{song2023pigdm} --- \emph{primary baseline}. Closed-form Kalman posterior update for linear inverse problems:
+  \[
+    \hat{x}_{t-1} = \mu_\theta(x_t) + r_t\mathbf{A}^\top\!\left(\mathbf{A}\mathbf{A}^\top + \tfrac{\sigma_y^2}{\sigma_t^2}\mathbf{I}\right)^{\!-1}\!(y - \mathbf{A}\mu_\theta(x_t)).
+  \]
+  Right framework, wrong covariance --- $\sigma_y^2\mathbf{I}$ ignores k-space structure.
+  \vspace{0.4em}
+  \begin{itemize}
+    \item \textbf{DPS} \cite{chung2023dps}: likelihood-gradient guidance; same isotropic / uniform-DC assumptions.
+    \item \textbf{DDRM} \cite{kawar2022ddrm}: SVD-based, $\sim$20-step linear solver; spectrally flat noise model.
+    \item \textbf{EDM} \cite{karras2022edm}: score-network framework and noise schedule we build on (our pre-trained checkpoint and gain formula plug into its $\sigma_t$ parameterisation).
+  \end{itemize}
+  None of these treat measurement-domain (k-space) covariance as frequency-dependent or schedule DC over the trajectory.
+\end{frame}
+
+% -----------------------------------------------------------
+\begin{frame}{Data \& evaluation}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \textbf{Dataset: fastMRI} \cite{zbontar2018fastmri}
+      \begin{itemize}
+        \item Multi-coil \textbf{brain} (primary): $\sim$200 validation volumes, $320\!\times\!320$.
+        \item Multi-coil \textbf{knee} (stretch / cross-domain).
+        \item Variable-density Cartesian masks at $R{\in}\{4,8\}$ with a 24-line ACS centre kept for calibration.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Model.} Frozen pre-trained EDM checkpoint from Ambient Diffusion \cite{daras2025adps} --- \emph{no training}.
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \textbf{Metrics} (vs.\ fully-sampled GT)
+      \begin{itemize}
+        \item PSNR (dB), SSIM, NMSE.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Baselines}
+      \begin{itemize}
+        \item Zero-filled (lower bound)
+        \item ESPIRiT \cite{uecker2014espirit} (classical CS)
+        \item DPS, DDRM, \PIGDM{} (training-free diffusion)
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Reporting.} Mean $\pm$ std across slices; per-component ablations.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% -----------------------------------------------------------
+\begin{frame}{Hypothesis \& expected outcomes}
+  \textbf{Working hypothesis}
+    Replacing \PIGDM{}'s isotropic, uniformly-applied data consistency with a \alert{frequency-aware Kalman gain} (calibrated from the scan's own ACS lines) and a \alert{progressively expanding DC radius} will improve PSNR/SSIM on fastMRI knee at $R\!=\!4,8$ --- without retraining and with negligible per-step overhead.\\ 
+  \vspace{0.3em}
+  \textbf{Why we expect this.} k-space SNR is frequency-dependent, so the optimal weight on each measurement is too. Diffusion recovers images coarse-to-fine, so DC should too. Both quantities are observable from the scan itself.\\
+  \vspace{0.3em}
+  \textbf{Success criteria.}
+  \begin{itemize}
+    \item Consistent PSNR/SSIM gain over \PIGDM{} at $R{=}4,8$.
+    \item Per-band NMSE shows the gain concentrates where predicted (low/mid frequencies).
+    \item Component ablations validate each piece individually.
+    \item Negative result (isotropic is already enough) would itself be informative.
+  \end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------
+\begin{frame}{References}
+  \footnotesize
+  \begin{thebibliography}{10}
+    \bibitem{song2023pigdm}
+      J.~Song et al.\ Pseudoinverse-Guided Diffusion Models for Inverse Problems. \emph{ICLR}, 2023.
+    \bibitem{chung2023dps}
+      H.~Chung et al.\ Diffusion Posterior Sampling for General Noisy Inverse Problems. \emph{ICLR}, 2023.
+    \bibitem{kawar2022ddrm}
+      B.~Kawar et al.\ Denoising Diffusion Restoration Models. \emph{NeurIPS}, 2022.
+    \bibitem{karras2022edm}
+      T.~Karras et al.\ Elucidating the Design Space of Diffusion-Based Generative Models. \emph{NeurIPS}, 2022.
+    \bibitem{daras2025adps}
+      G.~Daras et al.\ Ambient Diffusion Posterior Sampling. \emph{ICLR}, 2025.
+    \bibitem{uecker2014espirit}
+      M.~Uecker et al.\ ESPIRiT --- An Eigenvalue Approach to Autocalibrating Parallel MRI. \emph{MRM}, 71(3):990--1001, 2014.
+    \bibitem{zbontar2018fastmri}
+      J.~Zbontar et al.\ fastMRI: An Open Dataset and Benchmarks for Accelerated MRI. \emph{arXiv:1811.08839}, 2018.
+  \end{thebibliography}
+\end{frame}
+
+\end{document}
