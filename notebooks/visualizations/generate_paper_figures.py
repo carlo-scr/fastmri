@@ -199,18 +199,17 @@ def fig2_zoomed_crops():
         run_name = 'edm_brain_R4'
     _, slices_data = load_results(run_name)
 
-    d = slices_data[0]  # best slice
+    d = slices_data[0]
     gt    = d['x_gt'].abs()
     pigdm = d['pigdm_recon'].abs()
     fakgd = d['fakgd_recon'].abs()
     H, W  = gt.shape
     crop  = 80
 
-    # Auto-pick 2 interesting regions
     gt_np = gt.numpy()
     lv = uniform_filter(gt_np**2, size=crop) - uniform_filter(gt_np, size=crop)**2
-    lv[:crop//2, :] = lv[-crop//2:, :] = 0
-    lv[:, :crop//2] = lv[:, -crop//2:] = 0
+    lv[:crop, :] = lv[-crop:, :] = 0
+    lv[:, :crop] = lv[:, -crop:] = 0
     regions = []
     for _ in range(2):
         idx = np.unravel_index(lv.argmax(), lv.shape)
@@ -219,25 +218,29 @@ def fig2_zoomed_crops():
         r1, c1 = min(H, idx[0]+crop), min(W, idx[1]+crop)
         lv[r0:r1, c0:c1] = 0
 
-    fig = plt.figure(figsize=(7.16, 3.8))
-    gs_main = gridspec.GridSpec(1, 2, width_ratios=[1.0, 2.2], wspace=0.12)
+    box_colors = ['#7E3FA8', '#D4A843']  # purple, gold
+    row_names = ['Cortical edge', 'Ventricular edge']
 
-    # Left: full image with crop boxes
-    ax_full = fig.add_subplot(gs_main[0])
-    ax_full.imshow(gt_np, cmap='gray')
-    box_colors = [ACCENT, CORAL]
+    # Layout: 1 column with full GT on left (tall), right side is a 2x4 crop grid
+    # Use compact figsize so right grid fills vertically without whitespace.
+    fig = plt.figure(figsize=(7.16, 2.55))
+    gs = gridspec.GridSpec(
+        2, 5,
+        width_ratios=[1.05, 1.0, 1.0, 1.0, 1.0],
+        wspace=0.05, hspace=0.08,
+        left=0.045, right=0.995, top=0.90, bottom=0.02,
+    )
+
+    ax_full = fig.add_subplot(gs[:, 0])
+    ax_full.imshow(gt_np, cmap='gray', aspect='equal')
     for j, (r, c) in enumerate(regions):
-        rect = Rectangle((c, r), crop, crop, lw=1.8,
-                          edgecolor=box_colors[j], facecolor='none', linestyle='-')
-        ax_full.add_patch(rect)
-    ax_full.set_title('Ground Truth', fontweight='bold', fontsize=9, pad=4)
+        ax_full.add_patch(Rectangle(
+            (c, r), crop, crop, lw=1.6,
+            edgecolor=box_colors[j], facecolor='none'))
+    ax_full.set_title('Slice (GT)', fontsize=8.5, fontweight='bold', pad=3)
     ax_full.axis('off')
-    _add_panel_label(ax_full, '(a)', x=-0.05)
 
-    # Right: crop grid
-    gs_right = gridspec.GridSpecFromSubplotSpec(len(regions), 4, subplot_spec=gs_main[1],
-                                                wspace=0.04, hspace=0.06)
-    col_titles = ['Ground Truth', r'$\Pi$GDM', 'FA-KGD (ours)', 'Error diff']
+    col_titles = ['Ground Truth', r'$\Pi$GDM', 'FA-KGD', r'$|e_{\Pi}|-|e_{\text{FA}}|$']
 
     for j, (r, c) in enumerate(regions):
         gt_c = gt[r:r+crop, c:c+crop]
@@ -245,32 +248,44 @@ def fig2_zoomed_crops():
         fa_c = fakgd[r:r+crop, c:c+crop]
         err_p = (gt_c - pi_c).abs()
         err_f = (gt_c - fa_c).abs()
-        err_diff = err_p - err_f  # positive = FA-KGD better
+        err_diff = err_p - err_f
         vmax_c = gt_c.max().item()
         lim = max(abs(err_diff.min().item()), abs(err_diff.max().item()))
 
-        imgs = [gt_c.numpy(), pi_c.numpy(), fa_c.numpy(), err_diff.numpy()]
-        cmaps = ['gray', 'gray', 'gray', 'RdBu']
-        vmins = [0, 0, 0, -lim]
-        vmaxs = [vmax_c, vmax_c, vmax_c, lim]
+        # Per-crop PSNRs for overlay
+        def _psnr(x, y):
+            mse = ((x - y) ** 2).mean().item()
+            return 10 * np.log10((vmax_c ** 2) / max(mse, 1e-12))
+        psnr_p = _psnr(gt_c, pi_c)
+        psnr_f = _psnr(gt_c, fa_c)
+
+        imgs    = [gt_c.numpy(), pi_c.numpy(), fa_c.numpy(), err_diff.numpy()]
+        cmaps   = ['gray', 'gray', 'gray', 'RdBu_r']
+        vmins   = [0, 0, 0, -lim]
+        vmaxs   = [vmax_c, vmax_c, vmax_c, lim]
+        overlay = [None, f'{psnr_p:.2f} dB', f'{psnr_f:.2f} dB', None]
 
         for k in range(4):
-            ax = fig.add_subplot(gs_right[j, k])
+            ax = fig.add_subplot(gs[j, k + 1])
             ax.imshow(imgs[k], cmap=cmaps[k], vmin=vmins[k], vmax=vmaxs[k],
-                      interpolation='nearest')
-            ax.axis('off')
-            if j == 0:
-                color = CORAL if k == 2 else NAVY
-                ax.set_title(col_titles[k], fontsize=8, fontweight='bold', pad=3, color=color)
-            # Colored border matching box
+                      interpolation='nearest', aspect='equal')
+            ax.set_xticks([]); ax.set_yticks([])
             for spine in ax.spines.values():
                 spine.set_visible(True)
                 spine.set_edgecolor(box_colors[j])
-                spine.set_linewidth(1.2)
-
-    # Panel (b) label on first crop row
-    crop_ax0 = fig.axes[-4]  # first axis of the top crop row
-    _add_panel_label(crop_ax0, '(b)', x=-0.18)
+                spine.set_linewidth(1.4)
+            if j == 0:
+                ax.set_title(col_titles[k], fontsize=8, fontweight='bold',
+                             pad=3, color=NAVY)
+            if k == 0:
+                ax.set_ylabel(row_names[j], fontsize=8, fontweight='bold',
+                              color=box_colors[j], rotation=90, labelpad=2)
+            if overlay[k] is not None:
+                ax.text(0.97, 0.04, overlay[k], transform=ax.transAxes,
+                        ha='right', va='bottom', fontsize=7.2,
+                        color='white', fontweight='bold',
+                        bbox=dict(facecolor='black', alpha=0.55,
+                                  pad=1.4, edgecolor='none'))
 
     fig.savefig(FIG_DIR / 'fig2_zoomed_crops.pdf')
     fig.savefig(FIG_DIR / 'fig2_zoomed_crops.png')

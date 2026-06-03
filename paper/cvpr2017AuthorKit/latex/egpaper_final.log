@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.6.1)  2 JUN 2026 19:42
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.6.1)  3 JUN 2026 10:45
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**fa_kgd.tex
-(./fa_kgd.tex
+**egpaper_final.tex
+(./egpaper_final.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/base/article.cls
@@ -23,37 +23,17 @@ File: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)
 \belowcaptionskip=\skip50
 \bibindent=\dimen148
 )
-(../cvpr2017AuthorKit/latex/cvpr.sty
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/eso-pic/eso-pic.sty
-Package: eso-pic 2025/12/10 v3.0d eso-pic (RN)
-\ESO@tempdima=\dimen149
-\ESO@tempdimb=\dimen150
+(./cvpr.sty (./eso-pic.sty
+Package: eso-pic 2002/11/16 v1.1b eso-pic (RN)
+ (./cvpr_eso.sty
 
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics/keyval.sty
+LaTeX Warning: You have requested package `eso-pic',
+               but the package provides `everyshi'.
+
+Package: everyshi 2001/05/15 v3.00 EveryShipout Package (MS)
+) (/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics/keyval.sty
 Package: keyval 2022/05/29 v1.15 key=value parser (DPC)
 \KV@toks@=\toks17
-)
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/xcolor/xcolor.sty
-Package: xcolor 2024/09/29 v3.02 LaTeX color extensions (UK)
-
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics-cfg/color.cfg
-File: color.cfg 2016/01/02 v1.6 sample color configuration
-)
-Package xcolor Info: Driver file: pdftex.def on input line 274.
-
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics-def/pdftex.def
-File: pdftex.def 2025/09/29 v1.2d Graphics/color driver for pdftex
-)
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics/mathcolor.ltx)
-Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1349.
-Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1353.
-Package xcolor Info: Model `RGB' extended on input line 1365.
-Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1367.
-Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1368.
-Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1369.
-Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1370.
-Package xcolor Info: Model `Gray' substituted by `gray' on input line 1371.
-Package xcolor Info: Model `wave' substituted by `hsb' on input line 1372.
 ))
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/tools/xspace.sty
 Package: xspace 2014/10/28 v1.13 Space after command names (DPC,MH)
@@ -63,9 +43,9 @@ CVPR 8.5 x 11-Inch Proceedings Style `cvpr.sty'.
 \@figindent=\skip52
 \cvprrulerbox=\box53
 \cvprrulercount=\count283
-\cvprruleroffset=\dimen151
-\cv@lineheight=\dimen152
-\cv@boxheight=\dimen153
+\cvprruleroffset=\dimen149
+\cv@lineheight=\dimen150
+\cv@boxheight=\dimen151
 \cv@tmpbox=\box54
 \cv@refno=\count284
 \cv@tot=\count285
@@ -90,13 +70,17 @@ Package: trig 2023/12/02 v1.11 sin cos tan (DPC)
 File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
 )
 Package graphics Info: Driver file: pdftex.def on input line 106.
+
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics-def/pdftex.def
+File: pdftex.def 2025/09/29 v1.2d Graphics/color driver for pdftex
+))
+\Gin@req@height=\dimen152
+\Gin@req@width=\dimen153
 )
-\Gin@req@height=\dimen154
-\Gin@req@width=\dimen155
+\epsfxsize=\dimen154
+\epsfysize=\dimen155
 )
-\epsfxsize=\dimen156
-\epsfysize=\dimen157
-) (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsmath/amsmath.sty
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsmath/amsmath.sty
 Package: amsmath 2025/07/09 v2.17z AMS math features
 \@mathmargin=\skip53
 
@@ -107,11 +91,11 @@ Package: amstext 2024/11/17 v2.01 AMS text
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsmath/amsgen.sty
 File: amsgen.sty 1999/11/30 v2.0 generic functions
 \@emptytoks=\toks18
-\ex@=\dimen158
+\ex@=\dimen156
 ))
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsmath/amsbsy.sty
 Package: amsbsy 1999/11/29 v1.2d Bold Symbols
-\pmbraise@=\dimen159
+\pmbraise@=\dimen157
 )
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsmath/amsopn.sty
 Package: amsopn 2022/04/08 v2.04 operator names
@@ -133,7 +117,7 @@ LaTeX Info: Redefining \big on input line 721.
 LaTeX Info: Redefining \Big on input line 722.
 LaTeX Info: Redefining \bigg on input line 723.
 LaTeX Info: Redefining \Bigg on input line 724.
-\big@size=\dimen160
+\big@size=\dimen158
 LaTeX Font Info:    Redeclaring font encoding OML on input line 742.
 LaTeX Font Info:    Redeclaring font encoding OMS on input line 743.
 \macc@depth=\count293
@@ -151,12 +135,12 @@ LaTeX Info: Redefining \Relbar on input line 970.
 \column@=\count298
 \maxfields@=\count299
 \andhelp@=\toks20
-\eqnshift@=\dimen161
-\alignsep@=\dimen162
-\tagshift@=\dimen163
-\tagwidth@=\dimen164
-\totwidth@=\dimen165
-\lineht@=\dimen166
+\eqnshift@=\dimen159
+\alignsep@=\dimen160
+\tagshift@=\dimen161
+\tagwidth@=\dimen162
+\totwidth@=\dimen163
+\lineht@=\dimen164
 \@envbody=\toks21
 \multlinegap=\skip54
 \multlinetaggap=\skip55
@@ -211,14 +195,14 @@ Package: caption 2023/08/05 v3.6o Customizing captions (AR)
 
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/caption/caption3.sty
 Package: caption3 2023/07/31 v2.4d caption3 kernel (AR)
-\caption@tempdima=\dimen167
-\captionmargin=\dimen168
-\caption@leftmargin=\dimen169
-\caption@rightmargin=\dimen170
-\caption@width=\dimen171
-\caption@indent=\dimen172
-\caption@parindent=\dimen173
-\caption@hangindent=\dimen174
+\caption@tempdima=\dimen165
+\captionmargin=\dimen166
+\caption@leftmargin=\dimen167
+\caption@rightmargin=\dimen168
+\caption@width=\dimen169
+\caption@indent=\dimen170
+\caption@parindent=\dimen171
+\caption@hangindent=\dimen172
 Package caption Info: Unknown document class (or package),
 (caption)             standard defaults will be used.
 Package caption Info: \@makecaption = \long macro:#1#2-> \setbox \@tempboxa \hb
@@ -242,23 +226,42 @@ Package caption Info: New subtype `subtable' on input line 238.
 \c@subtable=\count309
 ) (/usr/local/texlive/2025basic/texmf-dist/tex/latex/booktabs/booktabs.sty
 Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
-\heavyrulewidth=\dimen175
-\lightrulewidth=\dimen176
-\cmidrulewidth=\dimen177
-\belowrulesep=\dimen178
-\belowbottomsep=\dimen179
-\aboverulesep=\dimen180
-\abovetopsep=\dimen181
-\cmidrulesep=\dimen182
-\cmidrulekern=\dimen183
-\defaultaddspace=\dimen184
+\heavyrulewidth=\dimen173
+\lightrulewidth=\dimen174
+\cmidrulewidth=\dimen175
+\belowrulesep=\dimen176
+\belowbottomsep=\dimen177
+\aboverulesep=\dimen178
+\abovetopsep=\dimen179
+\cmidrulesep=\dimen180
+\cmidrulekern=\dimen181
+\defaultaddspace=\dimen182
 \@cmidla=\count310
 \@cmidlb=\count311
-\@aboverulesep=\dimen185
-\@belowrulesep=\dimen186
+\@aboverulesep=\dimen183
+\@belowrulesep=\dimen184
 \@thisruleclass=\count312
 \@lastruleclass=\count313
-\@thisrulewidth=\dimen187
+\@thisrulewidth=\dimen185
+)
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/xcolor/xcolor.sty
+Package: xcolor 2024/09/29 v3.02 LaTeX color extensions (UK)
+
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics-cfg/color.cfg
+File: color.cfg 2016/01/02 v1.6 sample color configuration
+)
+Package xcolor Info: Driver file: pdftex.def on input line 274.
+
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/graphics/mathcolor.ltx)
+Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1349.
+Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1353.
+Package xcolor Info: Model `RGB' extended on input line 1365.
+Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1367.
+Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1368.
+Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1369.
+Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1370.
+Package xcolor Info: Model `Gray' substituted by `gray' on input line 1371.
+Package xcolor Info: Model `wave' substituted by `hsb' on input line 1372.
 )
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/cite/cite.sty
 LaTeX Info: Redefining \cite on input line 302.
@@ -284,7 +287,7 @@ Package: multirow 2024/11/12 v2.9 Span multiple rows of a table
 \multirow@colwidth=\skip58
 \multirow@cntb=\count314
 \multirow@dima=\skip59
-\bigstrutjot=\dimen188
+\bigstrutjot=\dimen186
 )
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/hyperref/hyperref.sty
 Package: hyperref 2026-01-29 v7.01p Hypertext links for LaTeX
@@ -341,7 +344,7 @@ Package: etoolbox 2025/10/02 v2.5m e-TeX tools for LaTeX (JAW)
 Package: stringenc 2019/11/29 v1.12 Convert strings between diff. encodings (HO
 )
 )
-\@linkdim=\dimen189
+\@linkdim=\dimen187
 \Hy@linkcounter=\count317
 \Hy@pagecounter=\count318
 
@@ -394,13 +397,13 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 ))
 \c@Hy@tempcnt=\count320
 LaTeX Info: Redefining \url on input line 4807.
-\XeTeXLinkMargin=\dimen190
+\XeTeXLinkMargin=\dimen188
  (/usr/local/texlive/2025basic/texmf-dist/tex/generic/bitset/bitset.sty
 Package: bitset 2019/12/09 v1.3 Handle bit-vector datatype (HO)
 )
 \Fld@menulength=\count321
-\Field@Width=\dimen191
-\Fld@charsize=\dimen192
+\Field@Width=\dimen189
+\Fld@charsize=\dimen190
 Package hyperref Info: Hyper figures OFF on input line 6084.
 Package hyperref Info: Link nesting OFF on input line 6089.
 Package hyperref Info: Hyper index ON on input line 6092.
@@ -440,8 +443,8 @@ Package cleveref Info: always capitalise cross-reference names on input line 78
 Package cleveref Info: no abbreviation of names on input line 7852.
 )
 ==> First Aid for cleveref.sty applied!
-LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 3
-9.
+LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 4
+0.
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ot1ptm.fd
 File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
 )
@@ -449,38 +452,38 @@ File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
 ef
 File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count327
-) (./fa_kgd.aux)
-\openout1 = `fa_kgd.aux'.
+) (./egpaper_final.aux)
+\openout1 = `egpaper_final.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+ ABD: EveryShipout initializing macros
 (/usr/local/texlive/2025basic/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count328
-\scratchdimen=\dimen193
+\scratchdimen=\dimen191
 \scratchbox=\box59
 \nofMPsegments=\count329
 \nofMParguments=\count330
 \everyMPshowfont=\toks26
 \MPscratchCnt=\count331
-\MPscratchDim=\dimen194
+\MPscratchDim=\dimen192
 \MPnumerator=\count332
 \makeMPintoPDFobject=\count333
 \everyMPtoPDFconversion=\toks27
@@ -505,20 +508,20 @@ e
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Link coloring ON on input line 39.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 58.
+Package hyperref Info: Link coloring ON on input line 40.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 59.
 
  (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 58.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 59.
 
 
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 5
-8.
+9.
 
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
@@ -527,274 +530,207 @@ File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 154--165
+Underfull \hbox (badness 10000) in paragraph at lines 166--177
 []\OT1/ptm/m/n/10 The De-nois-ing Dif-fu-sion Prob-a-bilis-tic Model
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 154--165
+Underfull \hbox (badness 10000) in paragraph at lines 166--177
 \OT1/ptm/m/n/10 (DDPM) [[][][]1[][]] de-fines a for-ward nois-ing pro-cess
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 188--194
+Underfull \hbox (badness 10000) in paragraph at lines 200--206
 []\OT1/ptm/m/n/10 Jalal et al. [[][][]4[][]] first demon-strated score-based
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 188--194
+Underfull \hbox (badness 10000) in paragraph at lines 200--206
 \OT1/ptm/m/n/10 compressed-sensing MRI with a posterior-sampling
  []
 
 
-Underfull \hbox (badness 1248) in paragraph at lines 188--194
+Underfull \hbox (badness 1248) in paragraph at lines 200--206
 \OT1/ptm/m/n/10 for-mu-la-tion, and Chung & Ye [[][][]5[][]] ex-tended it to th
 e
  []
 
 [2] [3]
 Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 444.
-
-Underfull \hbox (badness 3657) in paragraph at lines 447--450
-\OT1/ptm/m/n/10 sched-ule $\OMS/cmsy/m/n/10 f\OML/cmm/m/it/10 ^^[[]\OMS/cmsy/m/
-n/10 g$\OT1/ptm/m/n/10 ; de-faults $\OML/cmm/m/it/10 [][]\OT1/cmr/m/n/10 0\OML
-/cmm/m/it/10 :\OT1/cmr/m/n/10 95$\OT1/ptm/m/n/10 , $\OML/cmm/m/it/10 ^^L[]\OT1/
-cmr/m/n/10 1\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0$\OT1/ptm/m/n/10 , $\OML/cmm/m/i
-t/10 ^^M[]\OT1/cmr/m/n/10 0$\OT1/ptm/m/n/10 ,
- []
-
+put line 455.
 LaTeX Font Info:    Trying to load font information for OMS+ptm on input line 4
-55.
-(/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/omsptm.fd
+69.
+ (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/omsptm.fd
 File: omsptm.fd 
 )
 LaTeX Font Info:    Font shape `OMS/ptm/m/n' in size <10> not available
-(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 455.
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 469.
 
-Underfull \hbox (badness 10000) in paragraph at lines 456--458
-[] []$\OML/cmm/m/it/10 r\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 t\OT1/cmr/m/n/10 ) \O
-MS/cmsy/m/n/10   \OML/cmm/m/it/10 r[] \OT1/cmr/m/n/10 + (\OML/cmm/m/it/10 r[][]
-r[]\OT1/cmr/m/n/10 )(1[]\OML/cmm/m/it/10 t=T\OT1/cmr/m/n/10 )[]$
- []
-
-
-Underfull \hbox (badness 3260) in paragraph at lines 462--465
-[] []$[] \OMS/cmsy/m/n/10   \OML/cmm/m/it/10 \OT1/cmr/m/n/10 (\OML/cmm/m/it/10
- t\OT1/cmr/m/n/10 )[] + (1[]\OML/cmm/m/it/10 \OT1/cmr/m/n/10 (\OML/cmm/m/it/10
- t\OT1/cmr/m/n/10 )) [](\OMS/cmsy/m/n/10 j\OML/cmm/m/it/10 r[]\OMS/cmsy/m/n/10 
-j[][]\OML/cmm/m/it/10 ^^M^^[[];  ^^O\OT1/cmr/m/n/10 )$
- []
-
-
-Underfull \hbox (badness 4366) in paragraph at lines 471--472
-[] []$\OML/cmm/m/it/10 x[] \OMS/cmsy/m/n/10  $ \OT1/ptm/m/n/10 De-nois-ing Dif-
-fu-sion Im-plicit Model
- []
-
-
-Underfull \hbox (badness 1769) in paragraph at lines 500--506
-\OT1/ptm/m/n/10 the model op-er-ates cross-domain (brain-trained, knee-
+Underfull \hbox (badness 3138) in paragraph at lines 517--528
+\OT1/ptm/m/n/10 step-budget sweep (Ta-ble [][]4[][]): $\OT1/cmr/m/n/10 192$ \OT
+1/ptm/m/n/10 AXFLAIR slices
  []
 
 [4]
-<fig1_reconstruction_comparison.png, id=164, 521.5485pt x 329.7921pt>
-File: fig1_reconstruction_comparison.png Graphic file (type png)
-<use fig1_reconstruction_comparison.png>
-Package pdftex.def Info: fig1_reconstruction_comparison.png  used on input line
- 572.
-(pdftex.def)             Requested size: 278.23828pt x 175.94135pt.
-<fig2_zoomed_crops.png, id=166, 414.1071pt x 187.6611pt>
-File: fig2_zoomed_crops.png Graphic file (type png)
-<use fig2_zoomed_crops.png>
-Package pdftex.def Info: fig2_zoomed_crops.png  used on input line 578.
-(pdftex.def)             Requested size: 198.73946pt x 90.06485pt.
+Underfull \hbox (badness 1769) in paragraph at lines 559--565
+\OT1/ptm/m/n/10 the model op-er-ates cross-domain (brain-trained, knee-
+ []
 
-Underfull \hbox (badness 1194) in paragraph at lines 630--630
-\OT1/ptm/m/n/10 ues are mean PSNR (dB) over slices; $\OT1/cmr/m/n/10 ^^A$ \OT1/
-ptm/m/n/10 is the per-
+<../../fakgd/fig2_zoomed_crops.png, id=177, 490.9542pt x 178.9887pt>
+File: ../../fakgd/fig2_zoomed_crops.png Graphic file (type png)
+<use ../../fakgd/fig2_zoomed_crops.png>
+Package pdftex.def Info: ../../fakgd/fig2_zoomed_crops.png  used on input line 
+634.
+(pdftex.def)             Requested size: 486.91699pt x 177.5216pt.
+
+Underfull \hbox (badness 2269) in paragraph at lines 674--701
+[]\OT1/ptm/m/n/10 Table [][]4[][] ex-tends to $\OML/cmm/m/it/10 R[]\OT1/cmr/m/n
+/10 8$ \OT1/ptm/m/n/10 and adds for-mal sig-nif-
  []
 
 
-Underfull \vbox (badness 2818) has occurred while \output is active []
-
-
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-682.
-
-
-LaTeX Warning: Reference `sec:crossdomain_para' on page 1 undefined on input li
-ne 692.
-
-<fig3_scaling_curve.png, id=173, 521.3076pt x 170.5572pt>
-File: fig3_scaling_curve.png Graphic file (type png)
-<use fig3_scaling_curve.png>
-Package pdftex.def Info: fig3_scaling_curve.png  used on input line 697.
-(pdftex.def)             Requested size: 237.13594pt x 77.58542pt.
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-707.
-
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-707.
+Underfull \hbox (badness 1430) in paragraph at lines 674--701
+\OT1/ptm/m/n/10 i-cance test-ing un-der frequency-dependent mea-sure-ment
+ []
 
 [5]
-Underfull \hbox (badness 1057) in paragraph at lines 713--720
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [6 <../../fakgd/fig2_zoomed_crops.png>]
+Underfull \hbox (badness 1057) in paragraph at lines 813--820
 \OT1/ptm/m/n/10 squared er-ror (NMSE) on brain $\OML/cmm/m/it/10 R[]\OT1/cmr/m/
 n/10 4$\OT1/ptm/m/n/10 . FA-KGD im-
  []
 
 
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Underfull \vbox (badness 6364) has occurred while \output is active []
 
-<fig4_frequency_analysis.png, id=186, 521.3076pt x 196.0926pt>
-File: fig4_frequency_analysis.png Graphic file (type png)
-<use fig4_frequency_analysis.png>
-Package pdftex.def Info: fig4_frequency_analysis.png  used on input line 723.
-(pdftex.def)             Requested size: 237.13594pt x 89.20132pt.
 
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [6 <./fig1_reconstruction_comparison.png> <./fig2_zoomed_crops.png> <./fig3_sc
-aling_curve.png>]
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-741.
-
-<fig7_cross_domain_bar.png, id=204, 508.0581pt x 209.8239pt>
-File: fig7_cross_domain_bar.png Graphic file (type png)
-<use fig7_cross_domain_bar.png>
-Package pdftex.def Info: fig7_cross_domain_bar.png  used on input line 750.
-(pdftex.def)             Requested size: 237.13594pt x 97.93529pt.
-
-Underfull \hbox (badness 2573) in paragraph at lines 757--757
-[]\OT1/ptm/m/n/10 Figure 4: |Cross-domain com-par-i-son across the four
+Underfull \hbox (badness 3679) in paragraph at lines 825--825
+\OT1/ptm/m/n/10 Rel-a-tive im-prove-ment is $\OT1/cmr/m/n/10 (^^E[][][])\OML/cm
+m/m/it/10 =\OT1/cmr/m/n/10 ^^E[]$\OT1/ptm/m/n/10 ;
  []
 
 
-Underfull \hbox (badness 2564) in paragraph at lines 763--769
-[]\OT1/ptm/m/n/10 Figure [][]5[][] sweeps $\OML/cmm/m/it/10 ^^L \OMS/cmsy/m/n/1
-0 2 f\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 5\OML/cmm/m/it/10 ; \OT
-1/cmr/m/n/10 1\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 ; \OT1/cmr/m/
-n/10 2\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OMS/cmsy/m/n/10 g$ \OT1/ptm/m/n/10 an
-d $\OML/cmm/m/it/10  \OMS/cmsy/m/n/10 2
+Underfull \hbox (badness 3302) in paragraph at lines 844--850
+[]\OT1/ptm/m/n/10 Table [][]9[][] sweeps $\OML/cmm/m/it/10 ^^L \OMS/cmsy/m/n/10
+ 2 f\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 5\OML/cmm/m/it/10 ; \OT1
+/cmr/m/n/10 1\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 ; \OT1/cmr/m/n
+/10 2\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OMS/cmsy/m/n/10 g$ \OT1/ptm/m/n/10 and
+ $\OML/cmm/m/it/10  \OMS/cmsy/m/n/10 2
  []
 
-<fig5_hyperparameter_sweep.png, id=208, 326.1786pt x 239.4546pt>
-File: fig5_hyperparameter_sweep.png Graphic file (type png)
-<use fig5_hyperparameter_sweep.png>
-Package pdftex.def Info: fig5_hyperparameter_sweep.png  used on input line 772.
-
-(pdftex.def)             Requested size: 237.13594pt x 174.0879pt.
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [7 <./fig7_cross_domain_bar.png> <./fig4_frequency_analysis.png> <./fig5_hyper
-parameter_sweep.png>]
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 8
-73.
- (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ts1ptm.fd
-File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
-)
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-876.
-
-
-Underfull \hbox (badness 1024) in paragraph at lines 873--880
-\OT1/ptm/m/n/10 a pi-lot five-slice eval-u-a-tion. The $\OT1/cmr/m/n/10 192$\OT
-1/ptm/m/n/10 -slice brain
+[7] [8]
+Underfull \hbox (badness 4120) in paragraph at lines 1027--1038
+[]\OT1/ptm/b/n/10 External code. \OT1/ptm/m/n/10 The FA-KGD sam-pler is built
  []
 
-[8] (./fa_kgd.bbl (./fa_kgd.brf)
+
+Underfull \hbox (badness 2126) in paragraph at lines 1027--1038
+\OT1/ptm/m/n/10 on top of the pub-lic EDM im-ple-men-ta-tion and pre-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1027--1038
+\OT1/pcr/m/n/10 ambient-[]diffusion-[]mri$[][]\OT1/ptm/m/n/10 ), and on the of-
+fi-cial
+ []
+
+
+Underfull \hbox (badness 1931) in paragraph at lines 1027--1038
+\OT1/ptm/m/n/10 fastMRI data-loading util-i-ties [[][][]14[][]]. $\OT1/cmr/m/n/
+10 ^^E$\OT1/ptm/m/n/10 GDM [[][][]9[][]] and
+ []
+
+
+Underfull \hbox (badness 2253) in paragraph at lines 1027--1038
+\OT1/ptm/m/n/10 DPS [[][][]8[][]] base-lines were re-implemented in the same
+ []
+
+
+Underfull \hbox (badness 1755) in paragraph at lines 1027--1038
+\OT1/ptm/m/n/10 (Eqs. [][]3[][]--[][]9[][], the FPDC sched-uler, the vol-u-met-
+ric ACS
+ []
+
+(./egpaper_final.bbl (./egpaper_final.brf)
 \tf@brf=\write3
-\openout3 = `fa_kgd.brf'.
+\openout3 = `egpaper_final.brf'.
 
 
 Underfull \hbox (badness 1320) in paragraph at lines 67--67
 []\OT1/ptm/m/n/10 J. Song, A. Vah-dat, M. Mar-dani, and J. Kautz,
  []
 
-
+[9]
 Underfull \hbox (badness 1442) in paragraph at lines 96--96
 \OT1/ptm/m/n/10 bench-marks for ac-cel-er-ated MRI,'' \OT1/ptm/m/it/10 arXiv pr
 eprint
  []
 
 )
+<../../fakgd/fig1_reconstruction_comparison.png, id=309, 521.5485pt x 329.7921p
+t>
+File: ../../fakgd/fig1_reconstruction_comparison.png Graphic file (type png)
+<use ../../fakgd/fig1_reconstruction_comparison.png>
+Package pdftex.def Info: ../../fakgd/fig1_reconstruction_comparison.png  used o
+n input line 1075.
+(pdftex.def)             Requested size: 237.13594pt x 149.94492pt.
+
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[9] [10] (./fa_kgd.aux)
+[10 <../../fakgd/fig1_reconstruction_comparison.png>] [11
+
+] (./egpaper_final.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
-
-
-LaTeX Warning: There were undefined references.
-
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
-
-Package rerunfilecheck Warning: File `fa_kgd.brf' has changed.
-(rerunfilecheck)                Rerun to get bibliographical references right.
-
-Package rerunfilecheck Info: Checksums for `fa_kgd.brf':
-(rerunfilecheck)             Before: 14008402380AFC0BCF5B82E6235D6614;1874
-(rerunfilecheck)             After:  F0577BFF4CE35294EB387C0A8FCA90C4;1878.
+Package rerunfilecheck Info: File `egpaper_final.brf' has not changed.
+(rerunfilecheck)             Checksum: 751E3FD0292B410E098A91EE3CE4D0C3;2216.
  ) 
 Here is how much of TeX's memory you used:
- 14820 strings out of 469005
- 245450 string characters out of 5454799
- 706249 words of memory out of 5000000
- 43176 multiletter control sequences out of 15000+600000
- 668242 words of font info for 131 fonts, out of 8000000 for 9000
+ 14771 strings out of 469005
+ 244222 string characters out of 5454799
+ 703436 words of memory out of 5000000
+ 43128 multiletter control sequences out of 15000+600000
+ 669439 words of font info for 135 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 90i,11n,93p,818b,654s stack positions out of 10000i,1000n,20000p,200000b,200000s
-
-pdfTeX warning (dest): name{table.caption.11} has been referenced but does not 
-exist, replaced by a fixed one
-
-
-pdfTeX warning (dest): name{table.caption.9} has been referenced but does not e
-xist, replaced by a fixed one
-
-
-pdfTeX warning (dest): name{figure.caption.5} has been referenced but does not 
-exist, replaced by a fixed one
-
-</usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.
-pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmb
-x7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/
-cmex10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts
-/cm/cmmi10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsf
-onts/cm/cmmi5.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmmi7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/publi
-c/amsfonts/cm/cmmi9.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/pu
-blic/amsfonts/cm/cmr10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmr5.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/typ
-e1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/t
-ype1/public/amsfonts/cm/cmr9.pfb></usr/local/texlive/2025basic/texmf-dist/fonts
-/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025basic/texmf-dist/f
-onts/type1/public/amsfonts/cm/cmsy5.pfb></usr/local/texlive/2025basic/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2025basic/texmf-
-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2025basic/tex
-mf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive/2025basic/
-texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/local/texlive/2
-025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/
-texlive/2025basic/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/tex
-live/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/
-2025basic/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/texlive/2025
-basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025basic
-/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on fa_kgd.pdf (10 pages, 4040890 bytes).
+ 90i,11n,93p,449b,652s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx1
+0.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/c
+mbx7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/c
+m/cmbx9.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmex10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/ams
+fonts/cm/cmmi10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmmi5.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/pub
+lic/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/
+public/amsfonts/cm/cmmi9.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/typ
+e1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr5.pfb></usr/local/texlive/2025basic/texmf-dist/font
+s/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2025basic/texmf-dist/fo
+nts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/texlive/2025basic/texmf-dist/
+fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/local/texlive/2025basic/texmf-di
+st/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025basic/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb></usr/local/texlive/2025basic/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2025basi
+c/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2025b
+asic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive/20
+25basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/local/t
+exlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></us
+r/local/texlive/2025basic/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/l
+ocal/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/
+texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/texl
+ive/2025basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2
+025basic/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on egpaper_final.pdf (11 pages, 3658775 bytes).
 PDF statistics:
- 430 PDF objects out of 1000 (max. 8388607)
- 352 compressed objects within 4 object streams
+ 474 PDF objects out of 1000 (max. 8388607)
+ 394 compressed objects within 4 object streams
  110 named destinations out of 1000 (max. 500000)
- 31 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 11 words of extra memory for PDF output out of 10000 (max. 10000000)
 
