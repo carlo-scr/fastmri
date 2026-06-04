@@ -515,9 +515,11 @@ fastMRI \emph{validation} split for all reported numbers and the \emph{test}
 split for an unused held-out subset.
 
 \textbf{Evaluation splits.}
-(i)~Pilot main table (\Cref{tab:results}): five consecutive central
-slices from one validation volume per anatomy/setting (treated as directional
-evidence).
+(i)~Main brain table (\Cref{tab:results}, brain rows): the same $192$ AXFLAIR
+slices from $12$ validation volumes used in the scaling and hparam sweeps.
+Knee rows in \Cref{tab:results} remain a $5$-slice directional pilot from one
+validation volume per setting; the full $192$-slice / $6$-volume knee numbers
+are in \Cref{tab:tscaling_knee}.
 (ii)~Brain step-budget sweep (\Cref{tab:tscaling}): $192$ AXFLAIR slices
 pooled from $12$ validation volumes ($\approx 16$ slices/volume).
 (iii)~Cross-domain knee sweep (\Cref{tab:tscaling_knee}): $192$
@@ -580,15 +582,15 @@ only; not applicable to single-coil knee).
 \subsection{Main Quantitative Results}
 
 \Cref{tab:results} reports PSNR and SSIM across brain and knee at two
-acceleration rates. Because this table currently uses only five slices per
-setting, we treat it as directional evidence and rely on \Cref{tab:tscaling}
-for the stronger sample-size claim. Among training-free methods FA-KGD wins every cell,
-improving over $\Pi$GDM by $+0.12$ to $+0.50$~dB and over DPS by $+1.4$
-to $+2.4$~dB. ADPS underperforms DPS at these step budgets because its
+acceleration rates. Brain rows aggregate the full $192$-slice / $12$-volume
+set; the knee rows remain a $5$-slice directional pilot (the $192$-slice
+knee numbers appear in \Cref{tab:tscaling_knee}). Among training-free
+methods FA-KGD wins every cell, improving over $\Pi$GDM by $+0.10$ to
+$+0.39$~dB and over DPS by $+0.5$ to $+3.4$~dB. ADPS underperforms DPS at these step budgets because its
 per-step Langevin likelihood correction is tuned for the long-chain regime
 ($T\!\geq\!300$, as reported in~\cite{daras2025ambient}): with only
 $T\!\in\!\{20,50\}$ steps each correction is too large to be stable, so
-the sampler does not converge and the pilot numbers reflect the same
+the sampler does not converge and the reported numbers reflect the same
 short-chain handicap across all four settings rather than a model defect
 (\Cref{sec:discussion}).
 The supervised E2E-VarNet reaches $34.60$~dB on brain $R{=}4$ and
@@ -604,10 +606,12 @@ reweighting artefact.
 
 \begin{table*}[t]
 \centering
-\caption{Pilot quantitative comparison on fastMRI (five consecutive slices
-per setting). Best training-free result in \textbf{bold};
-E2E-VarNet~\cite{sriram2020varnet} (grey) is a supervised, brain-only
-reference.}
+\caption{Quantitative comparison on fastMRI. Brain rows aggregate $192$
+AXFLAIR slices from $12$ validation volumes; knee rows remain a $5$-slice
+directional pilot (full $192$-slice knee sweep in \Cref{tab:tscaling_knee}).
+Best training-free result in \textbf{bold}; E2E-VarNet~\cite{sriram2020varnet}
+(grey) is a supervised, brain-only reference re-evaluated on the same $192$
+brain slices.}
 \label{tab:results}
 \small
 \setlength{\tabcolsep}{6pt}
@@ -620,8 +624,10 @@ reference.}
  & & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ &
  & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ \\
 \midrule
-Brain $R{=}4$ & 20 & 27.31 & 25.25 & 29.43 & \textbf{29.73} & \textcolor{gray}{34.60} & & .663 & .572 & .867 & \textbf{.871} & \textcolor{gray}{.856} \\
-Brain $R{=}4$ & 50 & 28.07 & 26.44 & 30.00 & \textbf{30.49} & \textcolor{gray}{34.60} & & .721 & .642 & .864 & \textbf{.874} & \textcolor{gray}{.856} \\
+Brain $R{=}4$ & 20 & 26.64 & 25.26 & 29.83 & \textbf{30.06} & \textcolor{gray}{34.60} & & .529 & .476 & .714 & \textbf{.718} & \textcolor{gray}{.856} \\
+Brain $R{=}4$ & 50 & 26.90 & 25.34 & 29.85 & \textbf{30.24} & \textcolor{gray}{34.60} & & .569 & .499 & .703 & \textbf{.714} & \textcolor{gray}{.856} \\
+Brain $R{=}8$ & 20 & 24.93 & 22.74 & 27.14 & \textbf{27.24} & \textcolor{gray}{33.30} & & .502 & .413 & .633 & \textbf{.636} & \textcolor{gray}{.830} \\
+Brain $R{=}8$ & 50 & 25.25 & 23.09 & 27.13 & \textbf{27.33} & \textcolor{gray}{33.30} & & .520 & .441 & .623 & \textbf{.631} & \textcolor{gray}{.830} \\
 Knee $R{=}4$  & 20 & 28.57 & 25.84 & 29.05 & \textbf{29.19} & ---                      & & .655 & .600 & .645 & \textbf{.658} & --- \\
 Knee $R{=}8$  & 20 & 28.51 & 24.44 & 28.67 & \textbf{28.79} & ---                      & & .646 & .568 & .630 & \textbf{.642} & --- \\
 \bottomrule
@@ -768,9 +774,10 @@ gain to exploit (\Cref{fig:crossdomain}).
 
 \begin{table}[H]
 \centering
-\caption{Cross-domain summary across the four pilot settings of
-\Cref{tab:results}. Brain (matched) gains are $2$--$3{\times}$ knee
-(cross-domain), mirroring \Cref{tab:tscaling,tab:tscaling_knee}.}
+\caption{Cross-domain summary contrasting brain (matched) and knee
+(cross-domain) gains at $T{=}20$ ($192$ slices each, from
+\Cref{tab:tscaling,tab:tscaling_knee}). Brain (matched) gains are
+$\sim$$1.6{\times}$ knee (cross-domain).}
 \label{fig:crossdomain}
 \setlength{\tabcolsep}{5pt}
 \small
@@ -845,17 +852,19 @@ Band (px) & $\Pi$GDM NMSE & FA-KGD NMSE & $\Delta$ rel.\ (\%) \\
 \subsection{Hyperparameter Sensitivity}
 
 \Cref{tab:hparam} sweeps $\beta \in \{0.5, 1.0, 2.0\}$ and
-$\alpha \in \{0.8, 0.9, 0.95, 1.0\}$ on brain $R{=}4$. All 12
-combinations improve over \PIGDM{} ($+0.229$ to $+0.315$~dB), with
-$\beta{=}1.0$, $\alpha{=}0.95$ optimal. The flat plateau at
-$\beta \in \{0.5, 1.0\}$ shows that the FPDC expansion shape matters
-less than its existence, a practical advantage.
+$\alpha \in \{0.8, 0.9, 0.95, 1.0\}$ on $192$ brain $R{=}4$ slices.
+All $12$ combinations improve over \PIGDM{} ($+0.205$ to $+0.232$~dB),
+with $\beta{=}1.0$, $\alpha{=}0.95$ at the optimum. At this sample size
+the $\alpha$ axis is essentially flat ($<0.001$~dB spread within each
+$\beta$ row): the FPDC expansion shape ($\beta$) controls the gain,
+while EMA smoothing ($\alpha$) is a free knob, a useful tuning advantage.
 
 \begin{table}[H]
 \centering
-\caption{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ (5 slices):
-$\Delta$PSNR (dB) over $\Pi$GDM across FPDC exponent $\beta$ and EMA
-smoothing $\alpha$. All $12$ settings improve; best in \textbf{bold}.}
+\caption{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ AXFLAIR
+slices, $12$ volumes): $\Delta$PSNR (dB) over $\Pi$GDM across FPDC
+exponent $\beta$ and EMA smoothing $\alpha$. All $12$ settings improve;
+best in \textbf{bold}.}
 \label{tab:hparam}
 \setlength{\tabcolsep}{6pt}
 \small
@@ -865,9 +874,9 @@ smoothing $\alpha$. All $12$ settings improve; best in \textbf{bold}.}
 \cmidrule{2-5}
  & 0.80 & 0.90 & 0.95 & 1.00 & \\
 \midrule
-0.5 & $+0.311$ & $+0.311$ & $+0.311$ & $+0.310$ & $+0.311$ \\
-1.0 & $+0.312$ & $+0.313$ & $\mathbf{+0.315}$ & $+0.313$ & $+0.313$ \\
-2.0 & $+0.229$ & $+0.228$ & $+0.229$ & $+0.232$ & $+0.230$ \\
+0.5 & $+0.232$ & $+0.232$ & $+0.232$ & $+0.232$ & $+0.232$ \\
+1.0 & $+0.232$ & $+0.232$ & $\mathbf{+0.232}$ & $+0.232$ & $+0.232$ \\
+2.0 & $+0.205$ & $+0.205$ & $+0.205$ & $+0.205$ & $+0.205$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -960,9 +969,10 @@ fewer steps than $\Pi$GDM, a practical wall-clock saving for any
 fixed-budget deployment.
 
 \textbf{Limitations.}
-The main brain/knee table remains a five-slice pilot; the $192$-slice
-brain and knee sweeps (\Cref{tab:tscaling,tab:tscaling_knee}) carry the
-step-budget claim with volume-level significance, but both use a
+The brain rows of \Cref{tab:results} and the brain/knee step-budget sweeps
+(\Cref{tab:tscaling,tab:tscaling_knee}) all use $192$ slices from $\geq 6$
+volumes with volume-level significance, but the knee rows of
+\Cref{tab:results} remain a $5$-slice directional pilot, and all sweeps use a
 controlled synthetic radial noise profile and do not substitute for a
 full fastMRI validation under real multi-coil noise. The knee numbers
 additionally apply a brain-trained EDM cross-domain, and a knee-matched
@@ -1089,27 +1099,26 @@ boundaries occupy only a small fraction of the slice area.
 \subsection{\texorpdfstring{$\beta$ Sweep}{beta Sweep}}
 
 \Cref{tab:beta} reports $\Delta$PSNR over the FPDC expansion exponent
-$\beta$ and EMA smoothing $\alpha$ on brain $R{=}4$, expanding
-\Cref{tab:hparam} of the main paper. All twelve combinations improve over
-$\Pi$GDM. The plateau across $\beta\!\in\!\{0.5,1.0\}$ and
-$\alpha\!\in\!\{0.8,0.95\}$ shows that FA-KGD is not narrowly tuned: any
-moderate schedule that defers high-frequency DC is within $0.01$~dB of the
-optimum $(\beta{=}1.0,\alpha{=}0.95,\Delta{=}{+}0.315$~dB$)$. The drop at
-$\beta{=}2.0$ reflects an overly aggressive late-stage radius expansion
-that re-introduces the DC-shock failure mode FPDC was designed to remove.
+$\beta$ and EMA smoothing $\alpha$ on $192$ brain $R{=}4$ slices,
+expanding \Cref{tab:hparam} of the main paper. All twelve combinations
+improve over $\Pi$GDM. The $\alpha$ axis is flat to $<0.001$~dB at every
+$\beta$, and $\beta\!\in\!\{0.5,1.0\}$ are tied at the optimum
+($\Delta{=}{+}0.232$~dB). The drop at $\beta{=}2.0$ reflects an overly
+aggressive late-stage radius expansion that re-introduces the DC-shock
+failure mode FPDC was designed to remove.
 
 \begin{table}[h]
 \centering
 \caption{$\beta\times\alpha$ grid: $\Delta$PSNR (dB) over $\Pi$GDM on
-brain $R{=}4$ at $T{=}20$.}
+brain $R{=}4$ at $T{=}20$ ($192$ slices, $12$ volumes).}
 \label{tab:beta}
 \begin{tabular}{ccccc}
 \toprule
 $\beta \backslash \alpha$ & 0.8 & 0.9 & 0.95 & 1.0 \\
 \midrule
-0.5 & $+$0.311 & $+$0.311 & $+$0.311 & $+$0.310 \\
-1.0 & $+$0.312 & $+$0.313 & $\mathbf{+0.315}$ & $+$0.313 \\
-2.0 & $+$0.229 & $+$0.228 & $+$0.229 & $+$0.232 \\
+0.5 & $+$0.232 & $+$0.232 & $+$0.232 & $+$0.232 \\
+1.0 & $+$0.232 & $+$0.232 & $\mathbf{+0.232}$ & $+$0.232 \\
+2.0 & $+$0.205 & $+$0.205 & $+$0.205 & $+$0.205 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1128,7 +1137,7 @@ two components are mutually enabling rather than independent.
 \begin{table}[h]
 \centering
 \caption{Component ablation at $R{=}8$ with an oracle denoiser
-($T{=}100$). Final-iterate PSNR on the same five-slice development set
+($T{=}100$). Final-iterate PSNR on the same five-slice oracle development set
 used in \Cref{tab:ablation}.}
 \label{tab:r8}
 \begin{tabular}{lcc}

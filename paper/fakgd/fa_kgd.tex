@@ -489,11 +489,11 @@ network forward pass.
 \subsection{Setup}
 
 \textbf{Dataset.} We use fastMRI knee and brain data~\cite{zbontar2018fastmri}.
-The current main table is a pilot evaluation: five consecutive slices from one
-validation volume per anatomy/setting, with knee at $320\times320$ and brain
-(axial T2-weighted, AXT2) center-cropped to $384\times320$. The larger
-step-budget experiment in \Cref{tab:tscaling} uses $192$ AXFLAIR brain slices
-from $12$ validation volumes. We report these sample sizes explicitly because
+Brain rows of \Cref{tab:results} and \Cref{tab:tscaling} aggregate $192$
+AXFLAIR slices from $12$ validation volumes ($384\times320$); knee rows of
+\Cref{tab:results} are a $5$-slice directional pilot ($320\times320$, axial
+T2-weighted), and the full $192$-slice / $6$-volume knee sweep is in
+\Cref{tab:tscaling_knee}. We report sample sizes explicitly because
 slice-level statistics over adjacent slices are correlated and should not be
 read as independent patient-level evidence.
 
@@ -521,12 +521,13 @@ only; not applicable to single-coil knee).
 \subsection{Main Quantitative Results}
 
 \Cref{tab:results} reports PSNR and SSIM across brain and knee at two
-acceleration rates. Because this table currently uses only five slices per
-setting, we treat it as directional evidence and rely on \Cref{tab:tscaling}
-for the stronger sample-size claim. Among training-free methods FA-KGD wins every cell,
-improving over $\Pi$GDM by $+0.12$ to $+0.50$~dB and over DPS by $+1.4$
-to $+2.4$~dB. ADPS underperforms DPS at these step budgets because its
-per-step likelihood correction targets $T\!\geq\!300$ (\Cref{sec:discussion}).
+acceleration rates. Brain rows aggregate $192$ AXFLAIR slices from $12$
+validation volumes; knee rows remain a $5$-slice directional pilot (full
+$192$-slice knee sweep in \Cref{tab:tscaling_knee}). Among training-free
+methods FA-KGD wins every cell, improving over $\Pi$GDM by $+0.10$ to
+$+0.39$~dB and over DPS by $+0.5$ to $+3.4$~dB. ADPS underperforms DPS at
+these step budgets because its per-step likelihood correction targets
+$T\!\geq\!300$ (\Cref{sec:discussion}).
 The supervised E2E-VarNet reaches $34.60$~dB on brain $R{=}4$ and
 $33.30$~dB at $R{=}8$ when re-evaluated on the same 192-slice protocol,
 roughly $4$--$5$~dB above any training-free result; \Cref{sec:related}
@@ -534,16 +535,19 @@ attributes the gap to its multicoil raw-data access and task-specific
 training rather than to sampler quality. Three patterns recur:
 domain-matched models gain more from FA-KGD (brain $>$ knee); FA-KGD's
 lead over $\Pi$GDM grows monotonically with the step budget
-($+0.30$~dB at $T{=}20$, $+0.50$~dB at $T{=}50$, \Cref{fig:scaling}a);
+($+0.23$~dB at $T{=}20$, $+0.39$~dB at $T{=}50$, \Cref{fig:scaling}a);
 and SSIM gains track the PSNR gains, ruling out a pixel-level
 reweighting artefact.
 
 \begin{table*}[t]
 \centering
-\caption{Pilot quantitative comparison on fastMRI (five consecutive slices
-from one validation volume per setting). Best training-free result per setting
-in \textbf{bold}. E2E-VarNet~\cite{sriram2020varnet} (grey) is a supervised
-reference that is only available for the brain multicoil setting.}
+\caption{Quantitative comparison on fastMRI. Brain rows aggregate $192$
+AXFLAIR slices from $12$ validation volumes; knee rows remain a $5$-slice
+directional pilot (full $192$-slice knee sweep in \Cref{tab:tscaling_knee}).
+Best training-free result per setting in \textbf{bold}.
+E2E-VarNet~\cite{sriram2020varnet} (grey) is a supervised reference,
+re-evaluated on the same $192$ brain slices, only available for the brain
+multicoil setting.}
 \label{tab:results}
 \small
 \setlength{\tabcolsep}{6pt}
@@ -556,8 +560,10 @@ reference that is only available for the brain multicoil setting.}
  & & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ &
  & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ \\
 \midrule
-Brain $R{=}4$ & 20 & 27.31 & 25.25 & 29.43 & \textbf{29.73} & \textcolor{gray}{34.60} & & .663 & .572 & .867 & \textbf{.871} & \textcolor{gray}{.856} \\
-Brain $R{=}4$ & 50 & 28.07 & 26.44 & 30.00 & \textbf{30.49} & \textcolor{gray}{34.60} & & .721 & .642 & .864 & \textbf{.874} & \textcolor{gray}{.856} \\
+Brain $R{=}4$ & 20 & 26.64 & 25.26 & 29.83 & \textbf{30.06} & \textcolor{gray}{34.60} & & .529 & .476 & .714 & \textbf{.718} & \textcolor{gray}{.856} \\
+Brain $R{=}4$ & 50 & 26.90 & 25.34 & 29.85 & \textbf{30.24} & \textcolor{gray}{34.60} & & .569 & .499 & .703 & \textbf{.714} & \textcolor{gray}{.856} \\
+Brain $R{=}8$ & 20 & 24.93 & 22.74 & 27.14 & \textbf{27.24} & \textcolor{gray}{33.30} & & .502 & .413 & .633 & \textbf{.636} & \textcolor{gray}{.830} \\
+Brain $R{=}8$ & 50 & 25.25 & 23.09 & 27.13 & \textbf{27.33} & \textcolor{gray}{33.30} & & .520 & .441 & .623 & \textbf{.631} & \textcolor{gray}{.830} \\
 Knee $R{=}4$  & 20 & 28.57 & 25.84 & 29.05 & \textbf{29.19} & ---                      & & .655 & .600 & .645 & \textbf{.658} & --- \\
 Knee $R{=}8$  & 20 & 28.51 & 24.44 & 28.67 & \textbf{28.79} & ---                      & & .646 & .568 & .630 & \textbf{.642} & --- \\
 \bottomrule
@@ -737,7 +743,7 @@ noise-dominated high-frequency residuals.
 \Cref{fig:crossdomain} compares $\Delta$PSNR and $\Delta$SSIM across
 all settings. Domain-matched brain yields the largest gains
 ($\Delta{=}+0.49$~dB at $T{=}50$); cross-domain knee gains are smaller
-but consistent ($+0.12$--$+0.14$~dB in the five-slice pilot,
+but consistent ($+0.12$--$+0.14$~dB in the $5$-slice knee pilot,
 \Cref{tab:results}). The $192$-slice, $6$-volume knee sweep
 (\Cref{tab:tscaling_knee}) corroborates this: at the matched step budget
 $T{=}20$ the knee gain is $+0.25$~dB ($R{=}4$) and $+0.15$~dB ($R{=}8$),
@@ -762,22 +768,25 @@ network faithfully represents the target anatomy.
 \subsection{Hyperparameter Sensitivity}
 
 \Cref{fig:hparam} sweeps $\beta \in \{0.5, 1.0, 2.0\}$ and
-$\alpha \in \{0.8, 0.9, 0.95, 1.0\}$ on brain $R{=}4$. All 12
-combinations improve over \PIGDM{} ($+0.229$ to $+0.315$~dB), with
-$\beta{=}1.0$, $\alpha{=}0.95$ optimal. The flat plateau at
-$\beta \in \{0.5, 1.0\}$ shows that the FPDC expansion shape matters
-less than its existence, a practical advantage.
+$\alpha \in \{0.8, 0.9, 0.95, 1.0\}$ on $192$ brain $R{=}4$ slices.
+All $12$ combinations improve over \PIGDM{} ($+0.205$ to $+0.232$~dB),
+with $\beta{=}1.0$, $\alpha{=}0.95$ at the optimum. At this sample size
+the $\alpha$ axis is essentially flat ($<0.001$~dB spread within each
+$\beta$ row): the FPDC expansion shape ($\beta$) controls the gain,
+while EMA smoothing ($\alpha$) is a free knob.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{fig5_hyperparameter_sweep.png}
-  \caption{Hyperparameter sweep on brain $R{=}4$. $\Delta$PSNR (dB) relative
-  to $\Pi$GDM as a function of FPDC exponent $\beta$ and EMA smoothing
-  $\alpha$ (12 configurations, 5 slices each). The best configuration
-  ($\beta{=}1.0$, $\alpha{=}0.95$, $\Delta{=}+0.315$~dB) is highlighted;
-  all 12 settings improve over $\Pi$GDM. Performance is relatively flat for
-  $\beta\!\in\!\{0.5, 1.0\}$ and degrades at $\beta{=}2.0$, indicating that
-  the existence of a progressive schedule matters more than its exact shape.}
+  \caption{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ AXFLAIR
+  slices, $12$ volumes). $\Delta$PSNR (dB) relative to $\Pi$GDM as a function
+  of FPDC exponent $\beta$ and EMA smoothing $\alpha$ (12 configurations).
+  The best configuration ($\beta{=}1.0$, $\alpha{=}0.95$,
+  $\Delta{=}{+}0.232$~dB) is highlighted; all $12$ settings improve over
+  $\Pi$GDM. Performance is flat across $\alpha$ at every $\beta$ and within
+  $0.001$~dB across $\beta\!\in\!\{0.5, 1.0\}$, degrading slightly at
+  $\beta{=}2.0$, indicating that the existence of a progressive schedule
+  matters more than its exact shape.}
   \label{fig:hparam}
 \end{figure}
 
@@ -871,8 +880,11 @@ fixed-budget deployment.
 
 \textbf{Limitations.}
 \begin{itemize}
-  \item \textit{Evaluation scale.} The main brain/knee table is still a pilot
-  five-slice evaluation. The $192$-slice brain sweep ($12$ volumes,
+  \item \textit{Evaluation scale.} The brain rows of \Cref{tab:results} and
+  the brain/knee step-budget sweeps (\Cref{tab:tscaling,tab:tscaling_knee})
+  aggregate $192$ slices from $\geq 6$ volumes; the knee rows of
+  \Cref{tab:results} remain a $5$-slice directional pilot. The $192$-slice
+  brain sweep ($12$ volumes,
   \Cref{tab:tscaling}) and the $192$-slice knee sweep ($6$ volumes,
   \Cref{tab:tscaling_knee}) support the step-budget claim more strongly,
   especially with volume-level tests for brain, but both use a controlled
