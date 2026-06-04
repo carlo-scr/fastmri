@@ -542,14 +542,11 @@ reweighting artefact.
 
 \begin{table*}[t]
 \centering
-\caption{Quantitative comparison on fastMRI. Brain rows aggregate $192$
-AXFLAIR slices from $12$ validation volumes; knee rows aggregate $192$
-single-coil slices from $6$ validation volumes (brain-trained EDM applied
-cross-domain; full knee step-budget sweep in \Cref{tab:tscaling_knee}).
-Best training-free result per setting in \textbf{bold}.
-E2E-VarNet~\cite{sriram2020varnet} (grey) is a supervised reference,
-re-evaluated on the same $192$ brain slices, only available for the brain
-multicoil setting.}
+\caption{Quantitative comparison on fastMRI. Brain: $192$ AXFLAIR slices,
+$12$ volumes. Knee: $192$ single-coil slices, $6$ volumes (brain-trained
+EDM, cross-domain; full sweep in \Cref{tab:tscaling_knee}). Best
+training-free in \textbf{bold}; E2E-VarNet~\cite{sriram2020varnet}
+(grey) is a supervised brain-only reference on the same $192$ slices.}
 \label{tab:results}
 \small
 \setlength{\tabcolsep}{6pt}
@@ -588,10 +585,9 @@ Knee $R{=}8$  & 20 & 26.49 & 24.18 & 28.33 & \textbf{28.47} & ---               
     \caption{Zoomed high-contrast edge crops.}
   \end{subfigure}
   \caption{Qualitative comparison on fastMRI brain ($R{=}4$, $T{=}20$,
-  domain-matched EDM). FA-KGD reduces residual energy around cortical and
-  ventricular edges, where $\Pi$GDM's hard data consistency produces
-  Gibbs-like ringing. Error maps share a color scale; per-slice PSNR/SSIM are
-  overlaid on the reconstruction panels.}
+  domain-matched EDM). FA-KGD reduces residual energy at cortical and
+  ventricular edges where $\Pi$GDM produces Gibbs-like ringing. Error maps
+  share a colour scale; per-slice PSNR/SSIM overlaid.}
   \label{fig:recon}
 \end{figure*}
 
@@ -629,14 +625,12 @@ $p=2.44\times10^{-4}$).
 
 \begin{table}[H]
 \centering
-\caption{Step-budget scaling on $192$ AXFLAIR brain slices (12 volumes,
-$\beta{=}5$ frequency-dependent noise, analytic radial $\hatsig^2(r;\theta)$
-initialisation,
+\caption{Step-budget scaling, $192$ AXFLAIR brain slices ($12$ volumes,
+$\beta{=}5$ radial noise, analytic radial init,
 $m_{\text{step}}{=}\textsc{clamp}$, $\sigma_{\max}{=}10$).
-Values are mean PSNR (dB) over slices;
-$\Delta$ is the per-slice mean of FA-KGD$-\Pi$GDM with std and one-sided
-paired Wilcoxon $p$-value. All volume-level mean differences are positive
-($12/12$ volumes per setting; volume-level Wilcoxon $p=2.44\times10^{-4}$).}
+$\Delta$: per-slice mean (FA-KGD$-\Pi$GDM)$\pm$std with one-sided paired
+Wilcoxon $p$. All $12$ volume means positive
+(volume Wilcoxon $p{=}2.44{\times}10^{-4}$).}
 \label{tab:tscaling}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}c c c c c c@{}}
@@ -660,13 +654,10 @@ $R$ & $T$ & $\Pi$GDM & FA-KGD & $\Delta$PSNR (dB) & $p$ \\
 
 \begin{table}[H]
 \centering
-\caption{Cross-domain replication on knee: step-budget scaling on $192$
-single-coil knee slices ($6$ validation volumes, $320\times320$,
-brain-trained EDM evaluated on knee, same hyperparameters as
-\Cref{tab:tscaling}: $\beta{=}5$ frequency-dependent noise, analytic
-radial $\hatsig^2(r;\theta)$ initialisation, $m_{\text{step}}{=}\textsc{clamp}$,
-$\sigma_{\max}{=}10$). $\Delta$ is the per-slice mean of FA-KGD$-\Pi$GDM with
-std and one-sided paired Wilcoxon $p$-value on $n{=}192$ slices.}
+\caption{Cross-domain knee sweep: $192$ single-coil slices, $6$ volumes
+($320{\times}320$, brain-trained EDM, same hyperparameters as
+\Cref{tab:tscaling}). $\Delta$: per-slice mean (FA-KGD$-\Pi$GDM)$\pm$std,
+one-sided paired Wilcoxon $p$ ($n{=}192$).}
 \label{tab:tscaling_knee}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}c c c c c c@{}}
@@ -705,16 +696,11 @@ gain to exploit (\Cref{sec:crossdomain_para}).
   \centering
   \includegraphics[width=\columnwidth]{fig3_scaling_curve.png}
   \caption{Scaling with step budget $T$ on brain $R{=}4$ (domain-matched
-  EDM; illustrative pilot subset, see \Cref{tab:tscaling,tab:tscaling_knee}
-  for the full $192$-slice numbers). (a)~$\Delta$PSNR (FA-KGD $-$ $\Pi$GDM)
-  grows monotonically with $T$. (b)~Absolute PSNR: $\Pi$GDM peaks at $T{=}50$
-  and slightly degrades afterwards, while FA-KGD remains flat, consistent
-  with our hypothesis that FPDC eliminates the over-correction mode that
-  drives $\Pi$GDM's late-$T$ regression. (c)~SSIM follows the same trend.
-  \Cref{tab:tscaling} confirms the same pattern at scale on brain ($192$
-  slices, $12$ volumes; peak $\Delta{=}+0.51$~dB at $T{=}100$) and
-  \Cref{tab:tscaling_knee} replicates it cross-domain on knee ($192$
-  slices, $6$ volumes), both for $R{=}4$ and $R{=}8$.}
+  EDM; pilot subset). (a)~$\Delta$PSNR (FA-KGD $-$ $\Pi$GDM) grows
+  monotonically with $T$. (b)~$\Pi$GDM peaks at $T{=}50$ then degrades;
+  FA-KGD stays flat, consistent with FPDC eliminating $\Pi$GDM's late-$T$
+  over-correction. (c)~SSIM follows the same trend. Full $192$-slice numbers
+  in \Cref{tab:tscaling,tab:tscaling_knee}.}
   \label{fig:scaling}
 \end{figure}
 
@@ -732,13 +718,10 @@ high-frequency residuals.
 \begin{figure}[H]
   \centering
   \includegraphics[width=\columnwidth]{fig4_frequency_analysis.png}
-  \caption{Per-band k-space NMSE on brain $R{=}4$, $T{=}50$, computed from
-  real reconstructions on $192$ AXFLAIR slices from $12$ volumes.
-  (a)~Absolute NMSE by radial frequency band. (b)~Relative improvement over
-  $\Pi$GDM per band. FA-KGD gains are concentrated in the low-frequency
-  bands ($+14.0$\% at 0--50, $+8.1$\% at 50--100) and are near-zero at the
-  $150$--$200$ band, consistent with the FPDC mechanism that defers
-  high-frequency DC to later denoising steps.}
+  \caption{Per-band k-space NMSE on brain $R{=}4$, $T{=}50$ ($192$ slices,
+  $12$ volumes). (a)~Absolute NMSE by radial band. (b)~Relative improvement
+  over $\Pi$GDM. FA-KGD gains concentrate at low frequencies, consistent
+  with FPDC deferring high-frequency DC.}
   \label{fig:freq}
 \end{figure}
 
@@ -761,13 +744,10 @@ network faithfully represents the target anatomy.
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{fig7_cross_domain_bar.png}
-  \caption{Cross-domain comparison across the four fastMRI settings reported
-  in \Cref{tab:results}. (a)~$\Delta$PSNR and (b)~$\Delta$SSIM relative
-  to $\Pi$GDM. FA-KGD improves over $\Pi$GDM in every configuration.
-  Domain-matched brain experiments (blue) show 2--3$\times$ larger PSNR
-  gains than cross-domain knee experiments (orange), consistent with the
-  adaptive gain benefiting from an accurate score prior; SSIM gains are
-  comparable across domains.}
+  \caption{Cross-domain comparison across the four \Cref{tab:results}
+  settings: (a)~$\Delta$PSNR and (b)~$\Delta$SSIM over $\Pi$GDM. FA-KGD
+  wins every cell; matched brain (blue) gains are $2$--$3{\times}$ the
+  cross-domain knee (orange) gains in PSNR, comparable in SSIM.}
   \label{fig:crossdomain}
 \end{figure}
 
@@ -784,15 +764,13 @@ while EMA smoothing ($\alpha$) is a free knob.
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{fig5_hyperparameter_sweep.png}
-  \caption{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ AXFLAIR
-  slices, $12$ volumes). $\Delta$PSNR (dB) relative to $\Pi$GDM as a function
-  of FPDC exponent $\beta$ and EMA smoothing $\alpha$ (12 configurations).
-  The best configuration ($\beta{=}1.0$, $\alpha{=}0.95$,
-  $\Delta{=}{+}0.232$~dB) is highlighted; all $12$ settings improve over
-  $\Pi$GDM. Performance is flat across $\alpha$ at every $\beta$ and within
-  $0.001$~dB across $\beta\!\in\!\{0.5, 1.0\}$, degrading slightly at
-  $\beta{=}2.0$, indicating that the existence of a progressive schedule
-  matters more than its exact shape.}
+  \caption{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ slices,
+  $12$ volumes): $\Delta$PSNR over $\Pi$GDM across FPDC exponent $\beta$ and
+  EMA $\alpha$ ($12$ configs). Optimum $\beta{=}1.0$, $\alpha{=}0.95$
+  ($\Delta{=}{+}0.232$~dB); all $12$ improve. Flat across $\alpha$ and within
+  $0.001$~dB across $\beta\!\in\!\{0.5,1.0\}$, slightly worse at
+  $\beta{=}2.0$: the existence of a progressive schedule matters more than
+  its exact shape.}
   \label{fig:hparam}
 \end{figure}
 
@@ -815,10 +793,9 @@ $\muth$ estimates. \Cref{tab:ablation} reports the results.
 
 \begin{table}[H]
 \centering
-\caption{Component ablation with oracle denoiser ($\eta=0.1$), $R=4$,
-$T=100$. $\Delta$ relative to \PIGDM{}. The $+1.9$ dB full-method gain
-exceeds the sum of isolated gains ($+0.7 + 0.0 = 0.7$ dB), confirming
-superadditive synergy in this controlled oracle setting.}
+\caption{Component ablation with oracle denoiser ($\eta{=}0.1$), $R{=}4$,
+$T{=}100$. Full-method $+1.9$~dB exceeds the sum of isolated gains
+($+0.7+0.0$): superadditive.}
 \label{tab:ablation}
 \scriptsize
 \setlength{\tabcolsep}{3pt}

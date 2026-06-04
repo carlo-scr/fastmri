@@ -604,13 +604,11 @@ reweighting artefact.
 
 \begin{table*}[t]
 \centering
-\caption{Quantitative comparison on fastMRI. Brain rows aggregate $192$
-AXFLAIR slices from $12$ validation volumes; knee rows aggregate $192$
-single-coil slices from $6$ validation volumes (brain-trained EDM applied
-cross-domain; full step-budget sweep in \Cref{tab:tscaling_knee}).
-Best training-free result in \textbf{bold}; E2E-VarNet~\cite{sriram2020varnet}
-(grey) is a supervised, brain-only reference re-evaluated on the same $192$
-brain slices.}
+\caption{Quantitative comparison on fastMRI. Brain: $192$ AXFLAIR slices,
+$12$ volumes. Knee: $192$ single-coil slices, $6$ volumes (brain-trained
+EDM, cross-domain; full sweep in \Cref{tab:tscaling_knee}). Best
+training-free in \textbf{bold}; E2E-VarNet~\cite{sriram2020varnet}
+(grey) is a supervised brain-only reference on the same $192$ slices.}
 \label{tab:results}
 \small
 \setlength{\tabcolsep}{6pt}
@@ -638,18 +636,17 @@ Knee $R{=}8$  & 20 & 26.49 & 24.18 & 28.33 & \textbf{28.47} & ---               
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.98\linewidth]{fig2_zoomed_crops.png}
-  \caption{Two $80\times80$ crops at the highest-variance edge regions of a
-  brain $R{=}4$, $T{=}50$ slice. Columns: ground truth, $\Pi$GDM, FA-KGD, and
-  the signed error-magnitude difference $|e_{\Pi}|-|e_{\text{FA}}|$ (red
-  $=$ FA-KGD better). Per-crop PSNRs are overlaid; see \Cref{tab:crops}.}
+  \caption{Two $80{\times}80$ crops at the highest-variance edges of a
+brain $R{=}4$, $T{=}50$ slice. Columns: GT, $\Pi$GDM, FA-KGD, signed
+error-magnitude difference (red $=$ FA-KGD better). See \Cref{tab:crops}.}
   \label{fig:recon}
 \end{figure*}
 
 \begin{table}[H]
 \centering
-\caption{Localised PSNR/SSIM on the two highest-variance $80\times80$ crops
-of \Cref{fig:recon} (brain $R{=}4$, $T{=}50$). Crop-level $\Delta$ exceeds
-the slice-level $\Delta$, confirming the gain concentrates at edges.}
+\caption{Localised PSNR/SSIM on the two highest-variance $80{\times}80$
+crops of \Cref{fig:recon} (brain $R{=}4$, $T{=}50$). Crop $\Delta$ exceeds
+the slice $\Delta$: the gain concentrates at edges.}
 \label{tab:crops}
 \setlength{\tabcolsep}{2.8pt}
 \scriptsize
@@ -707,10 +704,10 @@ component that fails to scale.
 
 \begin{table}[H]
 \centering
-\caption{Brain step-budget sweep: $192$ AXFLAIR slices, $12$ volumes,
-$\beta{=}5$ radial noise, analytic radial init. $\Delta$ is per-slice mean
-$\pm$ std with one-sided paired Wilcoxon $p$ ($n{=}192$); all $12$
-volume-level means positive (volume Wilcoxon $p{=}2.44{\times}10^{-4}$).}
+\caption{Brain step-budget sweep ($192$ slices, $12$ volumes, $\beta{=}5$
+radial noise, analytic radial init). $\Delta$ is per-slice mean$\pm$std
+with one-sided paired Wilcoxon $p$ ($n{=}192$); all $12$ volume means
+positive (volume Wilcoxon $p{=}2.44{\times}10^{-4}$).}
 \label{tab:tscaling}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}c c c c c c@{}}
@@ -734,10 +731,9 @@ $R$ & $T$ & $\Pi$GDM & FA-KGD & $\Delta$PSNR (dB) & $p$ \\
 
 \begin{table}[H]
 \centering
-\caption{Cross-domain knee sweep: $192$ single-coil slices, $6$ volumes,
-$320{\times}320$, brain-trained EDM, same hyperparameters as
-\Cref{tab:tscaling}. $\Delta$ is per-slice mean $\pm$ std with one-sided
-paired Wilcoxon $p$ ($n{=}192$).}
+\caption{Cross-domain knee sweep ($192$ single-coil slices, $6$ volumes,
+brain-trained EDM, same hyperparameters as \Cref{tab:tscaling}). $\Delta$:
+per-slice mean$\pm$std, one-sided paired Wilcoxon $p$ ($n{=}192$).}
 \label{tab:tscaling_knee}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}c c c c c c@{}}
@@ -773,10 +769,9 @@ gain to exploit (\Cref{fig:crossdomain}).
 
 \begin{table}[H]
 \centering
-\caption{Cross-domain summary contrasting brain (matched) and knee
-(cross-domain) gains at $T{=}20$ ($192$ slices each, from
-\Cref{tab:tscaling,tab:tscaling_knee}). Brain (matched) gains are
-$\sim$$1.6{\times}$ knee (cross-domain).}
+\caption{Brain (matched) vs.\ knee (cross-domain) gains at $T{=}20$
+(from \Cref{tab:tscaling,tab:tscaling_knee}); matched brain gains are
+$\sim$$1.6{\times}$ cross-domain knee gains.}
 \label{fig:crossdomain}
 \setlength{\tabcolsep}{5pt}
 \small
@@ -795,8 +790,8 @@ Knee (cross-domain)  & $R{=}8$ & 20 & $+0.13$ & $+0.0119$ \\
 
 \begin{table}[H]
 \centering
-\caption{Step-budget scaling on brain $R{=}4$ ($192$ slices, $12$ volumes, oracle noise init).
-$\Pi$GDM peaks at $T{=}50$ then degrades; FA-KGD is monotone.}
+\caption{Step-budget scaling, brain $R{=}4$ ($192$ slices, $12$ volumes,
+oracle init). $\Pi$GDM peaks at $T{=}50$ then degrades; FA-KGD is monotone.}
 \label{tab:scaling}
 \setlength{\tabcolsep}{2.8pt}
 \scriptsize
@@ -828,10 +823,9 @@ high-frequency residuals.
 
 \begin{table}[H]
 \centering
-\caption{Per-band k-space NMSE on brain $R{=}4$, $T{=}50$ (192 slices,
-12 volumes). Relative improvement is
-$(\Pi\text{GDM}{-}\text{FA-KGD})/\Pi\text{GDM}$; gains concentrate at
-low frequencies.}
+\caption{Per-band k-space NMSE on brain $R{=}4$, $T{=}50$ ($192$ slices).
+Relative improvement $(\Pi\text{GDM}{-}\text{FA-KGD})/\Pi\text{GDM}$ concentrates
+at low frequencies.}
 \label{tab:freq}
 \setlength{\tabcolsep}{5pt}
 \small
@@ -860,10 +854,9 @@ while EMA smoothing ($\alpha$) is a free knob, a useful tuning advantage.
 
 \begin{table}[H]
 \centering
-\caption{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ AXFLAIR
-slices, $12$ volumes): $\Delta$PSNR (dB) over $\Pi$GDM across FPDC
-exponent $\beta$ and EMA smoothing $\alpha$. All $12$ settings improve;
-best in \textbf{bold}.}
+\caption{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ slices):
+$\Delta$PSNR (dB) over $\Pi$GDM across $\beta$ and $\alpha$. All $12$
+settings improve; best in \textbf{bold}.}
 \label{tab:hparam}
 \setlength{\tabcolsep}{6pt}
 \small
@@ -900,8 +893,8 @@ $\muth$ estimates. \Cref{tab:ablation} reports the results.
 \begin{table}[H]
 \centering
 \caption{Component ablation, oracle denoiser ($\eta{=}0.1$), $R{=}4$,
-$T{=}100$. The full method's $+1.9$~dB gain exceeds the sum of isolated
-gains ($+0.7+0.0$), confirming superadditive synergy.}
+$T{=}100$. Full-method $+1.9$~dB exceeds the sum of isolated gains
+($+0.7+0.0$): superadditive.}
 \label{tab:ablation}
 \scriptsize
 \setlength{\tabcolsep}{3pt}

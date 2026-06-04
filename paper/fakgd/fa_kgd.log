@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.6.1)  2 JUN 2026 19:42
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.6.1)  4 JUN 2026 09:36
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -598,83 +598,99 @@ Underfull \hbox (badness 1769) in paragraph at lines 500--506
  []
 
 [4]
-<fig1_reconstruction_comparison.png, id=164, 521.5485pt x 329.7921pt>
+<fig1_reconstruction_comparison.png, id=170, 521.5485pt x 329.7921pt>
 File: fig1_reconstruction_comparison.png Graphic file (type png)
 <use fig1_reconstruction_comparison.png>
 Package pdftex.def Info: fig1_reconstruction_comparison.png  used on input line
- 572.
+ 578.
 (pdftex.def)             Requested size: 278.23828pt x 175.94135pt.
-<fig2_zoomed_crops.png, id=166, 414.1071pt x 187.6611pt>
+<fig2_zoomed_crops.png, id=172, 490.9542pt x 178.9887pt>
 File: fig2_zoomed_crops.png Graphic file (type png)
 <use fig2_zoomed_crops.png>
-Package pdftex.def Info: fig2_zoomed_crops.png  used on input line 578.
-(pdftex.def)             Requested size: 198.73946pt x 90.06485pt.
+Package pdftex.def Info: fig2_zoomed_crops.png  used on input line 584.
+(pdftex.def)             Requested size: 198.73946pt x 72.45723pt.
 
-Underfull \hbox (badness 1194) in paragraph at lines 630--630
-\OT1/ptm/m/n/10 ues are mean PSNR (dB) over slices; $\OT1/cmr/m/n/10 ^^A$ \OT1/
-ptm/m/n/10 is the per-
+Underfull \hbox (badness 3039) in paragraph at lines 633--633
+[]\OT1/ptm/m/n/10 Table 3: |Step-budget scal-ing, $\OT1/cmr/m/n/10 192$ \OT1/pt
+m/m/n/10 AXFLAIR brain
  []
 
 
-Underfull \vbox (badness 2818) has occurred while \output is active []
+Underfull \hbox (badness 1558) in paragraph at lines 633--633
+\OT1/ptm/m/n/10 slices ($\OT1/cmr/m/n/10 12$ \OT1/ptm/m/n/10 vol-umes, $\OML/cm
+m/m/it/10 ^^L[]\OT1/cmr/m/n/10 5$ \OT1/ptm/m/n/10 ra-dial noise, an-a-lytic ra-
+dial
+ []
 
 
+Underfull \hbox (badness 2088) in paragraph at lines 633--633
+\OT1/ptm/m/n/10 init, $\OML/cmm/m/it/10 m[][][]$\OT1/ptm/m/n/10 , $\OML/cmm/m/i
+t/10 ^^[[][]\OT1/cmr/m/n/10 10$\OT1/ptm/m/n/10 ). $\OT1/cmr/m/n/10 ^^A$\OT1/ptm
+/m/n/10 : per-slice mean
+ []
 
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-682.
+
+Underfull \hbox (badness 1087) in paragraph at lines 633--633
+\OML/cmm/m/it/10 p$\OT1/ptm/m/n/10 . All $\OT1/cmr/m/n/10 12$ \OT1/ptm/m/n/10 v
+ol-ume means pos-i-tive (vol-ume Wilcoxon
+ []
 
 
-LaTeX Warning: Reference `sec:crossdomain_para' on page 1 undefined on input li
-ne 692.
+Underfull \vbox (badness 5924) has occurred while \output is active []
 
-<fig3_scaling_curve.png, id=173, 521.3076pt x 170.5572pt>
+
+Underfull \hbox (badness 1755) in paragraph at lines 660--660
+[]\OT1/ptm/m/n/10 Table 4: |Cross-domain knee sweep: $\OT1/cmr/m/n/10 192$ \OT1
+/ptm/m/n/10 single-coil
+ []
+
+
+Underfull \hbox (badness 4001) in paragraph at lines 660--660
+\OT1/ptm/m/n/10 hy-per-pa-ram-e-ters as Ta-ble [][]3[][]). $\OT1/cmr/m/n/10 ^^A
+$\OT1/ptm/m/n/10 : per-slice mean
+ []
+
+
+Underfull \hbox (badness 1286) in paragraph at lines 660--660
+\OT1/ptm/m/n/10 (FA-KGD$\OMS/cmsy/m/n/10 ^^@\OT1/cmr/m/n/10 ^^E$\OT1/ptm/m/n/10
+ GDM)$\OMS/cmsy/m/n/10 ^^F$\OT1/ptm/m/n/10 std, one-sided paired Wilcoxon $\OML
+/cmm/m/it/10 p$
+ []
+
+<fig3_scaling_curve.png, id=181, 521.3076pt x 170.5572pt>
 File: fig3_scaling_curve.png Graphic file (type png)
 <use fig3_scaling_curve.png>
 Package pdftex.def Info: fig3_scaling_curve.png  used on input line 697.
 (pdftex.def)             Requested size: 237.13594pt x 77.58542pt.
 
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-707.
-
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-707.
-
-[5]
-Underfull \hbox (badness 1057) in paragraph at lines 713--720
-\OT1/ptm/m/n/10 squared er-ror (NMSE) on brain $\OML/cmm/m/it/10 R[]\OT1/cmr/m/
-n/10 4$\OT1/ptm/m/n/10 . FA-KGD im-
+Underfull \hbox (badness 2173) in paragraph at lines 703--703
+\OT1/ptm/m/n/10 sis-tent with FPDC elim-i-nat-ing $\OT1/cmr/m/n/10 ^^E$\OT1/ptm
+/m/n/10 GDM's late-$\OML/cmm/m/it/10 T$ \OT1/ptm/m/n/10 over-
  []
 
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-<fig4_frequency_analysis.png, id=186, 521.3076pt x 196.0926pt>
+ [5]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+<fig4_frequency_analysis.png, id=196, 521.3076pt x 196.0926pt>
 File: fig4_frequency_analysis.png Graphic file (type png)
 <use fig4_frequency_analysis.png>
-Package pdftex.def Info: fig4_frequency_analysis.png  used on input line 723.
+Package pdftex.def Info: fig4_frequency_analysis.png  used on input line 720.
 (pdftex.def)             Requested size: 237.13594pt x 89.20132pt.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [6 <./fig1_reconstruction_comparison.png> <./fig2_zoomed_crops.png> <./fig3_sc
 aling_curve.png>]
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-741.
-
-<fig7_cross_domain_bar.png, id=204, 508.0581pt x 209.8239pt>
+<fig7_cross_domain_bar.png, id=216, 508.0581pt x 209.8239pt>
 File: fig7_cross_domain_bar.png Graphic file (type png)
 <use fig7_cross_domain_bar.png>
-Package pdftex.def Info: fig7_cross_domain_bar.png  used on input line 750.
+Package pdftex.def Info: fig7_cross_domain_bar.png  used on input line 746.
 (pdftex.def)             Requested size: 237.13594pt x 97.93529pt.
 
-Underfull \hbox (badness 2573) in paragraph at lines 757--757
-[]\OT1/ptm/m/n/10 Figure 4: |Cross-domain com-par-i-son across the four
- []
-
-
-Underfull \hbox (badness 2564) in paragraph at lines 763--769
+Underfull \hbox (badness 2564) in paragraph at lines 756--763
 []\OT1/ptm/m/n/10 Figure [][]5[][] sweeps $\OML/cmm/m/it/10 ^^L \OMS/cmsy/m/n/1
 0 2 f\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 5\OML/cmm/m/it/10 ; \OT
 1/cmr/m/n/10 1\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 ; \OT1/cmr/m/
@@ -682,37 +698,25 @@ n/10 2\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 0\OMS/cmsy/m/n/10 g$ \OT1/ptm/m/n/10 an
 d $\OML/cmm/m/it/10  \OMS/cmsy/m/n/10 2
  []
 
-<fig5_hyperparameter_sweep.png, id=208, 326.1786pt x 239.4546pt>
+<fig5_hyperparameter_sweep.png, id=220, 326.1786pt x 239.4546pt>
 File: fig5_hyperparameter_sweep.png Graphic file (type png)
 <use fig5_hyperparameter_sweep.png>
-Package pdftex.def Info: fig5_hyperparameter_sweep.png  used on input line 772.
+Package pdftex.def Info: fig5_hyperparameter_sweep.png  used on input line 766.
 
 (pdftex.def)             Requested size: 237.13594pt x 174.0879pt.
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [7 <./fig7_cross_domain_bar.png> <./fig4_frequency_analysis.png> <./fig5_hyper
-parameter_sweep.png>]
+[7 <./fig7_cross_domain_bar.png> <./fig4_frequency_analysis.png> <./fig5_hyperp
+arameter_sweep.png>]
 LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 8
-73.
- (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ts1ptm.fd
+66.
+
+(/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
-
-LaTeX Warning: Reference `tab:tscaling_knee' on page 1 undefined on input line 
-876.
-
-
-Underfull \hbox (badness 1024) in paragraph at lines 873--880
-\OT1/ptm/m/n/10 a pi-lot five-slice eval-u-a-tion. The $\OT1/cmr/m/n/10 192$\OT
-1/ptm/m/n/10 -slice brain
- []
-
-[8] (./fa_kgd.bbl (./fa_kgd.brf)
+(./fa_kgd.bbl (./fa_kgd.brf)
 \tf@brf=\write3
 \openout3 = `fa_kgd.brf'.
 
-
+ [8]
 Underfull \hbox (badness 1320) in paragraph at lines 67--67
 []\OT1/ptm/m/n/10 J. Song, A. Vah-dat, M. Mar-dani, and J. Kautz,
  []
@@ -723,78 +727,54 @@ Underfull \hbox (badness 1442) in paragraph at lines 96--96
 eprint
  []
 
-)
+) [9]
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[9] [10] (./fa_kgd.aux)
+[10] (./fa_kgd.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
-
-
-LaTeX Warning: There were undefined references.
-
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
-
-Package rerunfilecheck Warning: File `fa_kgd.brf' has changed.
-(rerunfilecheck)                Rerun to get bibliographical references right.
-
-Package rerunfilecheck Info: Checksums for `fa_kgd.brf':
-(rerunfilecheck)             Before: 14008402380AFC0BCF5B82E6235D6614;1874
-(rerunfilecheck)             After:  F0577BFF4CE35294EB387C0A8FCA90C4;1878.
+Package rerunfilecheck Info: File `fa_kgd.brf' has not changed.
+(rerunfilecheck)             Checksum: 5134CADC9E330C8EE6E3DD11C158B4CE;1878.
  ) 
 Here is how much of TeX's memory you used:
- 14820 strings out of 469005
- 245450 string characters out of 5454799
+ 14817 strings out of 469005
+ 245403 string characters out of 5454799
  706249 words of memory out of 5000000
  43176 multiletter control sequences out of 15000+600000
  668242 words of font info for 131 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 90i,11n,93p,818b,654s stack positions out of 10000i,1000n,20000p,200000b,200000s
-
-pdfTeX warning (dest): name{table.caption.11} has been referenced but does not 
-exist, replaced by a fixed one
-
-
-pdfTeX warning (dest): name{table.caption.9} has been referenced but does not e
-xist, replaced by a fixed one
-
-
-pdfTeX warning (dest): name{figure.caption.5} has been referenced but does not 
-exist, replaced by a fixed one
-
-</usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.
-pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmb
-x7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/
-cmex10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts
-/cm/cmmi10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsf
-onts/cm/cmmi5.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmmi7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/publi
-c/amsfonts/cm/cmmi9.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/pu
-blic/amsfonts/cm/cmr10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmr5.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/typ
-e1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/t
-ype1/public/amsfonts/cm/cmr9.pfb></usr/local/texlive/2025basic/texmf-dist/fonts
-/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025basic/texmf-dist/f
-onts/type1/public/amsfonts/cm/cmsy5.pfb></usr/local/texlive/2025basic/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2025basic/texmf-
-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2025basic/tex
-mf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive/2025basic/
-texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/local/texlive/2
-025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/
-texlive/2025basic/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/tex
-live/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/
-2025basic/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/texlive/2025
-basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025basic
-/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on fa_kgd.pdf (10 pages, 4040890 bytes).
+ 90i,11n,93p,598b,654s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx1
+0.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/cm/c
+mbx7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfonts/c
+m/cmex10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/amsfon
+ts/cm/cmmi10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmmi5.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/pub
+lic/amsfonts/cm/cmmi9.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/
+public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/typ
+e1/public/amsfonts/cm/cmr5.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2025basic/texmf-dist/fonts
+/type1/public/amsfonts/cm/cmr9.pfb></usr/local/texlive/2025basic/texmf-dist/fon
+ts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025basic/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmsy5.pfb></usr/local/texlive/2025basic/texmf-d
+ist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2025basic/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2025basic/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive/2025basi
+c/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/local/texlive
+/2025basic/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/loca
+l/texlive/2025basic/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/t
+exlive/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texliv
+e/2025basic/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/texlive/20
+25basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025bas
+ic/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on fa_kgd.pdf (10 pages, 3994219 bytes).
 PDF statistics:
- 430 PDF objects out of 1000 (max. 8388607)
- 352 compressed objects within 4 object streams
- 110 named destinations out of 1000 (max. 500000)
+ 440 PDF objects out of 1000 (max. 8388607)
+ 360 compressed objects within 4 object streams
+ 107 named destinations out of 1000 (max. 500000)
  31 words of extra memory for PDF output out of 10000 (max. 10000000)
 

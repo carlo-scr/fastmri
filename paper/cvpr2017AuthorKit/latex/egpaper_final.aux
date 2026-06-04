@@ -129,48 +129,48 @@
 \@writefile{brf}{\backcite{sriram2020varnet}{{5}{6.1}{subsection.6.1}}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.2}\hskip -1em.~Main Quantitative Results}{5}{subsection.6.2}\protected@file@percent }
 \@writefile{brf}{\backcite{daras2025ambient}{{5}{6.2}{subsection.6.2}}}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Localised PSNR/SSIM on the two highest-variance $80\times 80$ crops of \Cref  {fig:recon} (brain $R{=}4$, $T{=}50$). Crop-level $\Delta $ exceeds the slice-level $\Delta $, confirming the gain concentrates at edges.}}{5}{table.caption.4}\protected@file@percent }
-\newlabel{tab:crops}{{3}{5}{Localised PSNR/SSIM on the two highest-variance $80\times 80$ crops of \Cref {fig:recon} (brain $R{=}4$, $T{=}50$). Crop-level $\Delta $ exceeds the slice-level $\Delta $, confirming the gain concentrates at edges}{table.caption.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Localised PSNR/SSIM on the two highest-variance $80{\times }80$ crops of \Cref  {fig:recon} (brain $R{=}4$, $T{=}50$). Crop $\Delta $ exceeds the slice $\Delta $: the gain concentrates at edges.}}{5}{table.caption.4}\protected@file@percent }
+\newlabel{tab:crops}{{3}{5}{Localised PSNR/SSIM on the two highest-variance $80{\times }80$ crops of \Cref {fig:recon} (brain $R{=}4$, $T{=}50$). Crop $\Delta $ exceeds the slice $\Delta $: the gain concentrates at edges}{table.caption.4}{}}
 \newlabel{tab:crops@cref}{{[table][3][]3}{[1][5][]5}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.3}\hskip -1em.~Scaling with Diffusion Steps}{5}{subsection.6.3}\protected@file@percent }
 \newlabel{sec:tscaling}{{6.3}{5}{\hskip -1em.~Scaling with Diffusion Steps}{subsection.6.3}{}}
 \newlabel{sec:tscaling@cref}{{[subsection][3][6]6.3}{[1][5][]5}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Pilot quantitative comparison on fastMRI (five consecutive slices per setting). Best training-free result in \textbf  {bold}; E2E-VarNet~\cite  {sriram2020varnet} (grey) is a supervised, brain-only reference.}}{6}{table.caption.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Quantitative comparison on fastMRI. Brain: $192$ AXFLAIR slices, $12$ volumes. Knee: $192$ single-coil slices, $6$ volumes (brain-trained EDM, cross-domain; full sweep in \Cref  {tab:tscaling_knee}). Best training-free in \textbf  {bold}; E2E-VarNet~\cite  {sriram2020varnet} (grey) is a supervised brain-only reference on the same $192$ slices.}}{6}{table.caption.2}\protected@file@percent }
 \@writefile{brf}{\backcite{sriram2020varnet}{{6}{2}{table.caption.2}}}
-\newlabel{tab:results}{{2}{6}{Pilot quantitative comparison on fastMRI (five consecutive slices per setting). Best training-free result in \textbf {bold}; E2E-VarNet~\cite {sriram2020varnet} (grey) is a supervised, brain-only reference}{table.caption.2}{}}
+\newlabel{tab:results}{{2}{6}{Quantitative comparison on fastMRI. Brain: $192$ AXFLAIR slices, $12$ volumes. Knee: $192$ single-coil slices, $6$ volumes (brain-trained EDM, cross-domain; full sweep in \Cref {tab:tscaling_knee}). Best training-free in \textbf {bold}; E2E-VarNet~\cite {sriram2020varnet} (grey) is a supervised brain-only reference on the same $192$ slices}{table.caption.2}{}}
 \newlabel{tab:results@cref}{{[table][2][]2}{[1][5][]6}{}{}{}}
 \@writefile{brf}{\backcite{sriram2020varnet}{{6}{2}{table.caption.2}}}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Two $80\times 80$ crops at the highest-variance edge regions of a brain $R{=}4$, $T{=}50$ slice. Columns: ground truth, $\Pi $GDM, FA-KGD, and the signed error-magnitude difference $|e_{\Pi }|-|e_{\text  {FA}}|$ (red $=$ FA-KGD better). Per-crop PSNRs are overlaid; see \Cref  {tab:crops}.}}{6}{figure.caption.3}\protected@file@percent }
-\newlabel{fig:recon}{{1}{6}{Two $80\times 80$ crops at the highest-variance edge regions of a brain $R{=}4$, $T{=}50$ slice. Columns: ground truth, $\Pi $GDM, FA-KGD, and the signed error-magnitude difference $|e_{\Pi }|-|e_{\text {FA}}|$ (red $=$ FA-KGD better). Per-crop PSNRs are overlaid; see \Cref {tab:crops}}{figure.caption.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Two $80{\times }80$ crops at the highest-variance edges of a brain $R{=}4$, $T{=}50$ slice. Columns: GT, $\Pi $GDM, FA-KGD, signed error-magnitude difference (red $=$ FA-KGD better). See \Cref  {tab:crops}.}}{6}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:recon}{{1}{6}{Two $80{\times }80$ crops at the highest-variance edges of a brain $R{=}4$, $T{=}50$ slice. Columns: GT, $\Pi $GDM, FA-KGD, signed error-magnitude difference (red $=$ FA-KGD better). See \Cref {tab:crops}}{figure.caption.3}{}}
 \newlabel{fig:recon@cref}{{[figure][1][]1}{[1][5][]6}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Brain step-budget sweep: $192$ AXFLAIR slices, $12$ volumes, $\beta {=}5$ radial noise, analytic radial init. $\Delta $ is per-slice mean $\pm $ std with one-sided paired Wilcoxon $p$ ($n{=}192$); all $12$ volume-level means positive (volume Wilcoxon $p{=}2.44{\times }10^{-4}$).}}{6}{table.caption.5}\protected@file@percent }
-\newlabel{tab:tscaling}{{4}{6}{Brain step-budget sweep: $192$ AXFLAIR slices, $12$ volumes, $\beta {=}5$ radial noise, analytic radial init. $\Delta $ is per-slice mean $\pm $ std with one-sided paired Wilcoxon $p$ ($n{=}192$); all $12$ volume-level means positive (volume Wilcoxon $p{=}2.44{\times }10^{-4}$)}{table.caption.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Brain step-budget sweep ($192$ slices, $12$ volumes, $\beta {=}5$ radial noise, analytic radial init). $\Delta $ is per-slice mean$\pm $std with one-sided paired Wilcoxon $p$ ($n{=}192$); all $12$ volume means positive (volume Wilcoxon $p{=}2.44{\times }10^{-4}$).}}{6}{table.caption.5}\protected@file@percent }
+\newlabel{tab:tscaling}{{4}{6}{Brain step-budget sweep ($192$ slices, $12$ volumes, $\beta {=}5$ radial noise, analytic radial init). $\Delta $ is per-slice mean$\pm $std with one-sided paired Wilcoxon $p$ ($n{=}192$); all $12$ volume means positive (volume Wilcoxon $p{=}2.44{\times }10^{-4}$)}{table.caption.5}{}}
 \newlabel{tab:tscaling@cref}{{[table][4][]4}{[1][6][]6}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Cross-domain knee sweep: $192$ single-coil slices, $6$ volumes, $320{\times }320$, brain-trained EDM, same hyperparameters as \Cref  {tab:tscaling}. $\Delta $ is per-slice mean $\pm $ std with one-sided paired Wilcoxon $p$ ($n{=}192$).}}{7}{table.caption.6}\protected@file@percent }
-\newlabel{tab:tscaling_knee}{{5}{7}{Cross-domain knee sweep: $192$ single-coil slices, $6$ volumes, $320{\times }320$, brain-trained EDM, same hyperparameters as \Cref {tab:tscaling}. $\Delta $ is per-slice mean $\pm $ std with one-sided paired Wilcoxon $p$ ($n{=}192$)}{table.caption.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Cross-domain knee sweep ($192$ single-coil slices, $6$ volumes, brain-trained EDM, same hyperparameters as \Cref  {tab:tscaling}). $\Delta $: per-slice mean$\pm $std, one-sided paired Wilcoxon $p$ ($n{=}192$).}}{7}{table.caption.6}\protected@file@percent }
+\newlabel{tab:tscaling_knee}{{5}{7}{Cross-domain knee sweep ($192$ single-coil slices, $6$ volumes, brain-trained EDM, same hyperparameters as \Cref {tab:tscaling}). $\Delta $: per-slice mean$\pm $std, one-sided paired Wilcoxon $p$ ($n{=}192$)}{table.caption.6}{}}
 \newlabel{tab:tscaling_knee@cref}{{[table][5][]5}{[1][6][]7}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Cross-domain summary across the four pilot settings of \Cref  {tab:results}. Brain (matched) gains are $2$--$3{\times }$ knee (cross-domain), mirroring \Cref  {tab:tscaling,tab:tscaling_knee}.}}{7}{table.caption.7}\protected@file@percent }
-\newlabel{fig:crossdomain}{{6}{7}{Cross-domain summary across the four pilot settings of \Cref {tab:results}. Brain (matched) gains are $2$--$3{\times }$ knee (cross-domain), mirroring \Cref {tab:tscaling,tab:tscaling_knee}}{table.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Brain (matched) vs.\ knee (cross-domain) gains at $T{=}20$ (from \Cref  {tab:tscaling,tab:tscaling_knee}); matched brain gains are $\sim $$1.6{\times }$ cross-domain knee gains.}}{7}{table.caption.7}\protected@file@percent }
+\newlabel{fig:crossdomain}{{6}{7}{Brain (matched) vs.\ knee (cross-domain) gains at $T{=}20$ (from \Cref {tab:tscaling,tab:tscaling_knee}); matched brain gains are $\sim $$1.6{\times }$ cross-domain knee gains}{table.caption.7}{}}
 \newlabel{fig:crossdomain@cref}{{[table][6][]6}{[1][7][]7}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Step-budget scaling on brain $R{=}4$ ($192$ slices, $12$ volumes, oracle noise init). $\Pi $GDM peaks at $T{=}50$ then degrades; FA-KGD is monotone.}}{7}{table.caption.8}\protected@file@percent }
-\newlabel{tab:scaling}{{7}{7}{Step-budget scaling on brain $R{=}4$ ($192$ slices, $12$ volumes, oracle noise init). $\Pi $GDM peaks at $T{=}50$ then degrades; FA-KGD is monotone}{table.caption.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Step-budget scaling, brain $R{=}4$ ($192$ slices, $12$ volumes, oracle init). $\Pi $GDM peaks at $T{=}50$ then degrades; FA-KGD is monotone.}}{7}{table.caption.8}\protected@file@percent }
+\newlabel{tab:scaling}{{7}{7}{Step-budget scaling, brain $R{=}4$ ($192$ slices, $12$ volumes, oracle init). $\Pi $GDM peaks at $T{=}50$ then degrades; FA-KGD is monotone}{table.caption.8}{}}
 \newlabel{tab:scaling@cref}{{[table][7][]7}{[1][7][]7}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.4}\hskip -1em.~Frequency-Band Analysis}{7}{subsection.6.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Per-band k-space NMSE on brain $R{=}4$ (5 slices). Relative improvement is $(\Pi \text  {GDM}{-}\text  {FA-KGD})/\Pi \text  {GDM}$; gains concentrate at low frequencies.}}{7}{table.caption.9}\protected@file@percent }
-\newlabel{tab:freq}{{8}{7}{Per-band k-space NMSE on brain $R{=}4$ (5 slices). Relative improvement is $(\Pi \text {GDM}{-}\text {FA-KGD})/\Pi \text {GDM}$; gains concentrate at low frequencies}{table.caption.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Per-band k-space NMSE on brain $R{=}4$, $T{=}50$ ($192$ slices). Relative improvement $(\Pi \text  {GDM}{-}\text  {FA-KGD})/\Pi \text  {GDM}$ concentrates at low frequencies.}}{7}{table.caption.9}\protected@file@percent }
+\newlabel{tab:freq}{{8}{7}{Per-band k-space NMSE on brain $R{=}4$, $T{=}50$ ($192$ slices). Relative improvement $(\Pi \text {GDM}{-}\text {FA-KGD})/\Pi \text {GDM}$ concentrates at low frequencies}{table.caption.9}{}}
 \newlabel{tab:freq@cref}{{[table][8][]8}{[1][7][]7}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.5}\hskip -1em.~Hyperparameter Sensitivity}{7}{subsection.6.5}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Hyperparameter sweep on brain $R{=}4$, $T{=}20$ (5 slices): $\Delta $PSNR (dB) over $\Pi $GDM across FPDC exponent $\beta $ and EMA smoothing $\alpha $. All $12$ settings improve; best in \textbf  {bold}.}}{7}{table.caption.10}\protected@file@percent }
-\newlabel{tab:hparam}{{9}{7}{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ (5 slices): $\Delta $PSNR (dB) over $\Pi $GDM across FPDC exponent $\beta $ and EMA smoothing $\alpha $. All $12$ settings improve; best in \textbf {bold}}{table.caption.10}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ slices): $\Delta $PSNR (dB) over $\Pi $GDM across $\beta $ and $\alpha $. All $12$ settings improve; best in \textbf  {bold}.}}{7}{table.caption.10}\protected@file@percent }
+\newlabel{tab:hparam}{{9}{7}{Hyperparameter sweep on brain $R{=}4$, $T{=}20$ ($192$ slices): $\Delta $PSNR (dB) over $\Pi $GDM across $\beta $ and $\alpha $. All $12$ settings improve; best in \textbf {bold}}{table.caption.10}{}}
 \newlabel{tab:hparam@cref}{{[table][9][]9}{[1][7][]7}{}{}{}}
 \citation{uecker2014espirit}
 \citation{kawar2022ddrm}
 \citation{song2023pigdm}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.6}\hskip -1em.~Oracle Simulation: Component Ablation}{8}{subsection.6.6}\protected@file@percent }
 \newlabel{sec:ablation}{{6.6}{8}{\hskip -1em.~Oracle Simulation: Component Ablation}{subsection.6.6}{}}
-\newlabel{sec:ablation@cref}{{[subsection][6][6]6.6}{[1][7][]8}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Component ablation, oracle denoiser ($\eta {=}0.1$), $R{=}4$, $T{=}100$. The full method's $+1.9$~dB gain exceeds the sum of isolated gains ($+0.7+0.0$), confirming superadditive synergy.}}{8}{table.caption.11}\protected@file@percent }
-\newlabel{tab:ablation}{{10}{8}{Component ablation, oracle denoiser ($\eta {=}0.1$), $R{=}4$, $T{=}100$. The full method's $+1.9$~dB gain exceeds the sum of isolated gains ($+0.7+0.0$), confirming superadditive synergy}{table.caption.11}{}}
+\newlabel{sec:ablation@cref}{{[subsection][6][6]6.6}{[1][8][]8}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Component ablation, oracle denoiser ($\eta {=}0.1$), $R{=}4$, $T{=}100$. Full-method $+1.9$~dB exceeds the sum of isolated gains ($+0.7+0.0$): superadditive.}}{8}{table.caption.11}\protected@file@percent }
+\newlabel{tab:ablation}{{10}{8}{Component ablation, oracle denoiser ($\eta {=}0.1$), $R{=}4$, $T{=}100$. Full-method $+1.9$~dB exceeds the sum of isolated gains ($+0.7+0.0$): superadditive}{table.caption.11}{}}
 \newlabel{tab:ablation@cref}{{[table][10][]10}{[1][8][]8}{}{}{}}
 \@writefile{brf}{\backcite{uecker2014espirit}{{8}{10}{table.caption.11}}}
 \@writefile{brf}{\backcite{kawar2022ddrm}{{8}{10}{table.caption.11}}}
@@ -201,9 +201,8 @@
 \bibcite{daras2025ambient}{10}
 \bibcite{peng2024optimal}{11}
 \bibcite{laroche2024fastdiffem}{12}
-\bibcite{uecker2014espirit}{13}
 \newlabel{sec:contrib}{{8}{9}{Contributions and Acknowledgements}{section*.12}{}}
-\newlabel{sec:contrib@cref}{{[section][8][]8}{[1][8][]9}{}{}{}}
+\newlabel{sec:contrib@cref}{{[section][8][]8}{[1][9][]9}{}{}{}}
 \@writefile{brf}{\backcite{daras2025ambient}{{9}{8}{section*.12}}}
 \@writefile{brf}{\backcite{zbontar2018fastmri}{{9}{8}{section*.12}}}
 \@writefile{brf}{\backcite{song2023pigdm}{{9}{8}{section*.12}}}
@@ -211,6 +210,7 @@
 \@writefile{brf}{\backcite{daras2025ambient}{{9}{8}{section*.12}}}
 \@writefile{brf}{\backcite{sriram2020varnet}{{9}{8}{section*.12}}}
 \@writefile{toc}{\contentsline {paragraph}{Generative AI usage statement.}{9}{section*.13}\protected@file@percent }
+\bibcite{uecker2014espirit}{13}
 \bibcite{zbontar2018fastmri}{14}
 \@writefile{toc}{\contentsline {section}{\numberline {A}\hskip -1em.~Full-Slice Qualitative Comparison}{10}{appendix.A}\protected@file@percent }
 \newlabel{app:fullslice}{{A}{10}{\hskip -1em.~Full-Slice Qualitative Comparison}{appendix.A}{}}
@@ -222,21 +222,21 @@
 \newlabel{app:ablations}{{B}{10}{\hskip -1em.~Extended Ablation Tables}{appendix.B}{}}
 \newlabel{app:ablations@cref}{{[section][2][]B}{[1][10][]10}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {B.1}\hskip -1em.~$\beta $ Sweep}{10}{subsection.B.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces $\beta \times \alpha $ grid: $\Delta $PSNR (dB) over $\Pi $GDM on brain $R{=}4$ at $T{=}20$.}}{10}{table.caption.16}\protected@file@percent }
-\newlabel{tab:beta}{{11}{10}{$\beta \times \alpha $ grid: $\Delta $PSNR (dB) over $\Pi $GDM on brain $R{=}4$ at $T{=}20$}{table.caption.16}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces $\beta \times \alpha $ grid: $\Delta $PSNR (dB) over $\Pi $GDM on brain $R{=}4$ at $T{=}20$ ($192$ slices, $12$ volumes).}}{10}{table.caption.16}\protected@file@percent }
+\newlabel{tab:beta}{{11}{10}{$\beta \times \alpha $ grid: $\Delta $PSNR (dB) over $\Pi $GDM on brain $R{=}4$ at $T{=}20$ ($192$ slices, $12$ volumes)}{table.caption.16}{}}
 \newlabel{tab:beta@cref}{{[table][11][]11}{[1][10][]10}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {B.2}\hskip -1em.~Oracle Simulation: $R{=}8$}{10}{subsection.B.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Component ablation at $R{=}8$ with an oracle denoiser ($T{=}100$). Final-iterate PSNR on the same five-slice development set used in \Cref  {tab:ablation}.}}{10}{table.caption.17}\protected@file@percent }
-\newlabel{tab:r8}{{12}{10}{Component ablation at $R{=}8$ with an oracle denoiser ($T{=}100$). Final-iterate PSNR on the same five-slice development set used in \Cref {tab:ablation}}{table.caption.17}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Component ablation at $R{=}8$ with an oracle denoiser ($T{=}100$). Final-iterate PSNR on the same five-slice oracle development set used in \Cref  {tab:ablation}.}}{10}{table.caption.17}\protected@file@percent }
+\newlabel{tab:r8}{{12}{10}{Component ablation at $R{=}8$ with an oracle denoiser ($T{=}100$). Final-iterate PSNR on the same five-slice oracle development set used in \Cref {tab:ablation}}{table.caption.17}{}}
 \newlabel{tab:r8@cref}{{[table][12][]12}{[1][10][]10}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {B.3}\hskip -1em.~Oracle: Extended Slice Count}{10}{subsection.B.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces Full oracle configuration on the $10$-slice sweep (\texttt  {oracle\_10slices}, $R{=}4$, $T{=}100$). $\Delta $ is the per-slice mean of FA-KGD$-\Pi $GDM.}}{10}{table.caption.18}\protected@file@percent }
-\newlabel{tab:oracle10}{{13}{10}{Full oracle configuration on the $10$-slice sweep (\texttt {oracle\_10slices}, $R{=}4$, $T{=}100$). $\Delta $ is the per-slice mean of FA-KGD$-\Pi $GDM}{table.caption.18}{}}
-\newlabel{tab:oracle10@cref}{{[table][13][]13}{[1][10][]10}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {C}\hskip -1em.~Theoretical Derivations}{11}{appendix.C}\protected@file@percent }
-\newlabel{app:theory}{{C}{11}{\hskip -1em.~Theoretical Derivations}{appendix.C}{}}
-\newlabel{app:theory@cref}{{[section][3][]C}{[1][10][]11}{}{}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}\hskip -1em.~$\gamma $-Family Over-Correction Factor}{11}{subsection.C.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {C}\hskip -1em.~Theoretical Derivations}{10}{appendix.C}\protected@file@percent }
+\newlabel{app:theory}{{C}{10}{\hskip -1em.~Theoretical Derivations}{appendix.C}{}}
+\newlabel{app:theory@cref}{{[section][3][]C}{[1][10][]10}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}\hskip -1em.~$\gamma $-Family Over-Correction Factor}{10}{subsection.C.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces Full oracle configuration on the $10$-slice sweep (\texttt  {oracle\_10slices}, $R{=}4$, $T{=}100$). $\Delta $ is the per-slice mean of FA-KGD$-\Pi $GDM.}}{11}{table.caption.18}\protected@file@percent }
+\newlabel{tab:oracle10}{{13}{11}{Full oracle configuration on the $10$-slice sweep (\texttt {oracle\_10slices}, $R{=}4$, $T{=}100$). $\Delta $ is the per-slice mean of FA-KGD$-\Pi $GDM}{table.caption.18}{}}
+\newlabel{tab:oracle10@cref}{{[table][13][]13}{[1][10][]11}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {C.2}\hskip -1em.~FPDC Reduces Distributional Mismatch}{11}{subsection.C.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {D}\hskip -1em.~Implementation Details}{11}{appendix.D}\protected@file@percent }
 \newlabel{app:impl}{{D}{11}{\hskip -1em.~Implementation Details}{appendix.D}{}}
