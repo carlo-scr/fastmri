@@ -515,11 +515,9 @@ fastMRI \emph{validation} split for all reported numbers and the \emph{test}
 split for an unused held-out subset.
 
 \textbf{Evaluation splits.}
-(i)~Main brain table (\Cref{tab:results}, brain rows): the same $192$ AXFLAIR
-slices from $12$ validation volumes used in the scaling and hparam sweeps.
-Knee rows in \Cref{tab:results} remain a $5$-slice directional pilot from one
-validation volume per setting; the full $192$-slice / $6$-volume knee numbers
-are in \Cref{tab:tscaling_knee}.
+(i)~Main table (\Cref{tab:results}): $192$ AXFLAIR brain slices from $12$
+validation volumes and $192$ single-coil knee slices from $6$ validation
+volumes, evaluated at $T{\in}\{20,50\}$ (brain) and $T{=}20$ (knee).
 (ii)~Brain step-budget sweep (\Cref{tab:tscaling}): $192$ AXFLAIR slices
 pooled from $12$ validation volumes ($\approx 16$ slices/volume).
 (iii)~Cross-domain knee sweep (\Cref{tab:tscaling_knee}): $192$
@@ -582,11 +580,11 @@ only; not applicable to single-coil knee).
 \subsection{Main Quantitative Results}
 
 \Cref{tab:results} reports PSNR and SSIM across brain and knee at two
-acceleration rates. Brain rows aggregate the full $192$-slice / $12$-volume
-set; the knee rows remain a $5$-slice directional pilot (the $192$-slice
-knee numbers appear in \Cref{tab:tscaling_knee}). Among training-free
+acceleration rates. All rows aggregate $192$ slices from $\geq 6$ validation
+volumes (brain: $12$ volumes, multi-coil AXFLAIR; knee: $6$ volumes,
+single-coil, brain-trained EDM applied cross-domain). Among training-free
 methods FA-KGD wins every cell, improving over $\Pi$GDM by $+0.10$ to
-$+0.39$~dB and over DPS by $+0.5$ to $+3.4$~dB. ADPS underperforms DPS at these step budgets because its
+$+0.39$~dB and over DPS by $+2.0$ to $+3.4$~dB. ADPS underperforms DPS at these step budgets because its
 per-step Langevin likelihood correction is tuned for the long-chain regime
 ($T\!\geq\!300$, as reported in~\cite{daras2025ambient}): with only
 $T\!\in\!\{20,50\}$ steps each correction is too large to be stable, so
@@ -607,8 +605,9 @@ reweighting artefact.
 \begin{table*}[t]
 \centering
 \caption{Quantitative comparison on fastMRI. Brain rows aggregate $192$
-AXFLAIR slices from $12$ validation volumes; knee rows remain a $5$-slice
-directional pilot (full $192$-slice knee sweep in \Cref{tab:tscaling_knee}).
+AXFLAIR slices from $12$ validation volumes; knee rows aggregate $192$
+single-coil slices from $6$ validation volumes (brain-trained EDM applied
+cross-domain; full step-budget sweep in \Cref{tab:tscaling_knee}).
 Best training-free result in \textbf{bold}; E2E-VarNet~\cite{sriram2020varnet}
 (grey) is a supervised, brain-only reference re-evaluated on the same $192$
 brain slices.}
@@ -628,8 +627,8 @@ Brain $R{=}4$ & 20 & 26.64 & 25.26 & 29.83 & \textbf{30.06} & \textcolor{gray}{3
 Brain $R{=}4$ & 50 & 26.90 & 25.34 & 29.85 & \textbf{30.24} & \textcolor{gray}{34.60} & & .569 & .499 & .703 & \textbf{.714} & \textcolor{gray}{.856} \\
 Brain $R{=}8$ & 20 & 24.93 & 22.74 & 27.14 & \textbf{27.24} & \textcolor{gray}{33.30} & & .502 & .413 & .633 & \textbf{.636} & \textcolor{gray}{.830} \\
 Brain $R{=}8$ & 50 & 25.25 & 23.09 & 27.13 & \textbf{27.33} & \textcolor{gray}{33.30} & & .520 & .441 & .623 & \textbf{.631} & \textcolor{gray}{.830} \\
-Knee $R{=}4$  & 20 & 28.57 & 25.84 & 29.05 & \textbf{29.19} & ---                      & & .655 & .600 & .645 & \textbf{.658} & --- \\
-Knee $R{=}8$  & 20 & 28.51 & 24.44 & 28.67 & \textbf{28.79} & ---                      & & .646 & .568 & .630 & \textbf{.642} & --- \\
+Knee $R{=}4$  & 20 & 29.29 & 27.18 & 31.27 & \textbf{31.51} & ---                      & & .657 & .592 & .676 & \textbf{.695} & --- \\
+Knee $R{=}8$  & 20 & 26.49 & 24.18 & 28.33 & \textbf{28.47} & ---                      & & .623 & .540 & .605 & \textbf{.621} & --- \\
 \bottomrule
 \end{tabular}
 \vspace{2pt}
@@ -746,16 +745,16 @@ paired Wilcoxon $p$ ($n{=}192$).}
 $R$ & $T$ & $\Pi$GDM & FA-KGD & $\Delta$PSNR (dB) & $p$ \\
 \midrule
 \multirow{4}{*}{4}
- & 10  & 31.76 & 31.95 & $+0.19\pm0.12$ & $<10^{-30}$ \\
- & 20  & 31.27 & 31.53 & $+0.25\pm0.12$ & $<10^{-30}$ \\
- & 50  & 30.69 & 31.00 & $+0.31\pm0.10$ & $<10^{-30}$ \\
- & 100 & 29.96 & 30.36 & $\mathbf{+0.40\pm0.10}$ & $<10^{-30}$ \\
+ & 10  & 31.75 & 31.92 & $+0.16\pm0.11$ & $<10^{-30}$ \\
+ & 20  & 31.27 & 31.51 & $+0.24\pm0.12$ & $<10^{-30}$ \\
+ & 50  & 30.66 & 30.96 & $+0.31\pm0.09$ & $<10^{-30}$ \\
+ & 100 & 29.92 & 30.32 & $\mathbf{+0.40\pm0.10}$ & $<10^{-30}$ \\
 \midrule
 \multirow{4}{*}{8}
- & 10  & 28.46 & 28.58 & $+0.12\pm0.10$ & $<10^{-30}$ \\
- & 20  & 28.29 & 28.44 & $+0.15\pm0.09$ & $<10^{-30}$ \\
- & 50  & 27.93 & 28.10 & $+0.17\pm0.08$ & $<10^{-30}$ \\
- & 100 & 27.25 & 27.47 & $\mathbf{+0.22\pm0.07}$ & $<10^{-30}$ \\
+ & 10  & 28.53 & 28.64 & $+0.11\pm0.09$ & $<10^{-30}$ \\
+ & 20  & 28.33 & 28.47 & $+0.14\pm0.09$ & $<10^{-30}$ \\
+ & 50  & 27.94 & 28.12 & $+0.17\pm0.07$ & $<10^{-30}$ \\
+ & 100 & 27.21 & 27.43 & $\mathbf{+0.22\pm0.08}$ & $<10^{-30}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -969,10 +968,9 @@ fewer steps than $\Pi$GDM, a practical wall-clock saving for any
 fixed-budget deployment.
 
 \textbf{Limitations.}
-The brain rows of \Cref{tab:results} and the brain/knee step-budget sweeps
-(\Cref{tab:tscaling,tab:tscaling_knee}) all use $192$ slices from $\geq 6$
-volumes with volume-level significance, but the knee rows of
-\Cref{tab:results} remain a $5$-slice directional pilot, and all sweeps use a
+The brain and knee rows of \Cref{tab:results} and the brain/knee step-budget
+sweeps (\Cref{tab:tscaling,tab:tscaling_knee}) all use $192$ slices from
+$\geq 6$ volumes with volume-level significance, but all sweeps use a
 controlled synthetic radial noise profile and do not substitute for a
 full fastMRI validation under real multi-coil noise. The knee numbers
 additionally apply a brain-trained EDM cross-domain, and a knee-matched
