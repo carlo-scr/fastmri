@@ -213,7 +213,7 @@ checkpoints from Ambient Diffusion~\cite{daras2025ambient} pre-trained on
 fully-sampled fastMRI brain without modification. Supervised models
 (U-Net~\cite{zbontar2018fastmri}, E2E-VarNet~\cite{sriram2020varnet}) still define the fastMRI state of the
 art by jointly learning reconstruction and coil sensitivity maps over all
-$N_c\!\approx\!16$ coils. The $\sim$10~dB gap in \Cref{tab:results}
+$N_c\!\approx\!16$ coils. The $\sim\!4$--$5$~dB gap in \Cref{tab:results}
 reflects this information-access difference (multicoil raw data vs.\ a single
 root-sum-of-squares (RSS) combined channel) as much as model capacity;
 it is orthogonal to the
@@ -527,10 +527,11 @@ for the stronger sample-size claim. Among training-free methods FA-KGD wins ever
 improving over $\Pi$GDM by $+0.12$ to $+0.50$~dB and over DPS by $+1.4$
 to $+2.4$~dB. ADPS underperforms DPS at these step budgets because its
 per-step likelihood correction targets $T\!\geq\!300$ (\Cref{sec:discussion}).
-The supervised E2E-VarNet reaches $39.91$~dB on brain $R{=}4$, roughly
-$10$~dB above any training-free result; \Cref{sec:related} attributes the
-gap to its multicoil raw-data access and task-specific training rather
-than to sampler quality. Three patterns recur:
+The supervised E2E-VarNet reaches $34.60$~dB on brain $R{=}4$ and
+$33.30$~dB at $R{=}8$ when re-evaluated on the same 192-slice protocol,
+roughly $4$--$5$~dB above any training-free result; \Cref{sec:related}
+attributes the gap to its multicoil raw-data access and task-specific
+training rather than to sampler quality. Three patterns recur:
 domain-matched models gain more from FA-KGD (brain $>$ knee); FA-KGD's
 lead over $\Pi$GDM grows monotonically with the step budget
 ($+0.30$~dB at $T{=}20$, $+0.50$~dB at $T{=}50$, \Cref{fig:scaling}a);
@@ -555,8 +556,8 @@ reference that is only available for the brain multicoil setting.}
  & & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ &
  & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ \\
 \midrule
-Brain $R{=}4$ & 20 & 27.31 & 25.25 & 29.43 & \textbf{29.73} & \textcolor{gray}{39.91} & & .663 & .572 & .867 & \textbf{.871} & \textcolor{gray}{.959} \\
-Brain $R{=}4$ & 50 & 28.07 & 26.44 & 30.00 & \textbf{30.49} & \textcolor{gray}{39.91} & & .721 & .642 & .864 & \textbf{.874} & \textcolor{gray}{.959} \\
+Brain $R{=}4$ & 20 & 27.31 & 25.25 & 29.43 & \textbf{29.73} & \textcolor{gray}{34.60} & & .663 & .572 & .867 & \textbf{.871} & \textcolor{gray}{.856} \\
+Brain $R{=}4$ & 50 & 28.07 & 26.44 & 30.00 & \textbf{30.49} & \textcolor{gray}{34.60} & & .721 & .642 & .864 & \textbf{.874} & \textcolor{gray}{.856} \\
 Knee $R{=}4$  & 20 & 28.57 & 25.84 & 29.05 & \textbf{29.19} & ---                      & & .655 & .600 & .645 & \textbf{.658} & --- \\
 Knee $R{=}8$  & 20 & 28.51 & 24.44 & 28.67 & \textbf{28.79} & ---                      & & .646 & .568 & .630 & \textbf{.642} & --- \\
 \bottomrule

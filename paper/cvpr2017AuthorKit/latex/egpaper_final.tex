@@ -591,10 +591,11 @@ $T\!\in\!\{20,50\}$ steps each correction is too large to be stable, so
 the sampler does not converge and the pilot numbers reflect the same
 short-chain handicap across all four settings rather than a model defect
 (\Cref{sec:discussion}).
-The supervised E2E-VarNet reaches $39.91$~dB on brain $R{=}4$, roughly
-$10$~dB above any training-free result; \Cref{sec:related} attributes the
-gap to its multicoil raw-data access and task-specific training rather
-than to sampler quality. Three patterns recur:
+The supervised E2E-VarNet reaches $34.60$~dB on brain $R{=}4$ and
+$33.30$~dB at $R{=}8$ when re-evaluated on the same 192-slice protocol,
+roughly $4$--$5$~dB above any training-free result; \Cref{sec:related}
+attributes the gap to its multicoil raw-data access and task-specific
+training rather than to sampler quality. Three patterns recur:
 domain-matched models gain more from FA-KGD (brain $>$ knee); FA-KGD's
 lead over $\Pi$GDM grows monotonically with the step budget
 ($+0.23$~dB at $T{=}20$, $+0.39$~dB at $T{=}50$, \Cref{tab:scaling});
@@ -619,8 +620,8 @@ reference.}
  & & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ &
  & DPS & ADPS & $\Pi$GDM & \textbf{FA-KGD} & VarNet$^\dagger$ \\
 \midrule
-Brain $R{=}4$ & 20 & 27.31 & 25.25 & 29.43 & \textbf{29.73} & \textcolor{gray}{39.91} & & .663 & .572 & .867 & \textbf{.871} & \textcolor{gray}{.959} \\
-Brain $R{=}4$ & 50 & 28.07 & 26.44 & 30.00 & \textbf{30.49} & \textcolor{gray}{39.91} & & .721 & .642 & .864 & \textbf{.874} & \textcolor{gray}{.959} \\
+Brain $R{=}4$ & 20 & 27.31 & 25.25 & 29.43 & \textbf{29.73} & \textcolor{gray}{34.60} & & .663 & .572 & .867 & \textbf{.871} & \textcolor{gray}{.856} \\
+Brain $R{=}4$ & 50 & 28.07 & 26.44 & 30.00 & \textbf{30.49} & \textcolor{gray}{34.60} & & .721 & .642 & .864 & \textbf{.874} & \textcolor{gray}{.856} \\
 Knee $R{=}4$  & 20 & 28.57 & 25.84 & 29.05 & \textbf{29.19} & ---                      & & .655 & .600 & .645 & \textbf{.658} & --- \\
 Knee $R{=}8$  & 20 & 28.51 & 24.44 & 28.67 & \textbf{28.79} & ---                      & & .646 & .568 & .630 & \textbf{.642} & --- \\
 \bottomrule
@@ -811,18 +812,20 @@ $\Delta$ & & & $+.23/.39/.50$ & & & $+.004/.011/.015$ \\
 \subsection{Frequency-Band Analysis}
 
 \Cref{tab:freq} decomposes per-band k-space normalized mean squared error
-(NMSE) on brain $R{=}4$.
-FA-KGD improves the low-frequency bands most ($+9.1$\% at 0--50, $+8.7$\%
-at 50--100, $+2.1$\% at 100--150) with near-zero change at high bands
-($\geq$150). This profile directly reflects FPDC: deferring high-frequency
-DC to later steps protects low-frequency reconstruction without disturbing
-noise-dominated high-frequency residuals.
+(NMSE) on brain $R{=}4$ over the full 192-slice set ($T{=}50$).
+FA-KGD improves the low-frequency bands most ($+14.0$\% at 0--50, $+8.1$\%
+at 50--100, $+1.3$\% at 100--150) with near-zero change at the 150--200
+band and a modest $+2.7$\% at the highest band. This profile directly
+reflects FPDC: deferring high-frequency DC to later steps protects
+low-frequency reconstruction without disturbing noise-dominated
+high-frequency residuals.
 
 \begin{table}[H]
 \centering
-\caption{Per-band k-space NMSE on brain $R{=}4$ (5 slices). Relative
-improvement is $(\Pi\text{GDM}{-}\text{FA-KGD})/\Pi\text{GDM}$; gains
-concentrate at low frequencies.}
+\caption{Per-band k-space NMSE on brain $R{=}4$, $T{=}50$ (192 slices,
+12 volumes). Relative improvement is
+$(\Pi\text{GDM}{-}\text{FA-KGD})/\Pi\text{GDM}$; gains concentrate at
+low frequencies.}
 \label{tab:freq}
 \setlength{\tabcolsep}{5pt}
 \small
@@ -830,11 +833,11 @@ concentrate at low frequencies.}
 \toprule
 Band (px) & $\Pi$GDM NMSE & FA-KGD NMSE & $\Delta$ rel.\ (\%) \\
 \midrule
-0--50    & 0.0182 & 0.0166 & $\mathbf{+9.1}$ \\
-50--100  & 0.0291 & 0.0266 & $\mathbf{+8.7}$ \\
-100--150 & 0.0418 & 0.0409 & $+2.1$ \\
-150--200 & 0.0556 & 0.0555 & $+0.2$ \\
-200+     & 0.0721 & 0.0720 & $+0.1$ \\
+0--50    & 0.0086 & 0.0074 & $\mathbf{+14.0}$ \\
+50--100  & 0.7225 & 0.6644 & $\mathbf{+8.1}$ \\
+100--150 & 1.0073 & 0.9941 & $+1.3$ \\
+150--200 & 1.1530 & 1.1522 & $+0.1$ \\
+200--260 & 1.4299 & 1.3913 & $+2.7$ \\
 \bottomrule
 \end{tabular}
 \end{table}
