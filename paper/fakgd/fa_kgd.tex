@@ -718,22 +718,24 @@ gain to exploit (\Cref{sec:crossdomain_para}).
 \subsection{Frequency-Band Analysis}
 
 \Cref{fig:freq} decomposes per-band k-space normalized mean squared error
-(NMSE) on brain $R{=}4$.
-FA-KGD improves the low-frequency bands most ($+9.1$\% at 0--50, $+8.7$\%
-at 50--100, $+2.1$\% at 100--150) with near-zero change at high bands
-($\geq$150). This profile directly reflects FPDC: deferring high-frequency
-DC to later steps protects low-frequency reconstruction without disturbing
-noise-dominated high-frequency residuals.
+(NMSE) on brain $R{=}4$ over the full $192$-slice set ($T{=}50$).
+FA-KGD improves the low-frequency bands most ($+14.0$\% at 0--50, $+8.1$\%
+at 50--100, $+1.3$\% at 100--150) with near-zero change at the 150--200
+band and a modest $+2.7$\% at the highest band. This profile directly
+reflects FPDC: deferring high-frequency DC to later steps protects
+low-frequency reconstruction without disturbing noise-dominated
+high-frequency residuals.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\columnwidth]{fig4_frequency_analysis.png}
-  \caption{Per-band k-space NMSE on brain $R=4$ computed from real
-  reconstructions (5 slices). (a)~Absolute NMSE by radial frequency band.
-  (b)~Relative improvement over $\Pi$GDM per band. FA-KGD gains are
-  concentrated in the low-frequency bands ($+9.1$\% at 0–50, $+8.7$\% at
-  50–100) and are negligible at high frequencies, consistent with the FPDC
-  mechanism that defers high-frequency DC to later denoising steps.}
+  \caption{Per-band k-space NMSE on brain $R{=}4$, $T{=}50$, computed from
+  real reconstructions on $192$ AXFLAIR slices from $12$ volumes.
+  (a)~Absolute NMSE by radial frequency band. (b)~Relative improvement over
+  $\Pi$GDM per band. FA-KGD gains are concentrated in the low-frequency
+  bands ($+14.0$\% at 0--50, $+8.1$\% at 50--100) and are near-zero at the
+  $150$--$200$ band, consistent with the FPDC mechanism that defers
+  high-frequency DC to later denoising steps.}
   \label{fig:freq}
 \end{figure}
 
