@@ -76,11 +76,13 @@ prior pretrained on fastMRI brain: it replaces the scalar measurement noise with
 Kalman gain and admits high-frequency measurements through a progressive
 k-space radius schedule, only after the iterate has sharpened enough to
 support them. Our central finding is a \emph{scaling law}. On a $192$-slice,
-$12$-volume fastMRI brain sweep at $R{=}4$, the $\Pi$GDM baseline peaks at
-$T{=}50$ and regresses with larger step budgets, while FA-KGD's PSNR gain
-grows monotonically from $+0.11$~dB at $T{=}10$ to $\mathbf{+0.51}$~dB at
-$T{=}100$, positive on every one of the $12$ volumes. The pattern reproduces
-cross-domain on $192$ single-coil knee slices ($+0.19\!\to\!+0.40$~dB),
+$12$-volume fastMRI brain sweep at $R{=}4$, the $\Pi$GDM baseline
+plateaus across $T\in\{20,50\}$ then regresses at $T{=}100$, while
+FA-KGD's PSNR gain grows monotonically with $T$
+($+0.11/+0.23/+0.39/\mathbf{+0.51}$~dB at $T{=}10/20/50/100$), positive
+on every one of the $12$ volumes. The pattern reproduces cross-domain
+on $192$ single-coil knee slices ($+0.16\!\to\!+0.40$~dB across the
+same $T$ sweep at $R{=}4$),
 confirming the effect is not specific to the brain data the prior was trained on. We frame these gains as
 sampler improvements, which could translate into clinical benefits if
 thoroughly validated by radiologists.
@@ -724,8 +726,11 @@ error-magnitude difference (red $=$ FA-KGD better). See \Cref{tab:crops}.}
 \begin{table}[H]
 \centering
 \caption{Localised PSNR/SSIM on the two highest-variance $80{\times}80$
-crops of \Cref{fig:recon} (brain $R{=}4$, $T{=}50$). FA-KGD's gain
-($+0.43$/$+0.46$~dB) persists at high-variance edges.}
+crops of \Cref{fig:recon} (single representative brain $R{=}4$,
+$T{=}50$ slice). FA-KGD's gain ($+0.43$/$+0.46$~dB) persists at
+high-variance edges. Bottom row is the full-slice metric on this
+slice; the 192-slice means at this $R,T$ are $29.85/30.24$~dB
+(\Cref{tab:results}).}
 \label{tab:crops}
 \setlength{\tabcolsep}{2.8pt}
 \scriptsize
@@ -738,7 +743,7 @@ crops of \Cref{fig:recon} (brain $R{=}4$, $T{=}50$). FA-KGD's gain
 Cortical edge    & 27.74 & \textbf{28.17} & $+0.43$ & .864 & \textbf{.875} & $+.011$ \\
 Ventricular edge & 26.45 & \textbf{26.91} & $+0.46$ & .832 & \textbf{.844} & $+.012$ \\
 \midrule
-Full slice (ref.) & 30.27 & 30.82 & $+0.55$ & .869 & .881 & $+.011$ \\
+This slice (full) & 30.27 & 30.82 & $+0.55$ & .869 & .881 & $+.011$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -753,7 +758,8 @@ $6\times$ variance contrast centre-to-edge), initialising $\hatsig_i^2$ with
 the analytic radial fit \Cref{eq:radial_model}; because the radial model
 recovers the simulated profile to $0.8\%$ relative error (\Cref{sec:fakgd3d}),
 these numbers are statistically indistinguishable from an oracle init at this
-volume size. \PIGDM{} peaks at $T{=}50$ then degrades, the signature of
+volume size. \PIGDM{} plateaus from $T{=}20$ to $T{=}50$ then regresses
+at $T{=}100$, the signature of
 accumulated DC shock, while FA-KGD improves monotonically and the gap widens
 strictly with $T$, consistent with our Frequency-Progressive Data Consistency
 eliminating the over-correction mode. SSIM follows the same monotone scaling
@@ -1001,7 +1007,7 @@ of the problem.
 \section{Conclusion}
 \label{sec:conclusion}
 
-FA-KGD addresses three structural errors in diffusion MRI reconstruction (isotropic noise, DC shock, and open-loop gain) with three lightweight components and an analytic radial noise model that recovers per-frequency covariance from the ACS. On an oracle denoiser, adaptive gain and FPDC combine superadditively (+1.9 dB by decoupling noise estimation from denoiser quality). At scale (192 slices, 12 volumes), the FA-KGD$-\Pi$GDM gap is monotone in diffusion step budget: $+0.51$~dB at $T{=}100$ for $R{=}4$, $+0.25$~dB for $R{=}8$, with all 12 test volume-level differences positive. The $\gamma$-family analysis reveals that naive residual-based noise estimation can be unstable when denoiser error is much smaller than diffusion variance, motivating the $\gamma=0$ default. The complete method introduces no new weights and negligible overhead. Clinical validation with radiologist readers and extension to multi-coil models are necessary next steps toward translating these algorithmic gains into clinically meaningful improvements.
+FA-KGD addresses three structural errors in diffusion MRI reconstruction (isotropic noise, DC shock, and open-loop gain) with three lightweight components and an analytic radial noise model that recovers per-frequency covariance from the ACS. On an oracle denoiser, adaptive gain and FPDC combine superadditively (+1.9 dB by decoupling noise estimation from denoiser quality). At scale (192 slices, 12 volumes), the FA-KGD$-\Pi$GDM gap is monotone in diffusion step budget: $+0.51$~dB at $T{=}100$ for $R{=}4$, $+0.25$~dB for $R{=}8$, with all 12 test volume-level differences positive. The $\gamma$-family analysis reveals that naive residual-based noise estimation can be unstable when denoiser error is much smaller than diffusion variance, motivating the $\gamma=0$ default. The method adds no new weights and negligible overhead; reader-level clinical validation and a multi-coil extension are the natural next steps.
 
 
 
@@ -1054,18 +1060,23 @@ Generative AI tools (GitHub Copilot, Claude Opus 4.7, ChatGPT 5.5 and Grammarly)
 
 \Cref{fig:fullslice} shows the full-slice version of the comparison
 zoomed in \Cref{fig:recon}: ground truth, $\Pi$GDM, and FA-KGD
-reconstructions of one brain $R{=}4$, $T{=}20$ slice with the
-corresponding error maps. The slice-level $\Delta$ is smaller in
+reconstructions of three representative brain $R{=}4$, $T{=}50$ slices
+with the corresponding error maps (top row matches the slice used in
+\Cref{fig:recon,tab:crops}). The slice-level $\Delta$ is smaller in
 magnitude than the crop-level $\Delta$ because the cortical/ventricular
 boundaries occupy only a small fraction of the slice area.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\columnwidth]{fig1_reconstruction_comparison.png}
-  \caption{Full-slice qualitative comparison (brain $R{=}4$, $T{=}20$,
-  domain-matched EDM). Top row: ground truth, $\Pi$GDM, FA-KGD. Bottom row:
-  per-pixel error magnitudes (shared scale). Per-slice PSNR/SSIM are
-  overlaid. \Cref{fig:recon} zooms into the two highest-variance crops.}
+  \caption{Full-slice qualitative comparison (brain $R{=}4$, $T{=}50$,
+  domain-matched EDM). Three consecutive slices (rows) from
+  \texttt{file\_brain\_AXT2\_200\_2000093}; columns: ground truth, $\Pi$GDM,
+  FA-KGD, $|\text{error}|$ for $\Pi$GDM, $|\text{error}|$ for FA-KGD
+  (shared scale per row). Per-slice PSNR/SSIM are overlaid on the
+  reconstruction columns. The top-row slice is the same slice used in
+  \Cref{fig:recon,tab:crops}. \Cref{fig:recon} zooms into the two
+  highest-variance crops of that slice.}
   \label{fig:fullslice}
 \end{figure}
 
