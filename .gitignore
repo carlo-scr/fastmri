@@ -50,3 +50,15 @@ nohup.out
 
 # Proposal PDF
 *.pdf
+
+# LaTeX build products
+*.aux
+*.bbl
+*.blg
+*.brf
+*.log
+*.out
+*.snm
+*.toc
+*.nav
+*.new

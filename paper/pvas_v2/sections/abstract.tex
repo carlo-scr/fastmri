@@ -1,0 +1,22 @@
+\begin{abstract}
+Training-free diffusion solvers reconstruct images from whatever measurements they are given, but
+they are passive: they cannot decide what to measure next. Every prior training-free system that
+makes diffusion acquisition adaptive buys that ability with an \emph{ensemble} of
+posterior-sampling trajectories---16 parallel particles to 256 complete runs per
+image---multiplying reconstruction cost by one to two orders of magnitude. \pvas{} instead selects
+measurements from a single trajectory. At each acquisition round, a few Hutchinson probes read the
+per-coordinate posterior variance $\mathrm{diag}\,\mathrm{Cov}[\xz \mid \xt]$ off the denoiser via
+Tweedie's second-moment identity, and the candidate k-space lines or pixel blocks with the highest
+aggregate variance are acquired mid-trajectory. The full loop costs $1.4\times$ the denoiser calls
+of a passive solve on multi-coil MRI and $1.24\times$ on guided super-resolution. At matched
+measurement budgets, \pvas{} beats the passive solver it builds on and the matched static and
+random controls: $+1.6$\,dB \psnrm{} over the matched static mask on CIFAR-10 super-resolution
+($n{=}128$, paired Wilcoxon $p<10^{-20}$), and $+1.9$\,dB SENSE-\psnrm{} over \pigdm{} ($+1.4$ over
+matched static) in a two-slice multi-coil MRI pilot at $R{=}8$, where it also matches
+residual-oracle selection and beats a faithful four-particle ensemble baseline that spends
+$2.9\times$ more compute. When weak conditioning makes the posterior multimodal, any
+single-trajectory variance is blind to cross-mode spread; \pvas{}-duo restores the missing term of
+the law of total variance with a second, synchronized trajectory, extending selection to this
+regime at $2\times$---not $N\times$---cost. We evaluate on guided super-resolution (CIFAR-10,
+CelebA-HQ~256) and multi-coil MRI (fastMRI brain) under a matched-budget, matched-\nfe{} protocol.
+\end{abstract}

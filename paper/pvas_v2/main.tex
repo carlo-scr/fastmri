@@ -1,0 +1,70 @@
+% PVAS — WACV 2027 submission (Round 2, deadline 2026-08-28 AoE).
+% Style: WACV author kit (2023 kit files as placeholder — swap wacv.sty/
+% ieee_fullname.bst for the official WACV 2027 kit before submission).
+% Build: pdflatex main && bibtex main && pdflatex main && pdflatex main
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{wacv}
+\wacvalgorithmstrack % WACV 2027 Algorithms track (docs/paper_plan.md)
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{caption} % \captionof for table fragments inside paired table* floats
+\captionsetup{skip=4pt} % keep the [length-edit] caption spacing despite caption.sty defaults
+\usepackage{xcolor}
+\usepackage[pagebackref=true,breaklinks=true,colorlinks,bookmarks=false]{hyperref}
+
+% \wacvfinalcopy % KEEP COMMENTED for anonymous submission (review ruler + line numbers on)
+\def\wacvPaperID{****} % insert assigned OpenReview ID at submission
+\ifwacvfinal\pagestyle{empty}\fi
+
+\input{macros}
+
+% [length-edit] modest float/display spacing squeeze (text size, margins,
+% and \baselineskip untouched).
+\setlength{\textfloatsep}{6pt plus 2pt minus 3pt}
+\setlength{\dbltextfloatsep}{6pt plus 2pt minus 3pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dblfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{4pt}
+\makeatletter % run-in \paragraph heads: 3pt above instead of article's 3.25ex
+\renewcommand\paragraph{\@startsection{paragraph}{4}{\z@}%
+  {3pt plus 2pt minus 1pt}{-1em}{\normalfont\normalsize\bfseries}}
+% headings: shave a few pt off the kit's above/below skips
+\def\wacvsection{\@startsection {section}{1}{\z@}%
+   {7pt plus 2pt minus 2pt}{4pt} {\large\bf}}
+\def\wacvsubsection{\@startsection {subsection}{2}{\z@}%
+   {5pt plus 2pt minus 2pt}{3pt} {\elvbf}}
+\makeatother
+\AtBeginDocument{%
+  \setlength{\abovedisplayskip}{4pt plus 1pt minus 2pt}%
+  \setlength{\belowdisplayskip}{4pt plus 1pt minus 2pt}%
+  \setlength{\abovedisplayshortskip}{2pt plus 1pt}%
+  \setlength{\belowdisplayshortskip}{2pt plus 1pt}%
+}
+
+\begin{document}
+
+\title{One Trajectory Is Enough: Ensemble-Free Active Sensing\\
+       with Diffusion Posterior Variance}
+\author{Anonymous WACV submission\\Paper ID \wacvPaperID}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/intro}
+\input{sections/related}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/discussion}
+
+{\small
+\bibliographystyle{ieee_fullname}
+\bibliography{pvas}
+}
+
+\end{document}

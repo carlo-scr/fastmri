@@ -53,7 +53,7 @@ from src.samplers.sense import (
     estimate_sens_maps_lowres, estimate_noise_per_coil,
 )
 from src.samplers.multicoil import run_pigdm_mc, run_fakgd_mc
-from src.samplers.multicoil_pv import run_fakgd_mc_pv
+from src.samplers.multicoil_pv import run_fakgd_mc_pv, run_ensemble_active_mc
 from src.models.edm_loader import load_edm_model, EDMDenoiser
 
 
@@ -283,7 +283,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
-                            use_pv_gate=True, refine_sens=False,
+                            use_pv_gate=(args.active_gate == 'on'), refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
                             pv_radial_smooth=args.pv_radial_smooth,
@@ -309,7 +309,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
-                            use_pv_gate=True, refine_sens=False,
+                            use_pv_gate=(args.active_gate == 'on'), refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
                             pv_radial_smooth=args.pv_radial_smooth,
@@ -334,7 +334,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
-                            use_pv_gate=True, refine_sens=False,
+                            use_pv_gate=(args.active_gate == 'on'), refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
                             pv_radial_smooth=args.pv_radial_smooth,
@@ -359,7 +359,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
-                            use_pv_gate=True, refine_sens=False,
+                            use_pv_gate=(args.active_gate == 'on'), refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
                             pv_radial_smooth=args.pv_radial_smooth,
@@ -382,7 +382,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
-                            use_pv_gate=True, refine_sens=False,
+                            use_pv_gate=(args.active_gate == 'on'), refine_sens=False,
                             pv_eps_probe=args.pv_eps_probe,
                             pv_centered=args.pv_centered,
                             pv_radial_smooth=args.pv_radial_smooth,
@@ -396,6 +396,44 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             active_score='equispaced',
                             y_mc_full=mc_kn, seed=args.seed)
         _record('equi_adaptive', r['recon'], n_R_cols + args.active_lines,
+                time.time() - t0)
+
+    # ---- ens_active (ADS/AdaSense-style particle-ensemble selection) ----
+    # N parallel PiGDM particles (scalar gain); columns scored by cross-
+    # particle variance of predicted k-space; recon = particle mean.
+    # Faithful-cost ensemble reference: NFE = N*T per slice.
+    if 'ens_active' in args.methods and args.active_lines > 0:
+        t0 = time.time()
+        r = run_ensemble_active_mc(y_mc=y_R, sense_op=sense_op,
+                                   sigma_schedule=sigma_schedule,
+                                   denoiser_fn=denoiser,
+                                   sigma_i_sq_init=sigma_i_sq,
+                                   n_particles=args.ens_particles,
+                                   active_lines=args.active_lines,
+                                   active_rounds=args.active_rounds,
+                                   active_after_frac=args.active_after_frac,
+                                   active_until_frac=args.active_until_frac,
+                                   active_score='variance',
+                                   y_mc_full=mc_kn, seed=args.seed)
+        _record('ens_active', r['recon'], n_R_cols + args.active_lines,
+                time.time() - t0)
+
+    # ---- ens_random_active (particle mean + random selection) ----
+    # Isolates the particle-averaging benefit from ensemble selection.
+    if 'ens_random_active' in args.methods and args.active_lines > 0:
+        t0 = time.time()
+        r = run_ensemble_active_mc(y_mc=y_R, sense_op=sense_op,
+                                   sigma_schedule=sigma_schedule,
+                                   denoiser_fn=denoiser,
+                                   sigma_i_sq_init=sigma_i_sq,
+                                   n_particles=args.ens_particles,
+                                   active_lines=args.active_lines,
+                                   active_rounds=args.active_rounds,
+                                   active_after_frac=args.active_after_frac,
+                                   active_until_frac=args.active_until_frac,
+                                   active_score='random',
+                                   y_mc_full=mc_kn, seed=args.seed)
+        _record('ens_random_active', r['recon'], n_R_cols + args.active_lines,
                 time.time() - t0)
 
     # ---- static_match (matched-budget static-random baseline) ----
@@ -485,6 +523,13 @@ def main():
     p.add_argument('--active_rounds', type=int, default=1)
     p.add_argument('--active_after_frac', type=float, default=0.5)
     p.add_argument('--active_until_frac', type=float, default=0.85)
+    p.add_argument('--active_gate', choices=['on', 'off'], default='on',
+                   help="'off' = selection-only active methods: scalar PiGDM "
+                        "gain everywhere, PV computed only at acquisition "
+                        "rounds (NFE = T + 2*pv_n_probes*active_rounds).")
+    p.add_argument('--ens_particles', type=int, default=4,
+                   help='Particles for the ens_active / ens_random_active '
+                        'ADS-style ensemble baselines (NFE = N*T).')
 
     # Methods
     p.add_argument('--methods', type=str, nargs='+',
@@ -492,14 +537,18 @@ def main():
                             'random_adaptive', 'static_match'],
                    choices=['pigdm_mc', 'fakgd_mc', 'pv', 'pv_active',
                             'energy_active', 'oracle_active',
-                            'random_adaptive', 'equi_adaptive', 'static_match'])
+                            'random_adaptive', 'equi_adaptive', 'static_match',
+                            'ens_active', 'ens_random_active'])
 
     # Output
     p.add_argument('--output_dir', type=str, required=True)
 
     args = p.parse_args()
-    device = torch.device(args.device if torch.cuda.is_available()
-                          or args.device == 'cpu' else 'cpu')
+    if args.device.startswith('cuda') and not torch.cuda.is_available():
+        args.device = 'cpu'
+    if args.device == 'mps' and not torch.backends.mps.is_available():
+        args.device = 'cpu'
+    device = torch.device(args.device)
 
     os.makedirs(args.output_dir, exist_ok=True)
 

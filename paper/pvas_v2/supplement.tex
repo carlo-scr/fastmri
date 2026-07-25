@@ -1,0 +1,252 @@
+% PVAS — WACV 2027 submission: SUPPLEMENTARY MATERIAL (standalone document).
+% Build: pdflatex supplement (no bibtex needed; no \cite in this document —
+% all citations live in the main paper).
+% Cross-references into the main paper are hardcoded ("Eq. (4) of the main
+% paper", "Sec. 3.5", ...) and were verified against main.aux at edit time;
+% re-verify if equations/sections are added to or removed from the main paper.
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{wacv}
+\wacvalgorithmstrack % WACV 2027 Algorithms track (docs/paper_plan.md)
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage[pagebackref=true,breaklinks=true,colorlinks,bookmarks=false]{hyperref}
+
+% \wacvfinalcopy % KEEP COMMENTED for anonymous submission
+\def\wacvPaperID{****} % insert assigned OpenReview ID at submission
+\ifwacvfinal\pagestyle{empty}\fi
+
+\input{macros}
+
+% Supplement numbering: sections A, B, ...; floats S1, S2, ...
+\renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thealgorithm}{S\arabic{algorithm}}
+\renewcommand{\theequation}{S\arabic{equation}}
+
+\begin{document}
+
+\title{Supplementary Material:\\One Trajectory Is Enough}
+\author{Anonymous WACV submission\\Paper ID \wacvPaperID}
+\maketitle
+
+\noindent This supplement contains material moved out of the main paper
+for space: the domain-agnostic \pvas{} loop (Alg.~\ref{alg:pvas}), the
+proof of Proposition~1 (Sec.~\ref{sec:supp_proof}),
+qualitative CelebA-HQ panels (Fig.~\ref{fig:qual_sr}), a single-slice
+MRI PV-map diagnostic (Fig.~\ref{fig:pvmaps_mri}), the tabular form of
+the CIFAR-10 budget sweep (Tab.~\ref{tab:sr_budget}), and the pending
+MRI grids (Tabs.~\ref{tab:mri80} and~\ref{tab:mri_r8}). Provenance tags
+follow the main paper: \RLOCAL{} marks results reproduced with the code
+in this supplement on a single Apple M4 Pro (MPS/CPU); \CITED{} marks
+numbers taken from the cited paper; \PENDING{} marks experiments that
+are fully specified but not yet complete --- no projected or estimated
+numbers appear anywhere.
+
+\section{The \pvas{} algorithm}\label{sec:supp_alg}
+
+Algorithm~\ref{alg:pvas} states the domain-agnostic \pvas{} loop
+referenced in Secs.~3.2--3.4 of the main paper. Equation numbers below
+refer to the main paper: the data-consistency correction is Eq.~(2),
+the probe estimator and optional smoothing are Eqs.~(4)--(7), the
+acquisition score is Eq.~(9), and the optional per-coordinate gain is
+Eq.~(10). Both production instantiations (main paper Sec.~3.4) run
+selection-only: $\PV$ is computed on demand at the acquisition rounds
+and nowhere else, and the data-consistency gain stays the scalar
+\pigdm-style one. D1 (multi-coil MRI): $q{=}2$, $R_a{=}2$, $T{=}20$
+($28$ \nfe). D2 (guided super-resolution): $q{=}4$, $R_a{=}3$,
+$T{=}100$ ($124$ \nfe). The per-step gate variant (main paper
+Sec.~3.3, ablation) additionally refreshes $\PV$ every $k$ steps and
+replaces the scalar gain with the per-coordinate one.
+
+\begin{algorithm}[t]
+\caption{\pvas: variance-guided active sensing in a single trajectory}
+\label{alg:pvas}
+\begin{algorithmic}[1]
+\Require denoiser $\mut$; schedule $\sigma_T > \dots > \sigma_1$; initial
+atoms $M \gets M_0$, measurements $y$, noise $\{\sigma_i^2\}$; budget $L$
+over rounds $\mathcal{T}_{\mathrm{acq}} \subset [t_a, t_b]$; probes $q$;
+optional gate refresh period $k$ (default: selection-only, no gate)
+\State $\xt \gets \sigma_T\,\epsilon$, \quad $\epsilon \sim \mathcal{N}(0, I)$
+\For{$t = T, \dots, 1$}
+  \State $\hat{\xz} \gets \mut(\xt, t)$ \Comment{1 \nfe}
+  \If{$t \in \mathcal{T}_{\mathrm{acq}}$ \textbf{or} (gate variant: $t \equiv 0 \ (\mathrm{mod}\ k)$)}
+    \State $\PV \gets \Pi_{\mathcal{F}}\big(\tfrac{\sigt^2}{q} \sum_{m=1}^{q}
+      \phi(J_t v^{(m)}, v^{(m)})\big)$ \Comment{$2q$ \nfe; Eqs.~(4)--(7), main paper}
+  \EndIf
+  \State $\gain_i \gets \sigt^2 / (\sigt^2 + \sigma_i^2)$ \Comment{default; gate variant: $\PV_i / (\PV_i + \sigma_i^2)$, Eq.~(10)}
+  \State $\hat{\xz} \gets \hat{\xz} + \tilde{\Amat}_M^{H}\big(\gain \odot (y - \Amat_M \hat{\xz})\big)$ \Comment{Eq.~(2), main paper}
+  \If{$t \in \mathcal{T}_{\mathrm{acq}}$}
+    \State $M \gets M \cup \{\text{top-}L_r \text{ atoms by } s(a), \text{Eq.~(9), main paper}\}$; extend $y$
+    \State new $M$ enters Eq.~(2): same step on the raw $\mut(\xt,t)$ (D2) or at the next step (D1) \Comment{main paper Sec.~3.3}
+  \EndIf
+  \State $\xt \gets$ DDIM / re-noising step to $\sigma_{t-1}$ from corrected $\hat{\xz}$
+\EndFor
+\State \Return $\hat{\xz}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Proof of Proposition 1}\label{sec:supp_proof}
+
+Proposition~1 (main paper Sec.~3.5) is the law of total variance
+instantiated on a mode assignment; we record the four lines for
+completeness and claim no depth beyond the instantiation. Let $m$ be a
+discrete latent with
+$p(\xz \mid y) = \sum_m p(m \mid y)\, p(\xz \mid y, m)$, and work
+coordinate-wise. Conditioning the second moment on $m$,
+\begin{equation}
+  \mathbb{E}[\xz^2 \mid y]
+  = \mathbb{E}_{m \mid y}\big[\operatorname{Var}[\xz \mid y, m]
+    + \mathbb{E}[\xz \mid y, m]^2\big],
+  \label{eq:supp_ltv1}
+\end{equation}
+and subtracting
+$\mathbb{E}[\xz \mid y]^2 = \big(\mathbb{E}_{m \mid y}\,
+\mathbb{E}[\xz \mid y, m]\big)^2$ gives
+\begin{equation}
+  \operatorname{Var}[\xz \mid y]
+  = \mathbb{E}_{m \mid y}\big[\operatorname{Var}[\xz \mid y, m]\big]
+  + \operatorname{Var}_{m \mid y}\big(\mathbb{E}[\xz \mid y, m]\big).
+  \label{eq:supp_ltv2}
+\end{equation}
+For the second claim, model each of $K$ independent trajectories as
+committing to a mode $m^{(j)} \sim p(m \mid y)$, i.i.d., and reporting
+the within-mode mean $\hat{\xz}^{(j)} = \mathbb{E}[\xz \mid y, m^{(j)}]$.
+The Bessel-corrected sample variance of
+$\{\hat{\xz}^{(j)}\}_{j=1}^{K}$ is unbiased for
+$\operatorname{Var}_{m \mid y}\big(\mathbb{E}[\xz \mid y, m]\big)$ for
+any $K \ge 2$; at $K{=}2$ it reduces to
+$\tfrac{1}{2}\big(\hat{\xz}^{(1)} - \hat{\xz}^{(2)}\big)^2$, the
+disagreement term of the \pvas-duo score (Eq.~(12), main paper). The
+idealization --- trajectories draw modes independently from
+$p(m \mid y)$ and report exact within-mode means --- is a model of
+trajectory behavior, stated rather than proved; the decomposition
+itself is exact.
+
+\section{Qualitative CelebA-HQ results}\label{sec:supp_celeba}
+
+Figure~\ref{fig:qual_sr} shows the full qualitative guided
+super-resolution panel on CelebA-HQ $256^2$ referenced in Sec.~4.2 of
+the main paper. The protocol mirrors the CIFAR-10 configuration at
+CelebA-HQ scale: $8{\times}8$-pixel blocks, $L{=}96$ acquired blocks,
+$T{=}100$ steps, $R_a{=}3$ rounds. This panel is illustrative
+($n{=}6$ identities); the quantitative CelebA-HQ evaluation is part of
+the pending full-scale sweep and no quantitative claim is made from
+this figure beyond the per-panel means printed in the caption.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs/fig_qual_sr.pdf}
+  \caption{Qualitative guided SR on CelebA-HQ $256^2$ ($n{=}6$
+  identities, $8{\times}8$-pixel blocks, $L{=}96$ acquired blocks,
+  $T{=}100$ steps, $R_a{=}3$ rounds)\RLOCAL. Columns: ground truth,
+  low-resolution preview, \emph{static}, \emph{random}, \emph{pv}
+  (ours), and the PV map with acquired blocks overlaid. Mean \psnrm{}
+  on this illustrative panel: static $23.72$, random $23.83$,
+  \emph{pv} $25.26$, oracle $25.83$\,dB; the full-scale CelebA-HQ
+  quantitative evaluation is pending.}
+  \label{fig:qual_sr}
+\end{figure}
+
+\section{MRI PV-map diagnostic}\label{sec:supp_pvmaps}
+
+Figure~\ref{fig:pvmaps_mri} visualizes the acquisition signal itself on
+a single fastMRI brain slice, under the production D1 configuration of
+the main paper (Sec.~3.4): $R{=}8$ base mask, $L{=}16$ active lines,
+truncated $\sigma_{\max}{=}10$ schedule with $T{=}20$ EDM steps, and
+the production estimator flags --- $q{=}2$ centered Hutchinson probes
+in the rank-one positive k-space form, no radial smoothing or
+normalization. For this visualization $\PV$ is refreshed at every step;
+the production selection-only mode computes it only at the two
+acquisition rounds. The three left panels show
+$\log_{10}\PV_i(t)$ over k-space at an early, mid, and late step of the
+reverse trajectory: the map evolves from a prior-dominated shape early
+on toward image-adapted, angularly structured high-variance regions
+late in the trajectory --- exactly the structure the per-column score
+of Eq.~(10) (main paper) ranks on, and the structure that radial
+smoothing would erase. The right panel traces the number of acquired
+columns over the trajectory: the mask grows from the base mask in the
+two acquisition rounds placed at $50\%$ and $85\%$ of the schedule,
+eight columns per round. This figure is a single-slice illustrative
+diagnostic of the mechanism; it supports no quantitative claim.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs/fig_pvmaps_mri.pdf}
+  \caption{PV-map diagnostic on one fastMRI brain slice ($R{=}8$,
+  $L{=}16$, $\sigma_{\max}{=}10$, $T{=}20$ EDM steps; production D1
+  estimator flags: $q{=}2$ centered probes, rank-one positive k-space
+  form, no smoothing; per-step refresh for visualization only)\RLOCAL.
+  Left three panels:
+  $\log_{10}\PV_i(t)$ at an early, mid, and late step. Right:
+  acquired-column count over the trajectory (two rounds, at $50\%$ and
+  $85\%$ of the schedule). Illustrative single-slice diagnostic; no
+  quantitative claim.}
+  \label{fig:pvmaps_mri}
+\end{figure}
+
+\section{Budget sweep: tabular form}\label{sec:supp_budget}
+
+Table~\ref{tab:sr_budget} gives the numeric values behind the CIFAR-10
+budget-sweep curve (Fig.~2 of the main paper): \psnrm{} at matched
+budget for $L \in \{6, 12, 18, 24\}$ acquired blocks. The paired
+margins and $p$-values are quoted in main paper Sec.~4.2.
+
+\input{tables/sr_budget.tex}     % -> tab:sr_budget
+
+\section{Additional MRI configurations}\label{sec:supp_pending}
+
+The $R{=}8$, $L{=}16$ configuration completed and moved to Table~6 of
+the main paper. The $R{=}8$, $L{=}8$ configuration
+(Tab.~\ref{tab:mri_r8}, $n{=}30$)\RLOCAL{} shows the same ordering at
+half the budget. The $\sigma_{\max}{=}80$ (from-scratch) grid
+(Tab.~\ref{tab:mri80}, $n{=}30$ per configuration)\RLOCAL{} uses the
+same protocol, methods, and provenance rules as Table~6 of the main
+paper. Margins are larger than at $\sigma_{\max}{=}10$: \pvas{} gains
+$+0.92\pm0.44$\,dB over the matched static mask at $R{=}4$, $L{=}8$ and
+$+2.15\pm0.50$\,dB at $R{=}8$, $L{=}16$ (both
+$p{=}9.3{\times}10^{-10}$), and in this regime exceeds the greedy
+residual-oracle policy ($+0.11$\,dB, $p{=}0.014$ and $+0.53$\,dB,
+$p{=}1.8{\times}10^{-8}$ respectively) --- greedy error-chasing is not
+the optimal policy, and the variance score selects better when the
+trajectory starts from an uninformed initialization. Two caveats: the
+passive $\sigma_{\max}{=}10$ baseline is stronger in absolute terms at
+$R{=}4$ (Table~6, main paper), so part of this margin reflects
+rescuing a weaker-initialized sampler; and the gate-only row remains
+below \pigdm{} here as well.
+
+\input{tables/mri80.tex}         % -> tab:mri80
+
+\begin{table}[t]
+  \centering\small
+  \setlength{\tabcolsep}{3pt}
+  \caption{Multi-coil fastMRI brain k-space line acquisition, $R{=}8$,
+  $L{=}8$ configuration of the $\sigma_{\max}{=}10$ regime ($T{=}20$
+  EDM steps, $n{=}30$)\RLOCAL. Protocol identical to Table~6 of the
+  main paper: matched total column budget, SENSE-referenced
+  \psnrm/\ssimm; $\Delta$ rows are paired per-slice differences with
+  one-sided Wilcoxon $p$.}
+  \label{tab:mri_r8}
+  \begin{tabular}{lcccc}
+    \toprule
+    Method & Cols & \psnrm{} (dB) & \ssimm{} & \nfe/slice \\
+    \midrule
+    \multicolumn{5}{l}{\emph{$R{=}8$, $L{=}8$ active lines}} \\
+    Static, matched budget & 51 & 27.92\,$\pm$\,1.15 & 0.781\,$\pm$\,0.038 & 20 \\
+    Random adaptive & 51 & 27.96\,$\pm$\,1.17 & 0.785\,$\pm$\,0.039 & 100 \\
+    \pvas{} (ours) & 51 & \textbf{28.47\,$\pm$\,1.18} & \textbf{0.795\,$\pm$\,0.039} & 100 \\
+    $\Delta$(\pvas{} $-$ static match) & ($n{=}30$) & $+0.55$\,$\pm$\,$0.28$ & $p{=}9.3{\times}10^{-10}$ & \\
+    $\Delta$(\pvas{} $-$ random adaptive) & ($n{=}30$) & $+0.52$\,$\pm$\,$0.23$ & $p{=}9.3{\times}10^{-10}$ & \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\end{document}

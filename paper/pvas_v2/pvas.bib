@@ -1,0 +1,455 @@
+% =====================================================================
+% pvas.bib — canonical bibliography for the PVAS WACV 2027 submission.
+% Exactly one entry per key in docs/bib_keys.md. Section writers cite
+% ONLY these keys. Metadata provenance: docs/verified_bibliography.json
+% (18 entries from the adversarial lit sweep) + landing pages verified
+% on 2026-07-07 (arXiv abs / OpenReview / publisher pages).
+% Do NOT add or rename keys without updating docs/bib_keys.md.
+% =====================================================================
+
+% ------------------------------------------------------------------
+% Active sensing / adaptive acquisition
+% ------------------------------------------------------------------
+
+@inproceedings{elata2024adasense,
+  title     = {Adaptive Compressed Sensing with Diffusion-Based Posterior Sampling},
+  author    = {Elata, Noam and Michaeli, Tomer and Elad, Michael},
+  booktitle = {Computer Vision -- ECCV 2024},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {15136},
+  pages     = {290--308},
+  publisher = {Springer},
+  year      = {2024},
+  doi       = {10.1007/978-3-031-73229-4_17},
+  note      = {arXiv:2407.08256}
+}
+
+@article{nolan2025ads,
+  title   = {Active Diffusion Subsampling},
+  author  = {Nolan, Ois{\'i}n and Stevens, Tristan S. W. and van Nierop, Wessel L. and van Sloun, Ruud J. G.},
+  journal = {Transactions on Machine Learning Research},
+  issn    = {2835-8856},
+  year    = {2025},
+  url     = {https://openreview.net/forum?id=OGifiton47},
+  note    = {arXiv:2406.14388}
+}
+
+@misc{iollo2025bedmri,
+  title         = {Active {MRI} Acquisition with Diffusion Guided Bayesian Experimental Design},
+  author        = {Iollo, Jacopo and Oudoumanessah, Geoffroy and Lartizien, Carole and Dojat, Michel and Forbes, Florence},
+  year          = {2025},
+  eprint        = {2506.16237},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2506.16237}
+}
+
+@misc{barba2025dal,
+  title         = {Diffusion Active Learning: Towards Data-Driven Experimental Design in Computed Tomography},
+  author        = {Barba, Luis and Kirschner, Johannes and Aidukas, Tomas and Guizar-Sicairos, Manuel and B{\'e}jar, Benjam{\'i}n},
+  year          = {2025},
+  eprint        = {2504.03491},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2504.03491}
+}
+
+@misc{gu2025gsc,
+  title         = {Generative Spectrum Cartography: Unified Reconstruction and Active Sensing via Diffusion Models},
+  author        = {Gu, Yuntong and Meng, Xiangming and Lin, Zhiyuan and Wu, Sheng and Kuang, Linling},
+  year          = {2025},
+  eprint        = {2512.20108},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2512.20108}
+}
+
+@inproceedings{bakker2020greedy,
+  title     = {Experimental Design for {MRI} by Greedy Policy Search},
+  author    = {Bakker, Tim and van Hoof, Herke and Welling, Max},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {33},
+  pages     = {18954--18966},
+  publisher = {Curran Associates, Inc.},
+  year      = {2020},
+  note      = {arXiv:2010.16262}
+}
+
+@inproceedings{bakker2022multicoil,
+  title     = {On Learning Adaptive Acquisition Policies for Undersampled Multi-coil {MRI} Reconstruction},
+  author    = {Bakker, Tim and Muckley, Matthew and Romero-Soriano, Adriana and Drozdzal, Michal and Pineda, Luis},
+  booktitle = {Proceedings of the 5th International Conference on Medical Imaging with Deep Learning (MIDL)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {172},
+  pages     = {63--85},
+  publisher = {PMLR},
+  year      = {2022},
+  note      = {arXiv:2203.16392}
+}
+
+@inproceedings{pineda2020rl,
+  title     = {Active {MR} k-space Sampling with Reinforcement Learning},
+  author    = {Pineda, Luis and Basu, Sumana and Romero, Adriana and Calandra, Roberto and Drozdzal, Michal},
+  booktitle = {Medical Image Computing and Computer Assisted Intervention -- MICCAI 2020},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {12262},
+  pages     = {23--33},
+  publisher = {Springer},
+  year      = {2020},
+  doi       = {10.1007/978-3-030-59713-9_3},
+  note      = {arXiv:2007.10469}
+}
+
+@inproceedings{zhang2019active,
+  title     = {Reducing Uncertainty in Undersampled {MRI} Reconstruction With Active Acquisition},
+  author    = {Zhang, Zizhao and Romero, Adriana and Muckley, Matthew J. and Vincent, Pascal and Yang, Lin and Drozdzal, Michal},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {2049--2058},
+  year      = {2019},
+  note      = {arXiv:1902.03051}
+}
+
+@inproceedings{bahadir2019loupe,
+  title     = {Learning-based Optimization of the Under-sampling Pattern in {MRI}},
+  author    = {Bahadir, Cagla Deniz and Dalca, Adrian V. and Sabuncu, Mert R.},
+  booktitle = {Information Processing in Medical Imaging (IPMI)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {11492},
+  pages     = {780--792},
+  publisher = {Springer},
+  year      = {2019},
+  doi       = {10.1007/978-3-030-20351-1_61},
+  note      = {arXiv:1901.01960; extended journal version: IEEE Trans. Computational Imaging, vol. 6, pp. 1139--1152, 2020}
+}
+
+@inproceedings{huijben2020dps,
+  title     = {Deep Probabilistic Subsampling for Task-Adaptive Compressed Sensing},
+  author    = {Huijben, Iris A. M. and Veeling, Bastiaan S. and van Sloun, Ruud J. G.},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2020},
+  url       = {https://openreview.net/forum?id=SJeq9JBFvH}
+}
+
+@inproceedings{vangorp2021adps,
+  title     = {Active Deep Probabilistic Subsampling},
+  author    = {van Gorp, Hans and Huijben, Iris A. M. and Veeling, Bastiaan S. and Pezzotti, Nicola and van Sloun, Ruud J. G.},
+  booktitle = {Proceedings of the 38th International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {139},
+  pages     = {10509--10518},
+  publisher = {PMLR},
+  year      = {2021},
+  url       = {https://proceedings.mlr.press/v139/van-gorp21a.html}
+}
+
+@inproceedings{yin2021seqmri,
+  title     = {End-to-End Sequential Sampling and Reconstruction for {MRI}},
+  author    = {Yin, Tianwei and Wu, Zihui and Sun, He and Dalca, Adrian V. and Yue, Yisong and Bouman, Katherine L.},
+  booktitle = {Proceedings of Machine Learning for Health (ML4H)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {158},
+  pages     = {261--281},
+  publisher = {PMLR},
+  year      = {2021},
+  note      = {arXiv:2105.06460}
+}
+
+@inproceedings{vandecamp2023eig,
+  title     = {Active Subsampling Using Deep Generative Models by Maximizing Expected Information Gain},
+  author    = {van de Camp, Koen C. E. and Joudeh, Hamdi and Antunes, Duarte J. and van Sloun, Ruud J. G.},
+  booktitle = {IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  publisher = {IEEE},
+  year      = {2023},
+  doi       = {10.1109/ICASSP49357.2023.10097104}
+}
+
+@misc{ravula2023masks,
+  title         = {Optimizing Sampling Patterns for Compressed Sensing {MRI} with Diffusion Generative Models},
+  author        = {Ravula, Sriram and Levac, Brett and Arefeen, Yamin and Jalal, Ajil and Dimakis, Alexandros G. and Tamir, Jonathan I.},
+  year          = {2023},
+  eprint        = {2306.03284},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2306.03284}
+}
+
+@misc{ayzenberg2026token,
+  title         = {Anatomical Token Uncertainty for Transformer-Guided Active {MRI} Acquisition},
+  author        = {Ayzenberg, Lev and Abu-Hussein, Shady and Giryes, Raja and Greenspan, Hayit},
+  year          = {2026},
+  eprint        = {2603.21806},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2603.21806}
+}
+
+@misc{goffinet2025diffnmr,
+  title         = {{DiffNMR2}: {NMR} Guided Sampling Acquisition Through Diffusion Model Uncertainty},
+  author        = {Goffinet, Etienne and Yan, Sen and Gabellieri, Fabrizio and Jennings, Laurence and Gkoura, Lydia and Castiglione, Filippo and Young, Ryan and Malki, Idir and Singh, Ankita and Launey, Thomas},
+  year          = {2025},
+  eprint        = {2502.05230},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2502.05230}
+}
+
+@misc{christoffel2026dps,
+  title         = {Christoffel-{DPS}: Optimal Sensor Placement in Diffusion Posterior Sampling for Arbitrary Distributions},
+  author        = {Rowbottom, James and Huang, Nick and Sch{\"o}nlieb, Carola-Bibiane and Adcock, Ben},
+  year          = {2026},
+  eprint        = {2605.06861},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2605.06861}
+}
+
+@misc{vannierop2025cognitive,
+  title         = {Patient-Adaptive Echocardiography using Cognitive Ultrasound},
+  author        = {van Nierop, Wessel L. and Nolan, Ois{\'i}n and Stevens, Tristan S. W. and van Sloun, Ruud J. G.},
+  year          = {2025},
+  eprint        = {2508.08782},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2508.08782}
+}
+
+% ------------------------------------------------------------------
+% Diffusion inverse-problem solvers
+% ------------------------------------------------------------------
+
+@inproceedings{song2023pigdm,
+  title     = {Pseudoinverse-Guided Diffusion Models for Inverse Problems},
+  author    = {Song, Jiaming and Vahdat, Arash and Mardani, Morteza and Kautz, Jan},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  url       = {https://openreview.net/forum?id=9_gsMA8MRKQ},
+  note      = {OpenReview only; no arXiv version exists}
+}
+
+@inproceedings{chung2023dps,
+  title     = {Diffusion Posterior Sampling for General Noisy Inverse Problems},
+  author    = {Chung, Hyungjin and Kim, Jeongsol and McCann, Michael T. and Klasky, Marc L. and Ye, Jong Chul},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  url       = {https://openreview.net/forum?id=OnD9zGAGT0k},
+  note      = {arXiv:2209.14687}
+}
+
+@inproceedings{kawar2022ddrm,
+  title     = {Denoising Diffusion Restoration Models},
+  author    = {Kawar, Bahjat and Elad, Michael and Ermon, Stefano and Song, Jiaming},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {35},
+  year      = {2022},
+  note      = {arXiv:2201.11793}
+}
+
+@inproceedings{wang2023ddnm,
+  title     = {Zero-Shot Image Restoration Using Denoising Diffusion Null-Space Model},
+  author    = {Wang, Yinhuai and Yu, Jiwen and Zhang, Jian},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  url       = {https://openreview.net/forum?id=mRieQgMtNTQ},
+  note      = {arXiv:2212.00490}
+}
+
+@inproceedings{jalal2021csgm,
+  title     = {Robust Compressed Sensing {MRI} with Deep Generative Priors},
+  author    = {Jalal, Ajil and Arvinte, Marius and Daras, Giannis and Price, Eric and Dimakis, Alexandros G. and Tamir, Jonathan I.},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {34},
+  publisher = {Curran Associates, Inc.},
+  year      = {2021},
+  url       = {https://proceedings.neurips.cc/paper/2021/hash/7d6044e95a16761171b130dcb476a43e-Abstract.html},
+  note      = {arXiv:2108.01368}
+}
+
+@article{chung2022scoremri,
+  title   = {Score-based Diffusion Models for Accelerated {MRI}},
+  author  = {Chung, Hyungjin and Ye, Jong Chul},
+  journal = {Medical Image Analysis},
+  volume  = {80},
+  pages   = {102479},
+  year    = {2022},
+  doi     = {10.1016/j.media.2022.102479},
+  note    = {arXiv:2110.05243}
+}
+
+% ------------------------------------------------------------------
+% Posterior covariance in diffusion models (estimator lineage — ADOPTED)
+% ------------------------------------------------------------------
+
+@inproceedings{peng2024covariance,
+  title     = {Improving Diffusion Models for Inverse Problems Using Optimal Posterior Covariance},
+  author    = {Peng, Xinyu and Zheng, Ziyang and Dai, Wenrui and Xiao, Nuoqian and Li, Chenglin and Zou, Junni and Xiong, Hongkai},
+  booktitle = {Proceedings of the 41st International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {235},
+  pages     = {40347--40370},
+  publisher = {PMLR},
+  year      = {2024},
+  note      = {arXiv:2402.02149}
+}
+
+@article{boys2024tmpd,
+  title   = {Tweedie Moment Projected Diffusions for Inverse Problems},
+  author  = {Boys, Benjamin and Girolami, Mark and Pidstrigach, Jakiw and Reich, Sebastian and Mosca, Alan and Akyildiz, O. Deniz},
+  journal = {Transactions on Machine Learning Research},
+  issn    = {2835-8856},
+  year    = {2024},
+  url     = {https://openreview.net/forum?id=hDzjO41IOO},
+  note    = {arXiv:2310.06721}
+}
+
+@misc{hamidi2024cadps,
+  title         = {Enhancing Diffusion Models for Inverse Problems with Covariance-Aware Posterior Sampling},
+  author        = {Hamidi, Shayan Mohajer and Yang, En-Hui},
+  year          = {2024},
+  eprint        = {2412.20045},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CV},
+  url           = {https://arxiv.org/abs/2412.20045}
+}
+
+@inproceedings{rissanen2025freehunch,
+  title     = {Free Hunch: Denoiser Covariance Estimation for Diffusion Models Without Extra Costs},
+  author    = {Rissanen, Severi and Heinonen, Markus and Solin, Arno},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  url       = {https://openreview.net/forum?id=4JK2XMGUc8},
+  note      = {arXiv:2410.11149}
+}
+
+@inproceedings{manor2024posterior,
+  title     = {On the Posterior Distribution in Denoising: Application to Uncertainty Quantification},
+  author    = {Manor, Hila and Michaeli, Tomer},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  url       = {https://openreview.net/forum?id=adSGeugiuj},
+  note      = {arXiv:2309.13598}
+}
+
+@misc{schioppa2026covaware,
+  title         = {Covariance-aware Sampling for Diffusion Models},
+  author        = {Schioppa, Andrea and Salimans, Tim},
+  year          = {2026},
+  eprint        = {2605.13910},
+  archivePrefix = {arXiv},
+  primaryClass  = {stat.ML},
+  url           = {https://arxiv.org/abs/2605.13910}
+}
+
+@misc{divergence2026,
+  title         = {Divergence is Uncertainty: A Closed-Form Posterior Covariance for Flow Matching},
+  author        = {Xing, Jiarui and Wang, Song and Wang, Jian},
+  year          = {2026},
+  eprint        = {2605.00941},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2605.00941}
+}
+
+% ------------------------------------------------------------------
+% Foundations
+% ------------------------------------------------------------------
+
+@article{efron2011tweedie,
+  title   = {Tweedie's Formula and Selection Bias},
+  author  = {Efron, Bradley},
+  journal = {Journal of the American Statistical Association},
+  volume  = {106},
+  number  = {496},
+  pages   = {1602--1614},
+  year    = {2011},
+  doi     = {10.1198/jasa.2011.tm11181}
+}
+
+@article{hutchinson1990trace,
+  title   = {A Stochastic Estimator of the Trace of the Influence Matrix for {L}aplacian Smoothing Splines},
+  author  = {Hutchinson, Michael F.},
+  journal = {Communications in Statistics -- Simulation and Computation},
+  volume  = {19},
+  number  = {2},
+  pages   = {433--450},
+  year    = {1990},
+  doi     = {10.1080/03610919008812866}
+}
+
+@inproceedings{ho2020ddpm,
+  title     = {Denoising Diffusion Probabilistic Models},
+  author    = {Ho, Jonathan and Jain, Ajay and Abbeel, Pieter},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {33},
+  publisher = {Curran Associates, Inc.},
+  year      = {2020},
+  url       = {https://proceedings.neurips.cc/paper/2020/hash/4c5bcfec8584af0d967f1ab10179ca4b-Abstract.html},
+  note      = {arXiv:2006.11239}
+}
+
+@inproceedings{song2021ddim,
+  title     = {Denoising Diffusion Implicit Models},
+  author    = {Song, Jiaming and Meng, Chenlin and Ermon, Stefano},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2021},
+  note      = {arXiv:2010.02502}
+}
+
+@inproceedings{karras2022edm,
+  title     = {Elucidating the Design Space of Diffusion-Based Generative Models},
+  author    = {Karras, Tero and Aittala, Miika and Aila, Timo and Laine, Samuli},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {35},
+  year      = {2022},
+  note      = {arXiv:2206.00364}
+}
+
+@inproceedings{robbins1956empirical,
+  title     = {An Empirical Bayes Approach to Statistics},
+  author    = {Robbins, Herbert},
+  booktitle = {Proceedings of the Third Berkeley Symposium on Mathematical Statistics and Probability, Volume 1},
+  pages     = {157--163},
+  publisher = {University of California Press},
+  year      = {1956}
+}
+
+% ------------------------------------------------------------------
+% Data / domain
+% ------------------------------------------------------------------
+
+@misc{zbontar2018fastmri,
+  title         = {{fastMRI}: An Open Dataset and Benchmarks for Accelerated {MRI}},
+  author        = {Zbontar, Jure and Knoll, Florian and Sriram, Anuroop and Murrell, Tullie and Huang, Zhengnan and Muckley, Matthew J. and Defazio, Aaron and Stern, Ruben and Johnson, Patricia and Bruno, Mary and Parente, Marc and Geras, Krzysztof J. and Katsnelson, Joe and Chandarana, Hersh and Zhang, Zizhao and Drozdzal, Michal and Romero, Adriana and Rabbat, Michael and Vincent, Pascal and Yakubova, Nafissa and Pinkerton, James and Wang, Duo and Owens, Erich and Zitnick, C. Lawrence and Recht, Michael P. and Sodickson, Daniel K. and Lui, Yvonne W.},
+  year          = {2018},
+  eprint        = {1811.08839},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/1811.08839}
+}
+
+@misc{krizhevsky2009cifar,
+  title  = {Learning Multiple Layers of Features from Tiny Images},
+  author = {Krizhevsky, Alex},
+  year   = {2009},
+  note   = {Technical Report, University of Toronto},
+  url    = {https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf}
+}
+
+@inproceedings{karras2018progressive,
+  title     = {Progressive Growing of {GANs} for Improved Quality, Stability, and Variation},
+  author    = {Karras, Tero and Aila, Timo and Laine, Samuli and Lehtinen, Jaakko},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2018},
+  note      = {arXiv:1710.10196}
+}
+
+@article{uecker2014espirit,
+  title   = {{ESPIRiT}---An Eigenvalue Approach to Autocalibrating Parallel {MRI}: Where {SENSE} Meets {GRAPPA}},
+  author  = {Uecker, Martin and Lai, Peng and Murphy, Mark J. and Virtue, Patrick and Elad, Michael and Pauly, John M. and Vasanawala, Shreyas S. and Lustig, Michael},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {71},
+  number  = {3},
+  pages   = {990--1001},
+  year    = {2014},
+  doi     = {10.1002/mrm.24751}
+}
+
+@article{wang2004ssim,
+  title   = {Image Quality Assessment: From Error Visibility to Structural Similarity},
+  author  = {Wang, Zhou and Bovik, Alan C. and Sheikh, Hamid R. and Simoncelli, Eero P.},
+  journal = {IEEE Transactions on Image Processing},
+  volume  = {13},
+  number  = {4},
+  pages   = {600--612},
+  year    = {2004},
+  doi     = {10.1109/TIP.2003.819861}
+}

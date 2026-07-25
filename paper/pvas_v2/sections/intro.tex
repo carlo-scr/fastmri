@@ -1,0 +1,113 @@
+\section{Introduction}\label{sec:intro}
+
+Training-free diffusion solvers have become a standard tool for linear inverse
+problems: a single pretrained prior reconstructs images from undersampled
+measurements $y = \Amat_M \xz + n$ without task-specific retraining
+\cite{kawar2022ddrm,chung2023dps,song2023pigdm,wang2023ddnm}. Yet these solvers
+are \emph{passive}: the index set $M$ is fixed before the first denoising
+step. In acquisition-limited settings---accelerated MRI, where every k-space
+line costs scan time \cite{zbontar2018fastmri}, or budgeted pixel
+sensing---the natural question is whether the sampler itself can decide,
+mid-reconstruction, what to measure next.
+
+Recent work answers yes, but at a steep price. Every prior training-free
+system that makes diffusion-based acquisition adaptive
+\cite{elata2024adasense,nolan2025ads,barba2025dal,iollo2025bedmri,gu2025gsc,christoffel2026dps}
+reads its acquisition scores off the spread of an \emph{ensemble} of sampling
+trajectories: 16 parallel particles per step in ADS \cite{nolan2025ads}, 20
+parallel DPS chains in Christoffel-DPS \cite{christoffel2026dps}, up to 256
+complete posterior-sampling runs per image in AdaSense
+\cite{elata2024adasense}, and multi-sample ensembles for MRI
+expected-information-gain design \cite{iollo2025bedmri}, CT angles
+\cite{barba2025dal}, and spectrum cartography \cite{gu2025gsc}. The ensemble
+is the price of uncertainty. It multiplies denoiser evaluations (\nfe) by one
+to two orders of magnitude.
+
+Our starting point is that a single trajectory already carries an
+acquisition-grade uncertainty signal. Tweedie's formula relates the posterior
+mean to the score \cite{efron2011tweedie,robbins1956empirical}; its
+second-moment counterpart relates $\mathrm{Cov}[\xz \mid \xt]$ to the denoiser
+Jacobian, an identity that \emph{passive} solvers already exploit for
+uncertainty quantification and data consistency
+\cite{manor2024posterior,boys2024tmpd,peng2024covariance,hamidi2024cadps,rissanen2025freehunch,schioppa2026covaware}.
+\pvas{} turns it into a selection policy. The variance is probed only when an
+acquisition decision is due: at each of $R_a$ rounds late in the trajectory,
+$q$ Hutchinson probes \cite{hutchinson1990trace}---each a central
+finite-difference Jacobian--vector product costing two denoiser calls, with no
+autodiff and no second trajectory---estimate the diagonal $\PV$. The map is
+summed over each candidate atom (a k-space column, a pixel block), and the
+top-scoring atoms are acquired \emph{inside} the reverse pass. The total cost
+is $T + 2qR_a$ denoiser calls: $28$ versus $20$ for a passive solve on
+multi-coil MRI ($1.4\times$) and $124$ versus $100$ on guided super-resolution
+($1.24\times$). At that price, selection beats not only matched-budget static
+and random masks but the passive solver it builds on
+(Sec.~\ref{sec:exp}). Figure~\ref{fig:teaser} illustrates the loop.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.68\linewidth]{figs/fig_teaser.pdf}
+\caption{\pvas{} in one picture. A single reverse-diffusion trajectory
+carries its own acquisition signal: at each acquisition round (cyan
+contours), a few Hutchinson probes read the Tweedie second-moment variance
+map (right) off the denoiser, and the highest-scoring candidate atoms are
+acquired mid-trajectory. The probes are the only overhead---$1.4\times$ a
+passive solve on MRI, $1.24\times$ on super-resolution---versus the
+$N{\times}$ cost of ensemble-based selection.}
+\label{fig:teaser}
+\end{figure}
+
+We are equally explicit about when one trajectory is enough. A
+single-trajectory variance estimate tracks the width of the posterior mode
+the trajectory occupies. It is therefore informative when the posterior is
+near-unimodal---precisely the conditioned regimes in which active sensing is
+deployed: multi-coil MRI initialized from auto-calibration lines
+(Table~\ref{tab:mri_main}) and super-resolution guided by a low-resolution
+preview (Table~\ref{tab:sr_main}). When conditioning is weak, the signal
+fails: on from-scratch inpainting, selection driven by our variance map falls
+below the chance baseline (Table~\ref{tab:inpaint}). The law of total
+variance (Eq.~\ref{eq:ltv}) explains both the failure and why prior work paid
+for ensembles: posterior uncertainty is the expected within-mode variance
+\emph{plus} the cross-mode variance, and a within-trajectory estimate sees
+only the first term, while ensemble spread captures both. The same
+decomposition prescribes a cheaper fix. \pvas{}-duo runs \emph{two}
+synchronized trajectories and adds half their squared disagreement to the
+acquisition score---an unbiased two-sample estimate of the missing cross-mode
+term. In a 16-image from-scratch inpainting pilot, duo beats the static
+baseline by $+0.9$\,dB exactly where single-trajectory selection fails; an
+eight-particle ensemble remains stronger still at $8\times$ the
+single-trajectory cost. One trajectory, two, and an $N$-particle ensemble
+thus form a spectrum of compute against robustness to multimodality, and duo
+restores the missing term at $2\times$, not $N\times$, cost.
+
+Our contributions are: \textbf{C1 (ensemble-free mid-trajectory
+selection)} --- the first \emph{ensemble-free} active measurement selection
+inside a single reverse-diffusion trajectory, at $1.4\times$ the \nfe{} of a
+passive solve on MRI and $1.24\times$ on super-resolution, where all known
+prior training-free active-sensing systems
+\cite{elata2024adasense,nolan2025ads,barba2025dal,iollo2025bedmri,gu2025gsc,christoffel2026dps}
+are ensemble-based (Tab.~\ref{tab:positioning}). At matched budgets it beats
+the passive solver it builds on (\pigdm) as well as static and random
+controls, and we run a \emph{faithful} particle-ensemble
+baseline---ADS-style cross-particle disagreement in measurement space, with
+the same prior and pipeline---head-to-head at matched budget, which \pvas{}
+beats in a two-slice MRI pilot at $R{=}8$ while spending $2.9\times$ fewer
+denoiser calls. The same variance map can also gate data consistency as a
+spatially resolved Kalman gain, but this yields no benefit in our regimes,
+so we use the standard scalar gain (Tab.~\ref{tab:ablation_gate}). No policy
+training \cite{zhang2019active,pineda2020rl,bakker2020greedy,yin2021seqmri},
+no offline mask optimization \cite{bahadir2019loupe,ravula2023masks}, no
+ensembles. \textbf{C2 (\pvas{}-duo: the spectrum between one trajectory and
+an ensemble)} --- a second, synchronized trajectory whose disagreement with
+the first is an unbiased estimate of the cross-mode variance that no
+single-trajectory estimate can see. A law-of-total-variance decomposition
+(Proposition~1, Sec.~\ref{sec:method_when}) makes the cost--robustness
+trade-off exact: it says when one trajectory suffices, when two do, and when
+only an ensemble will. Duo recovers active selection in the multimodal
+regime at $2\times$ rather than $N\times$ cost. \textbf{C3 (matched-budget,
+matched-\nfe{} protocol)} --- an evaluation protocol that matches both the
+measurement budget and the denoiser-call budget across policies,
+instantiated on guided super-resolution (CIFAR-10, with quantitative
+CelebA-HQ~256) and multi-coil MRI k-space acquisition
+(Tables~\ref{tab:sr_main} and~\ref{tab:mri_main}, Fig.~\ref{fig:budget}),
+including where adaptivity stops helping \cite{bakker2022multicoil} and
+where single-trajectory variance fails (Table~\ref{tab:inpaint}).

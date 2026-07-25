@@ -1,0 +1,63 @@
+\section{Discussion and Limitations}\label{sec:disc}
+
+\paragraph{One trajectory measures within-mode spread; the spectrum
+prices the rest.}
+$\PV$ estimates only the within-mode term of Proposition~1
+(Eq.~\ref{eq:ltv}); it is blind to multi-modal ambiguity by
+construction. The consequences are measured, not hypothesized:
+chance-level ranking on from-scratch inpainting
+(Table~\ref{tab:inpaint}) against a real but bounded signal in guided
+SR (Fig.~\ref{fig:calibration})\RLOCAL. The same decomposition is
+constructive. Each additional synchronized trajectory contributes an
+unbiased sample of the cross-mode term; \pvas-duo is the two-sample
+point and already restores active selection where one trajectory fails
+($+0.94$\,dB over static in the $n{=}16$ inpainting pilot,
+Sec.~\ref{sec:exp_inpaint})\RLOCAL, while $N$-particle ensembles
+estimate the full sum and stay strongest under severe multi-modality at
+$N\times$ cost. We claim recovery of full posterior uncertainty
+nowhere; the claim is the cost--robustness ladder with its prices
+measured (Table~\ref{tab:nfe_cost}).
+
+\paragraph{Where adaptivity helps.}
+The margins track the task's remaining headroom, not the policy. At
+$R{=}4$ the MRI margin over static compresses when the budget doubles
+($+0.37$ to $+0.11$\,dB, n.s.; gate-on grid, $n{=}30$,
+Sec.~\ref{sec:exp_mri})\RLOCAL{} --- consistent with Bakker et
+al.~\cite{bakker2022multicoil} --- but grows at $R{=}8$ ($+0.55$ to
+$+1.16$\,dB)\RLOCAL{} and on CIFAR SR ($+0.85$ to $+3.86$\,dB,
+Fig.~\ref{fig:budget})\RLOCAL, where the oracle headroom widens. It
+also depends on sampler configuration, most visibly $\sigma_{\max}$
+(supplement).
+
+\paragraph{Retrospective protocol; what remains open.}
+All MRI experiments retrospectively subsample fully acquired k-space,
+standard practice \cite{bakker2020greedy,pineda2020rl}. Prospective use
+adds sequence latency, ordering, and motion constraints, and
+retrospective \psnrm{}/\ssimm{} gains establish no clinical benefit.
+Every ensemble comparison in this paper is our own reimplementation of
+the ADS/AdaSense-style disagreement signal, run head-to-head in the
+shared pipeline at matched budget and prior
+(Sec.~\ref{sec:method_active}); still open are head-to-head runs of the
+authors' released code
+\cite{elata2024adasense,nolan2025ads,iollo2025bedmri}, a prospective
+MRI evaluation, and a CT instantiation on LoDoPaB-CT.
+
+Finally, small $q$ works only because the noisy Hutchinson estimate is
+aggregated per atom (Sec.~\ref{sec:method_pv}), a variance-for-bias
+trade; zero-extra-cost covariance trackers \cite{rissanen2025freehunch}
+driving the same selection rule are important future work.
+
+\section{Conclusion}\label{sec:conclusion}
+
+\pvas{} makes a passive training-free diffusion solver active for a
+handful of extra denoiser calls: posterior variance read from the
+trajectory's own denoiser ranks candidate measurements
+mid-reconstruction, beating matched-budget static and random policies
+--- and the passive solver it builds on --- at $1.24$--$1.4\times$
+passive \nfe. Where one trajectory is not enough, Proposition~1 says
+exactly what is missing; \pvas-duo restores it at ${\approx}2\times$,
+and a particle ensemble remains the top of the ladder at $N\times$ ---
+a spectrum evaluated under matched budget and matched \nfe, with the
+ensemble baseline reimplemented and run head-to-head rather than
+cited. We hope \nfe-matched evaluation becomes the norm for active
+sensing.

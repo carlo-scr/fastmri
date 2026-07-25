@@ -265,6 +265,21 @@ def run_fakgd_mc_pv(
             k = min(n_lines_now, n_avail)
             new_cols: list = []
             if k > 0:
+                if active_score == "pv" and P is None:
+                    # Selection-only mode (gate off): compute the PV estimate
+                    # on demand, only at acquisition rounds. Costs
+                    # 2*pv_n_probes denoiser calls per round instead of per
+                    # step; the DC gain stays the scalar FA-KGD/PiGDM one.
+                    P, _ = estimate_posterior_variance_kspace(
+                        x_t=x_t, mu=mu, sigma_t=sigma_t,
+                        denoiser_fn=denoiser_fn,
+                        eps_probe=pv_eps_probe,
+                        centered=pv_centered,
+                        radial_smooth=pv_radial_smooth,
+                        radial_degree=pv_radial_degree,
+                        n_probes=pv_n_probes,
+                        generator=gen_probe,
+                    )
                 if active_score == "pv" and P is not None:
                     score_per_col = (P / (sigma_i_sq + eps)).sum(dim=0)
                     score_per_col = score_per_col * (1.0 - mask_col)
@@ -392,3 +407,120 @@ def run_fakgd_mc_pv(
         diagnostics.pop("_rgrid", None)
         out["diagnostics"] = diagnostics
     return out
+
+
+def run_ensemble_active_mc(
+    y_mc: torch.Tensor,
+    sense_op: MultiCoilSENSE,
+    sigma_schedule: torch.Tensor,
+    denoiser_fn: Callable[[torch.Tensor, float], torch.Tensor],
+    sigma_i_sq_init: torch.Tensor,
+    n_particles: int = 4,
+    eps: float = 1e-8,
+    active_lines: int = 0,
+    active_rounds: int = 1,
+    active_after_frac: float = 0.5,
+    active_until_frac: float = 0.85,
+    active_score: str = "variance",       # "variance" | "random"
+    y_mc_full: Optional[torch.Tensor] = None,
+    seed: int = 0,
+) -> dict:
+    """ADS/AdaSense-style ensemble reference for multi-coil MRI.
+
+    N parallel PiGDM particle trajectories (scalar gain, no PV gate) share the
+    measurement state; at each acquisition round, unscanned k-space columns are
+    scored by the CROSS-PARTICLE variance of the particles' predicted coil
+    k-space (Tweedie means pushed through the forward model) --- the
+    measurement-space disagreement signal that ADS (Nolan et al., TMLR 2025)
+    and AdaSense (Elata et al., ECCV 2024) obtain from posterior-sample
+    ensembles. Reconstruction = complex mean of the particle recons.
+    NFE = n_particles * T. `active_score="random"` isolates the pure
+    particle-averaging benefit (selection value = variance minus random).
+    """
+    torch.manual_seed(seed)
+    Nc, H, W = y_mc.shape
+    device = y_mc.device
+    T = len(sigma_schedule)
+    N = n_particles
+
+    sig_c = sense_op.sigma_c_sq.to(device)
+    sig_c_norm = sig_c / sig_c.mean().clamp(min=eps)
+    sig_c_view = sig_c_norm.view(Nc, 1, 1)
+    sigma_i_sq = sigma_i_sq_init.clone().to(device)
+
+    mask = sense_op.mask.clone()
+    sens = sense_op.sens.clone()
+    inv_sumS2 = 1.0 / ((sens.abs() ** 2).sum(dim=0) + sense_op.eps)
+    y_active = y_mc.clone()
+
+    sigma_max = sigma_schedule[0].item()
+    gen = torch.Generator(device="cpu").manual_seed(seed)
+    xs = [sigma_max * _complex_randn(H, W, device=device) for _ in range(N)]
+
+    if active_lines > 0 and y_mc_full is not None and active_rounds >= 1:
+        n_rounds = max(1, active_rounds)
+        first = int(active_after_frac * T)
+        last = int(active_until_frac * T)
+        if n_rounds == 1:
+            active_steps = [first]
+        else:
+            active_steps = [int(round(first + i * (last - first) / (n_rounds - 1)))
+                            for i in range(n_rounds)]
+        base = active_lines // n_rounds
+        extra = active_lines - base * n_rounds
+        active_per_round = {s: base + (1 if i < extra else 0)
+                            for i, s in enumerate(active_steps)}
+    else:
+        active_per_round = {}
+
+    nfe = 0
+    for step in range(T):
+        sigma_t = sigma_schedule[step].item()
+        mus, preds = [], []
+        for n in range(N):
+            mu = denoiser_fn(xs[n], sigma_t)
+            nfe += 1
+            mus.append(mu)
+            preds.append(fft2c(sens * mu.unsqueeze(0)))       # (Nc,H,W)
+
+        # ----- acquisition round: cross-particle variance in k-space -----
+        if active_per_round and step in active_per_round:
+            n_lines_now = active_per_round[step]
+            mask_col = (mask.sum(dim=0) > 0).float()
+            avail_idx = torch.nonzero(mask_col < 0.5, as_tuple=False).flatten()
+            k = min(n_lines_now, int(avail_idx.numel()))
+            new_cols: list = []
+            if k > 0:
+                if active_score == "variance":
+                    stack = torch.stack(preds, dim=0)          # (N,Nc,H,W)
+                    var = stack.var(dim=0).sum(dim=(0, 1)).real  # (W,)
+                    var = var * (1.0 - mask_col)
+                    new_cols = torch.topk(var, k=k).indices.tolist()
+                elif active_score == "random":
+                    g_act = torch.Generator(device="cpu").manual_seed(
+                        seed + 7919 * (step + 1))
+                    perm = torch.randperm(int(avail_idx.numel()), generator=g_act)
+                    new_cols = avail_idx[perm[:k]].tolist()
+                else:
+                    raise ValueError(active_score)
+            if y_mc_full is not None and new_cols:
+                for c in new_cols:
+                    mask[:, c] = 1.0
+                y_active = torch.where(mask > 0, y_mc_full, y_active)
+
+        # ----- scalar-gain PiGDM correction per particle -----
+        sig_ci_sq = sigma_i_sq.unsqueeze(0) * sig_c_view
+        K = (sigma_t ** 2) / (sigma_t ** 2 + sig_ci_sq)
+        for n in range(N):
+            residual = mask * (y_active - preds[n])
+            corr = (torch.conj(sens) * ifft2c(K * residual)).sum(dim=0) * inv_sumS2
+            xc = mus[n] + corr
+            if step < T - 1:
+                sigma_next = sigma_schedule[step + 1].item()
+                xs[n] = xc + sigma_next * _complex_randn(H, W, device=device)
+            else:
+                xs[n] = xc
+
+    recon = torch.stack(xs, dim=0).mean(dim=0)
+    return {"recon": recon, "mask_final": mask, "nfe": nfe,
+            "particle_recons": xs}

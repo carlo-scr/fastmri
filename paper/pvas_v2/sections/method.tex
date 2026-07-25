@@ -1,0 +1,339 @@
+\section{Method}\label{sec:method}
+
+\pvas{} runs one reverse-diffusion trajectory and lets it choose its own
+measurements. At each of a few acquisition rounds the sampler pauses and
+estimates the per-coordinate posterior variance
+$\PV \approx \operatorname{diag}\operatorname{Cov}[\xz \mid \xt]$ from
+the denoiser itself, at $2q$ extra calls per round
+(Sec.~\ref{sec:method_pv}). This map scores the candidate measurements,
+and the budget is spent on the highest-scoring atoms mid-trajectory
+(Sec.~\ref{sec:method_active}). Sec.~\ref{sec:method_inst} instantiates
+the loop for multi-coil MRI and guided super-resolution.
+Sec.~\ref{sec:method_when} places the single trajectory on a
+cost--robustness spectrum: a law-of-total-variance decomposition
+(Proposition~1) states which uncertainty one trajectory can and cannot
+see, and a two-trajectory variant (\pvas-duo) restores the missing
+cross-mode term at well below ensemble cost.
+
+\subsection{Problem setup and background}\label{sec:method_setup}
+
+Let $\xz \in \mathbb{R}^d$ or $\mathbb{C}^d$ be observed through a fixed
+dictionary $\mathcal{A}$ of \emph{measurement atoms}: indivisible groups
+of linear functionals acquired together, such as a k-space phase-encode
+column across all coils or a $4{\times}4$ pixel block. For an index set
+$M \subseteq \mathcal{A}$,
+\begin{equation}
+  y \;=\; \Amat_M \xz + n, \qquad n \sim \mathcal{N}\!\big(0, \operatorname{diag}(\sigma_i^2)\big),
+  \label{eq:forward}
+\end{equation}
+with $\Amat_M$ the rows selected by $M$. \emph{Active sensing} starts from
+an initial set $M_0$ (the ACS region in MRI; a low-resolution image) and
+may add at most $L$ atoms \emph{during} reconstruction.
+
+We use pretrained, unconditional diffusion priors in the VP/DDPM
+\cite{ho2020ddpm,song2021ddim} and EDM \cite{karras2022edm}
+parameterizations. Both are mapped to a single noise scale
+($\xtilde = \xt/\sqrt{\abar}$, $\sigt^2 = (1-\abar)/\abar$ for VP;
+$\xtilde = \xt$ for EDM), so that $\xtilde = \xz + \sigt\,\epsilon$ and
+the network provides the Tweedie posterior mean
+$\mut(\xt, t) \approx \mathbb{E}[\xz \mid \xt]$
+\cite{robbins1956empirical,efron2011tweedie}. As in DPS, \pigdm{}, and
+DDRM/DDNM \cite{chung2023dps,song2023pigdm,kawar2022ddrm,wang2023ddnm},
+denoising is interleaved with data consistency. Our operators are masked
+(sub)unitary transforms, so we correct $\hat{\xz} = \mut(\xt,t)$
+DDNM-style in the range of $\Amat_M$ and continue the sampler from
+\begin{equation}
+  \hat{\xz} \;\leftarrow\; \hat{\xz} + \tilde{\Amat}_M^{H}\big( \gain \odot (y - \Amat_M \hat{\xz}) \big),
+  \label{eq:dc}
+\end{equation}
+with $\tilde{\Amat}_M^{H}$ a normalized adjoint (mask transpose in pixel
+space; SENSE adjoint in MRI). The gain is the scalar \pigdm-style
+$\gain_i = \sigt^2/(\sigt^2 + \sigma_i^2)$ \cite{song2023pigdm}
+throughout; a per-coordinate, variance-derived gain exists as an
+ablation option (Sec.~\ref{sec:method_active}).
+
+\subsection{Posterior variance from a single trajectory}\label{sec:method_pv}
+
+\paragraph{Tweedie's second-moment identity.}
+Differentiating the posterior mean with respect to $\xtilde$ yields
+\cite{efron2011tweedie,manor2024posterior}
+\begin{equation}
+  \operatorname{Cov}[\xz \mid \xt] \;=\; \sigt^2 \, \frac{\partial \mut}{\partial \xtilde}
+  \;=:\; \sigt^2 J_t ,
+  \label{eq:tweedie2}
+\end{equation}
+so the denoiser Jacobian carries the full posterior covariance at the
+current point. Exact diagonal extraction costs $d$ denoiser calls, so we
+estimate it stochastically
+\cite{hutchinson1990trace,boys2024tmpd,schioppa2026covaware}.
+
+\paragraph{Hutchinson probes with central finite differences.}
+Draw $v \sim \mathcal{N}(0, I)$ and form a Jacobian--vector product by a
+central finite difference in the $\xtilde$ domain,
+\begin{equation}
+  J_t v \;\approx\; \frac{\mut\!\big(\xt + \varepsilon \sqrt{\abar}\, v,\, t\big)
+  - \mut\!\big(\xt - \varepsilon \sqrt{\abar}\, v,\, t\big)}{2\varepsilon},
+  \label{eq:jvp}
+\end{equation}
+with no autodiff, any black-box denoiser, and $O(\varepsilon^2)$
+truncation error (in EDM: perturbation $\varepsilon\sigt v$ on $\xt$,
+difference divided by $2\varepsilon\sigt$). The raw estimate
+\begin{equation}
+  \PV^{\mathrm{raw}} \;=\; \sigt^2 \,\big(J_t v \odot v\big), \qquad
+  \mathbb{E}_v\big[\PV^{\mathrm{raw}}\big] = \sigt^2 \operatorname{diag} J_t,
+  \label{eq:pvest}
+\end{equation}
+is unbiased for the diagonal of any fixed $J_t$ (up to truncation). Its
+per-coordinate variance is dominated by off-diagonal row energy,
+$\sigt^4\big(2J_{ii}^2 + \sum_{j \neq i} J_{ij}^2\big)$, which motivates
+$q$-probe averaging and the atom-level aggregation below. We floor
+negative coordinates at zero, trading a small positive bias for lower
+variance. For k-space statistics we also use a \emph{positive rank-one}
+variant: with $v$ drawn white in k-space and $F$ the unitary Fourier
+transform,
+\begin{equation}
+  \PV^{\mathrm{raw}}_i \;=\; \sigt^2\,\big| F (J_t v) \big|_i^2 \,/\, \overline{|v|^2},
+  \label{eq:pvk}
+\end{equation}
+which estimates the row energies of $F J_t$ and is nonnegative by
+construction. When $F$ approximately diagonalizes $J_t$ --- the natural
+regime for the radially structured spectra of MR images --- those row
+energies reduce to the squared diagonal.
+
+\paragraph{Variance reduction: aggregate over atoms, smooth optionally.}
+A one-probe estimate is noisy per coordinate, but the score needs atoms,
+not coordinates: $\PV$ is summed over each atom's coordinates ($H$
+frequencies of a column; the pixels of a block). This averages exactly
+where Eq.~\ref{eq:score} needs it. Optionally, the map is first
+projected onto a small, domain-appropriate function class $\mathcal{F}$,
+\begin{equation}
+  \PV \;=\; \Pi_{\mathcal{F}}\big(\PV^{\mathrm{raw}}\big),
+  \label{eq:smooth}
+\end{equation}
+a Gaussian kernel smoother in pixel space, or in k-space the positive
+five-parameter family $\exp\!\big(\sum_{j=0}^{4} \beta_j\, r^{2j}\big)$ of
+radial even log-polynomials. Projection buys a further
+$O(d/\dim\mathcal{F})$ variance reduction at the price of bias toward
+$\mathcal{F}$. That bias can be disqualifying: the radial fit discards
+all \emph{angular} k-space structure, precisely what column selection
+ranks on. We therefore smooth where benign (D2) and rely on aggregation
+alone where not (D1).
+
+\paragraph{Cost.}
+By default \pvas{} is \emph{selection-only}: $\PV$ is computed on demand
+at the $R_a$ acquisition rounds and nowhere else. Each refresh costs
+$2q$ extra denoiser calls, so
+\begin{equation}
+  \nfe \;=\; T + 2q\,R_a .
+  \label{eq:nfe}
+\end{equation}
+The production budgets are modest. D1 uses $T{=}20$, $q{=}2$, $R_a{=}2$:
+$28$ \nfe, $1.4\times$ a passive solve. D2 uses $T{=}100$, $q{=}4$,
+$R_a{=}3$: $124$ \nfe, $1.24\times$. The per-step gate variant
+(Sec.~\ref{sec:method_active}) instead refreshes every $k$ steps and
+costs $T + 2q\lceil T/k \rceil$ ($100$ \nfe{} for D1 at $k{=}1$).
+
+\paragraph{Analytic validation.}
+For a Gaussian prior $\xz \sim \mathcal{N}(m, \operatorname{diag}(s^2))$ the
+MMSE denoiser is linear and $\operatorname{Cov}[\xz\mid\xt] =
+s^2\sigt^2/(s^2+\sigt^2)$ in closed form. With 8 probes averaged over 4
+replicate draws of $\xt$ and no smoothing, Eq.~\ref{eq:pvest} recovers
+this diagonal with mean ratio $0.994$--$1.005$, per-coordinate correlation
+$0.86$--$0.97$, and relative MAE ${\approx}0.12$ across
+$t \in \{100,\dots,900\}$ of a $1000$-step VP schedule\RLOCAL{}. For
+learned priors no closed form exists; Fig.~\ref{fig:calibration}
+evaluates calibration against ensemble and oracle references.
+
+\subsection{Active selection under a measurement budget}\label{sec:method_active}
+
+\paragraph{Score.}
+The variance map prices candidate atoms. For an unacquired
+$a \in \mathcal{A} \setminus M$,
+\begin{equation}
+  s(a) \;=\; \sum_{i \in a} \PV_i(t)
+  \qquad \text{or, noise-normalized,} \quad
+  \sum_{i \in a} \PV_i(t)/\sigma_i^2 ,
+  \label{eq:score}
+\end{equation}
+the (noise-weighted) total posterior uncertainty that acquiring $a$
+would resolve. Under the diagonal surrogate the exact expected
+uncertainty reduction is $\sum_{i \in a} \PV_i^2/(\PV_i + \sigma_i^2)$;
+Eq.~\ref{eq:score} is its noiseless limit. This is the criterion prior
+training-free systems evaluate with posterior-sample ensembles
+\cite{elata2024adasense,nolan2025ads,barba2025dal,iollo2025bedmri,gu2025gsc};
+\pvas{} reads it from one trajectory.
+
+\paragraph{Schedule.}
+Selection runs in $R_a$ rounds at equispaced steps in a window
+$[t_a, t_b]$, with the budget $L$ split evenly across rounds. The window
+sits late enough that $\PV$ reflects image content, and early enough
+that the new measurements still shape the trajectory. At each round the
+top-$L_r$ unacquired atoms by Eq.~\ref{eq:score} join $M$ and their
+measurements are appended to $y$ (read from held-out ground truth;
+Sec.~\ref{sec:exp}). D2 re-applies the correction of Eq.~\ref{eq:dc}
+with the enlarged mask within the same step, to the \emph{raw} Tweedie
+mean; in D1 the enlarged mask first acts at the next step's correction.
+
+\paragraph{Budget and \nfe{} accounting.}
+We account budgets in \emph{atoms}, not post-hoc acceleration factors,
+which hide differing initializations. Every policy starts from the
+identical $M_0$ and ends with identical $|M| = |M_0| + L$ (\emph{matched
+budget}). Compute is priced in every table through an \nfe{} column
+(Eq.~\ref{eq:nfe}); Tab.~\ref{tab:nfe_cost} collects the costs. The full
+domain-agnostic loop is stated as Alg.~S1 in the supplementary material.
+
+\paragraph{A faithful ensemble baseline.}
+All prior training-free active-sensing systems obtain their acquisition
+signal from an ensemble, so we reimplement that signal inside our own
+pipeline and run it head-to-head. $N$ parallel particles of the
+\emph{same} passive solver (scalar-gain \pigdm{} in D1; the D2 sampler)
+share the measurement state. At each acquisition round, unacquired atoms
+are scored by the cross-particle variance of the particles' predicted
+measurements --- Tweedie means pushed through the forward operator ---
+the measurement-space disagreement signal of ADS and AdaSense
+\cite{nolan2025ads,elata2024adasense}. The reconstruction is the
+particle mean; the cost is $N\,T$ \nfe. A control with random selection
+at the same $N$ isolates particle-mean averaging from selection quality.
+This yields an ensemble comparison at matched budget, matched prior, and
+matched data consistency, rather than numbers transplanted from a
+different prior and protocol.
+
+\paragraph{Variance-gated data consistency (ablation option).}
+The same map can also replace the scalar gain in Eq.~\ref{eq:dc}.
+Treating the denoiser output as a Gaussian surrogate posterior
+$\xz \sim \mathcal{N}\big(\hat{\xz}, \operatorname{diag}(\PV)\big)$ in the
+measurement basis, conditioning on a measured $y_i$ gives the exact
+scalar Kalman update with gain
+\begin{equation}
+  \gain_i(t) \;=\; \frac{\PV_i(t)}{\PV_i(t) + \sigma_i^2},
+  \label{eq:gate}
+\end{equation}
+refreshed every $k$ steps; the isotropic surrogate $\PV_i \equiv \sigt^2$
+recovers the scalar \pigdm{} gain. We claim no novelty here: diagonal
+covariance-aware likelihoods of this structure appear throughout the
+posterior-covariance literature
+\cite{peng2024covariance,boys2024tmpd,hamidi2024cadps,rissanen2025freehunch}.
+Empirically the gate is a byproduct, not a contribution: on top of
+selection it is \psnrm-neutral in D2 and below the scalar gain in D1
+(Tabs.~\ref{tab:ablation_gate} and~\ref{tab:mri_main}), so it is
+\emph{off} by default and reported only as an ablation.
+
+\subsection{Instantiations}\label{sec:method_inst}
+
+\paragraph{D1: multi-coil MRI.}
+The forward operator is SENSE sampling,
+$(\Amat x)_c = M \odot F(S_c \odot x)$, on fastMRI brain data
+\cite{zbontar2018fastmri}. Coil sensitivities $S_c$ are estimated from
+the always-acquired ACS region by the standard windowed low-resolution
+method \cite{uecker2014espirit}. Per-coil noise levels, estimated from
+the four signal-free corner patches of measured k-space (minimum over
+corners), modulate a global per-frequency noise map, giving
+$\sigma_{c,i}^2$ in the gain of Eq.~\ref{eq:dc}. In production that map
+is initialized \emph{uniform} at the mean corner variance, consistent
+with noise white in k-space, so only the per-coil structure is
+exercised; frequency-dependent noise is supported. Atoms are full
+k-space columns across all coils. The prior is an unconditional EDM
+model \cite{karras2022edm} over complex-valued slices. Probes follow
+Eq.~\ref{eq:pvk} with $v$ white in k-space ($q{=}2$, central
+differences), computed only at the $R_a{=}2$ acquisition rounds
+($28$ \nfe{} at $T{=}20$). Production uses the raw map --- no
+normalization, \emph{no radial smoothing}: variance reduction comes from
+the per-column sum of the noise-normalized score (Eq.~\ref{eq:score};
+under the uniform noise map this ranking coincides with the plain sum),
+and the radial fit of Eq.~\ref{eq:smooth} remains available but is off
+by default. Rounds sit by default in the window $[0.5, 0.85]$. After
+each corrected mean the sampler re-noises,
+$\xt \leftarrow \hat{\xz} + \sigma_{t-1}\epsilon$. In-loop JSENSE-style
+refinement of sensitivity magnitudes is optional and stated per
+experiment (Sec.~\ref{sec:exp}).
+
+\paragraph{D2: guided super-resolution on natural images.}
+The low-resolution image --- a box average over $4{\times}4$ blocks ---
+is always observed and enforced by exact back-projection of the
+box-average residual; the budget buys full-resolution $4{\times}4$
+blocks. Acquired blocks are noiseless in the main configuration, so
+their consistency is exact replacement; a noisy-measurement variant
+appears in the ablations of Sec.~\ref{sec:exp}. The prior is a
+pretrained pixel-space DDPM \cite{ho2020ddpm} on CIFAR-10
+\cite{krizhevsky2009cifar} sampled with deterministic DDIM
+\cite{song2021ddim} ($\eta{=}0$), reusing the model's
+$\epsilon$-prediction for the direction term so corrections propagate at
+full strength \cite{wang2023ddnm}. The estimator uses the unbiased form
+of Eq.~\ref{eq:pvest} with $q{=}4$ probes averaged over channels,
+computed only at the $R_a{=}3$ acquisition rounds ($124$ \nfe{} at
+$T{=}100$). The map is then Gaussian-smoothed ($\sigma{=}1$\,px) and
+block-summed; rounds sit by default in the window $[0.45, 0.75]$.
+Per-experiment settings, and CelebA-HQ results
+\cite{karras2018progressive}, are in Sec.~\ref{sec:exp} and the
+supplement.
+
+Finally, removing the LR observation from D2 leaves pure block inpainting
+from a sparse random mask: identical machinery, drastically weaker
+conditioning. We use it deliberately as a \emph{boundary-condition probe}
+of where single-trajectory variance stops being a valid acquisition
+signal (Secs.~\ref{sec:method_when} and \ref{sec:exp}).
+
+\subsection{One, two, or $N$ trajectories}\label{sec:method_when}
+
+The estimator targets $\operatorname{Cov}[\xz \mid \xt]$: the posterior
+spread \emph{given the current trajectory state}. An acquisition policy
+ideally wants $\operatorname{Cov}[\xz \mid y]$. The gap between the two
+is exactly a mode-commitment term.
+
+\smallskip\noindent\textbf{Proposition 1} (total variance across
+modes)\textbf{.} \emph{Let $m$ be any mode assignment for the posterior,
+i.e., a discrete latent with
+$p(\xz \mid y) = \sum_m p(m \mid y)\, p(\xz \mid y, m)$. Then,
+coordinate-wise,}
+\begin{equation}
+  \operatorname{Var}[\xz \mid y]
+  \;=\; \underbrace{\mathbb{E}_{m \mid y}\big[\operatorname{Var}[\xz \mid y, m]\big]}_{\text{within-mode}}
+  \;+\; \underbrace{\operatorname{Var}_{m \mid y}\big(\mathbb{E}[\xz \mid y, m]\big)}_{\text{cross-mode}} .
+  \label{eq:ltv}
+\end{equation}
+\emph{A single-trajectory Tweedie estimate tracks only the first term.
+The disagreement of the Tweedie means of $K$ independent trajectories,
+each committed to a mode drawn from $p(m \mid y)$, is an unbiased
+estimator of the second term for any $K \ge 2$.}
+
+The proof is the law of total variance, instantiated (four lines in the
+supplement); we claim no depth beyond the instantiation. Its reading is
+what matters. A reverse trajectory commits to one mode as it denoises,
+and its Tweedie variance measures the curvature around that mode --- a
+one-sample estimate of the within-mode term \cite{manor2024posterior}.
+The cross-mode term is invisible to any single trajectory by
+construction. Particle and sample ensembles
+\cite{nolan2025ads,elata2024adasense} estimate the sum; that is what
+their $N\times$ compute buys.
+
+\paragraph{When is one trajectory enough?}
+Strong conditioning. When the always-available measurements (ACS lines
+in MRI; the LR preview in D2) pin down the coarse structure,
+$p(\xz \mid y)$ is effectively unimodal: the cross-mode term is small,
+and the within-mode map carries what selection needs --- only a correct
+\emph{ordering} of atom scores, a weaker demand than calibrated
+magnitudes. When conditioning is weak, the trajectory commits to one of
+several modes inside the acquisition window. Its local curvature can
+then rank atoms contrary to the true error: in the from-scratch
+inpainting probe, PV--oracle selection overlap falls below chance
+(Sec.~\ref{sec:exp}). We report this failure as a boundary, not a
+footnote.
+
+\paragraph{\pvas-duo: restoring the cross-mode term at $K{=}2$.}
+Proposition~1 also prescribes the minimal fix: estimate the second term
+with the smallest possible ensemble. \pvas-duo runs \emph{two}
+synchronized trajectories on the shared measurement state and scores
+atoms by the sum of both terms,
+\begin{equation}
+  s_{\mathrm{duo}}(a) \;=\; \sum_{i \in a} \Big( \PV_i + \tfrac{1}{2}\, d_i^{\,2} \Big),
+  \qquad d = \hat{\xz}^{(1)} - \hat{\xz}^{(2)},
+  \label{eq:duo}
+\end{equation}
+where $\PV$ comes from probes on the first trajectory (within-mode) and
+$d_i^2/2$ is the unbiased two-sample variance of the trajectories'
+Tweedie means (cross-mode). The reconstruction is the trajectory mean.
+The result is a cost ladder rather than a binary choice: one trajectory
+at $1.2$--$1.4\times$ passive \nfe{} when conditioning is strong;
+\pvas-duo at $2.2$--$2.5\times$ when it is not; an $N$-particle ensemble
+at $N\times$ when even two modes undersample the posterior.
+Sec.~\ref{sec:exp} evaluates the ladder under matched budget.

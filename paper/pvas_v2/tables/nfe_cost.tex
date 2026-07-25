@@ -1,0 +1,34 @@
+% Hand-restructured: every ensemble row is now measured head-to-head in our
+% pipeline (run_ensemble_active / run_ensemble_active_mc); the published
+% multipliers (ADS Np=16, AdaSense s=256) are one \CITED sentence in the
+% Sec. cost prose, no longer table rows.
+% input: outputs/poc_natural/cifar_sr_main/results.json [R-LOCAL] (100/124/800)
+% input: outputs/poc_natural/cifar_duo_smoke/results.json [R-LOCAL] (duo 224)
+% MRI NFE: protocol constants (T=20, q=2, R_a=2, N=4; Eq. eq:nfe), matching
+% the pilot JSONs outputs/_ng_smoke_R4|R8.
+% [length-edit] shell stripped: lives inside a paired table* in experiments.tex
+  \centering\small
+  \setlength{\tabcolsep}{3pt}
+  \captionof{table}{Denoiser calls (\nfe) per reconstructed image for each
+  acquisition-capable method, all measured in our pipeline\RLOCAL{}
+  (Eq.~\ref{eq:nfe}; $NT$ for particle ensembles, $2T{+}2qR_a$ for
+  \pvas-duo). The last column is the ratio to the passive
+  single-trajectory baseline of the same domain.}
+  \label{tab:nfe_cost}
+  \begin{tabular}{llcc}
+    \toprule
+    Method & Uncertainty source & \nfe/img & vs.\ passive \\
+    \midrule
+    \multicolumn{4}{l}{\emph{CIFAR-10 block acquisition ($T{=}100$)}} \\
+    Passive (static mask) & none & 100 & $\times$1.0 \\
+    \pvas{} (ours) & 1-traj.\ Tweedie \textsc{pv} & 124 & $\times$1.24 \\
+    \pvas-duo (ours) & \textsc{pv} $+$ disagreement & 224 & $\times$2.24 \\
+    Ensemble-$8$ selection & $8$ posterior trajectories & 800 & $\times$8.0 \\
+    \midrule
+    \multicolumn{4}{l}{\emph{fastMRI multi-coil line acquisition ($T{=}20$)}} \\
+    \pigdm{} (passive) & none & 20 & $\times$1.0 \\
+    Static, matched budget & none & 20 & $\times$1.0 \\
+    \pvas{} (ours) & 1-traj.\ Tweedie \textsc{pv} & 28 & $\times$1.4 \\
+    Ensemble-$4$ selection & $4$ \pigdm{} particles & 80 & $\times$4.0 \\
+    \bottomrule
+  \end{tabular}

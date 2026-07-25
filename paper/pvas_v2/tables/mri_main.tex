@@ -1,0 +1,66 @@
+% Hand-restructured for the selection-only (gate-off) production protocol
+% (scripts/reconstruct_mc.py, active_gate=off, q=2, R_a=2). Metric cells
+% merge from outputs/PVAS_ng/R{4,8}_a{8,16}/results.json when those land
+% (point gen_tables.py mri_table at PVAS_ng); Cols and NFE are protocol
+% constants (base masks: 85 cols at R=4, 43 at R=8, measured in the pilot
+% JSONs outputs/_ng_smoke_R4|R8; NFE = T + 2qR_a = 28, ensembles N*T = 80).
+% input: outputs/PVAS_ng/R4_a8/results.json  [MISSING -> \PENDING]
+% input: outputs/PVAS_ng/R4_a16/results.json [MISSING -> \PENDING]
+% input: outputs/PVAS_ng/R8_a16/results.json [MISSING -> \PENDING]
+% The former gate-on grid (outputs/PVAS_local) is now one ablation sentence
+% in Sec. exp_mri, no longer this table.
+% [length-edit] compact styling + R8_a8 group lives in the supplement (tab:mri_r8)
+\begin{table}[t]
+  \centering\footnotesize
+  \renewcommand{\arraystretch}{0.95}
+  \setlength{\tabcolsep}{3pt}
+  \caption{Multi-coil fastMRI brain k-space line acquisition,
+  selection-only protocol ($\sigma_{\max}{=}10$, $T{=}20$ EDM steps,
+  $q{=}2$ probes at $R_a{=}2$ rounds; $n{=}30$ slices per configuration).
+  All methods share the static baseline's total column budget;
+  SENSE-referenced \psnrm/\ssimm; \nfe{} per Eq.~\ref{eq:nfe} ($NT$ for
+  particle ensembles). $\Delta$: paired per-slice differences, one-sided
+  Wilcoxon $p$. ``\PENDING'' marks production cells whose result files
+  were not yet written when this text was frozen; the two-slice pilot of
+  the identical protocol is quoted in Sec.~\ref{sec:exp_mri}. $R{=}8$,
+  $L{=}8$ and $\sigma_{\max}{=}80$: supplement.}
+  \label{tab:mri_main}
+  \begin{tabular}{lcccc}
+    \toprule
+    Method & Cols & \psnrm{} (dB) & \ssimm{} & \nfe/slice \\
+    \midrule
+    \multicolumn{5}{l}{\emph{$R{=}4$, $L{=}8$ active lines}} \\
+    \pigdm{} (passive) & 85 & \PENDING & \PENDING & 20 \\
+    Static, matched budget & 93 & \PENDING & \PENDING & 20 \\
+    Random adaptive & 93 & \PENDING & \PENDING & 20 \\
+    \pvas{} (ours) & 93 & \PENDING & \PENDING & 28 \\
+    Ensemble-$4$ active (ref.) & 93 & \PENDING & \PENDING & 80 \\
+    Ensemble-$4$, random select (ref.) & 93 & \PENDING & \PENDING & 80 \\
+    Oracle selection (bound) & 93 & \PENDING & \PENDING & 20 \\
+    $\Delta$(\pvas{} $-$ static match) & ($n{=}30$) & \PENDING & & \\
+    $\Delta$(\pvas{} $-$ random adaptive) & ($n{=}30$) & \PENDING & & \\
+    \midrule
+    \multicolumn{5}{l}{\emph{$R{=}4$, $L{=}16$ active lines}} \\
+    \pigdm{} (passive) & 85 & \PENDING & \PENDING & 20 \\
+    Static, matched budget & 101 & \PENDING & \PENDING & 20 \\
+    Random adaptive & 101 & \PENDING & \PENDING & 20 \\
+    \pvas{} (ours) & 101 & \PENDING & \PENDING & 28 \\
+    Ensemble-$4$ active (ref.) & 101 & \PENDING & \PENDING & 80 \\
+    Ensemble-$4$, random select (ref.) & 101 & \PENDING & \PENDING & 80 \\
+    Oracle selection (bound) & 101 & \PENDING & \PENDING & 20 \\
+    $\Delta$(\pvas{} $-$ static match) & ($n{=}30$) & \PENDING & & \\
+    $\Delta$(\pvas{} $-$ random adaptive) & ($n{=}30$) & \PENDING & & \\
+    \midrule
+    \multicolumn{5}{l}{\emph{$R{=}8$, $L{=}16$ active lines}} \\
+    \pigdm{} (passive) & 43 & \PENDING & \PENDING & 20 \\
+    Static, matched budget & 59 & \PENDING & \PENDING & 20 \\
+    Random adaptive & 59 & \PENDING & \PENDING & 20 \\
+    \pvas{} (ours) & 59 & \PENDING & \PENDING & 28 \\
+    Ensemble-$4$ active (ref.) & 59 & \PENDING & \PENDING & 80 \\
+    Ensemble-$4$, random select (ref.) & 59 & \PENDING & \PENDING & 80 \\
+    Oracle selection (bound) & 59 & \PENDING & \PENDING & 20 \\
+    $\Delta$(\pvas{} $-$ static match) & ($n{=}30$) & \PENDING & & \\
+    $\Delta$(\pvas{} $-$ random adaptive) & ($n{=}30$) & \PENDING & & \\
+    \bottomrule
+  \end{tabular}
+\end{table}

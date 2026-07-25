@@ -1,0 +1,34 @@
+% Hand-written shell for the CelebA-HQ 256 quantitative table (tab:celeba).
+% Metric cells merge from outputs/poc_natural/celeba_quant/results.json
+% (poc_natural/quantitative_celeba.py) when that file lands; NFE column is
+% protocol-derived (T=100, q=4, R_a=3, N=4; Eq. eq:nfe / 2T+2qR_a for duo).
+% input: outputs/poc_natural/celeba_quant/results.json [MISSING -> \PENDING]
+% [length-edit] hand-maintained: gen_tables.py must write .new for merge.
+\begin{table}[t]
+  \centering\small
+  \setlength{\tabcolsep}{4pt}
+  \caption{Guided super-resolution on CelebA-HQ $256^2$ at matched
+  measurement budget: the $8\times$ box-downsampled $32^2$ preview is
+  always observed; the budget buys $L{=}96$ of $1024$ atoms
+  ($8{\times}8$-px blocks, $9.4\%$); $T{=}100$ steps, $n{=}64$ images.
+  Oracle and ensemble rows are references. ``\PENDING'' marks production
+  cells whose result files were not yet written when this text was
+  frozen (Sec.~\ref{sec:exp}).}
+  \label{tab:celeba}
+  \begin{tabular}{lccc}
+    \toprule
+    Acquisition policy & \psnrm{} (dB) & \ssimm{} & \nfe/image \\
+    \midrule
+    Static mask (random, up-front) & \PENDING & \PENDING & 100 \\
+    Random (mid-trajectory) & \PENDING & \PENDING & 100 \\
+    \pvas{} (ours) & \PENDING & \PENDING & 124 \\
+    \pvas-duo (ours) & \PENDING & \PENDING & 224 \\
+    Oracle error (upper bound) & \PENDING & \PENDING & 100 \\
+    Ensemble-$4$ variance (ref.) & \PENDING & \PENDING & 400 \\
+    \midrule
+    \multicolumn{4}{l}{\emph{Paired $\Delta$\psnrm{} (\pvas{} $-$ baseline), dB}} \\
+    $\Delta$ vs.\ static & \PENDING & \PENDING & \\
+    $\Delta$ vs.\ random & \PENDING & \PENDING & \\
+    \bottomrule
+  \end{tabular}
+\end{table}

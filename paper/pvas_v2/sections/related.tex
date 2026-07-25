@@ -1,0 +1,96 @@
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Training-free diffusion solvers for inverse problems.}
+A pretrained diffusion prior can solve linear inverse problems by interleaving
+denoising with data-consistency updates: DPS \cite{chung2023dps} via the
+likelihood gradient around the Tweedie estimate; \pigdm{} \cite{song2023pigdm}
+via a Gaussian posterior approximation whose variance is a hand-crafted
+\emph{scalar} shared across coordinates; DDRM \cite{kawar2022ddrm} and DDNM
+\cite{wang2023ddnm} via consistency in the operator's spectral and null space.
+Score-based priors reached compressed-sensing MRI early
+\cite{jalal2021csgm,chung2022scoremri}. All of these solvers are
+\emph{passive}: the measurement set is fixed before sampling begins.
+
+\paragraph{Posterior covariance in diffusion models.}
+A second line estimates the per-coordinate posterior variance
+$\mathrm{diag}\,\mathrm{Cov}[\xz \mid \xt]$, which by Tweedie's second-moment
+identity equals $\sigt^2$ times the diagonal of the denoiser Jacobian
+\cite{manor2024posterior,efron2011tweedie}: for uncertainty quantification in
+denoising \cite{manor2024posterior}; via autodiff vector--Jacobian row sums
+(TMPD \cite{boys2024tmpd}); as optimal diagonal covariances for guidance
+\cite{peng2024covariance}; via a temporal finite difference of scores (CA-DPS
+\cite{hamidi2024cadps}); as a DCT-diagonal plus low-rank covariance tracked
+from denoiser calls the sampler already makes (Free Hunch
+\cite{rissanen2025freehunch}); via a Hutchinson probe with frequency-block
+structure for unconditional sampling \cite{schioppa2026covaware}; and,
+concurrently, in closed form for flow matching from the divergence of the
+learned velocity field \cite{divergence2026}. We \emph{adopt} this estimator
+family rather than extend it: our single-probe central-difference JVP is a
+numerical variant of these estimators (Sec.~\ref{sec:method}), and the
+Kalman-style consistency gain it induces is structurally anticipated by
+\pigdm{} and, in substance, by
+\cite{peng2024covariance,hamidi2024cadps,rissanen2025freehunch}. Our delta is what the map is
+\emph{for}: every work above targets reconstruction (or unconditional
+sampling) under a fixed operator; we repurpose the same statistic as a
+mid-trajectory acquisition score.
+
+\paragraph{Active acquisition.}
+The trained-policy line learns what to measure from data---adversarial
+evaluators \cite{zhang2019active}, learned probabilistic masks
+\cite{bahadir2019loupe}, task-adaptive samplers
+\cite{huijben2020dps,vangorp2021adps}, RL and greedy policies
+\cite{pineda2020rl,bakker2020greedy}, end-to-end sampler--reconstructor
+training \cite{yin2021seqmri}, and learned token uncertainty
+\cite{ayzenberg2026token}. These require task-specific training, and a careful
+multi-coil study found that learned ``adaptive'' policies can collapse to
+effectively non-adaptive masks \cite{bakker2022multicoil}. The training-free
+line replaces the policy with uncertainty derived from a generative posterior,
+an idea predating diffusion-based systems \cite{vandecamp2023eig}: AdaSense
+\cite{elata2024adasense} (projected posterior variance over repeated complete
+DDRM sampling rounds), ADS \cite{nolan2025ads} (mid-trajectory entropy of a
+bank of parallel DPS particles), Christoffel-DPS \cite{christoffel2026dps}
+(online sensor placement from the Christoffel function of parallel DPS
+chains; ensemble counts in Tab.~\ref{tab:positioning}), Diffusion Active
+Learning \cite{barba2025dal} (CT angles by ensemble projected variance),
+Iollo \etal~\cite{iollo2025bedmri} (multi-sample Monte-Carlo EIG for
+k-space), and ensemble-based systems for spectrum cartography
+\cite{gu2025gsc}, NMR \cite{goffinet2025diffnmr}, and ultrasound
+\cite{vannierop2025cognitive}. Across all of these, acquisition-grade
+uncertainty is purchased with an ensemble of sampling trajectories; no prior
+method selects measurements from an ensemble-free, single-trajectory
+posterior-variance estimate---the gap \pvas{} fills
+(Tab.~\ref{tab:positioning}).
+
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccclc@{}}
+\toprule
+Method & \begin{tabular}[c]{@{}c@{}}Train.-\\free\end{tabular} &
+\begin{tabular}[c]{@{}c@{}}Ens.-\\free\end{tabular} &
+\begin{tabular}[c]{@{}c@{}}Mid-\\traj.\end{tabular} &
+Variance source & Venue \\
+\midrule
+AdaSense \cite{elata2024adasense} & Yes & No$^{a}$ & No & sample covariance & ECCV'24 \\
+ADS \cite{nolan2025ads} & Yes & No$^{b}$ & Yes & particle entropy & TMLR'25 \\
+DAL \cite{barba2025dal} & Yes & No & No & sample variance & arXiv'25 \\
+Iollo \etal~\cite{iollo2025bedmri} & Yes & No & No & Monte-Carlo EIG & arXiv'25 \\
+Christoffel-DPS \cite{christoffel2026dps} & Yes & No$^{c}$ & Yes & Christoffel function & arXiv'26 \\
+Trained policies$^{d}$ & No & Yes & n/a & learned policy & '19--'22 \\
+\midrule
+\pvas{} (ours) & Yes & Yes & Yes & Tweedie 2nd moment & --- \\
+\bottomrule
+\end{tabular}
+\caption{Positioning among active-acquisition methods.
+$^{a}$Up to 256 complete DDRM sampling runs per image\CITED{}
+\cite{elata2024adasense}.
+$^{b}$16 parallel DPS particles\CITED{} \cite{nolan2025ads}.
+$^{c}$$N_e{=}20$ parallel DPS chains (online variant)\CITED{}
+\cite{christoffel2026dps}.
+$^{d}$\cite{zhang2019active,pineda2020rl,bakker2020greedy,yin2021seqmri,bakker2022multicoil};
+task-specific training required, and learned adaptive policies can collapse
+to non-adaptive masks \cite{bakker2022multicoil}.}
+\label{tab:positioning}
+\end{table}
