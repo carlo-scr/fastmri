@@ -254,6 +254,8 @@ These thresholds are predeclared engineering decisions, not paper results.
    0.2 dB in one headline domain and have a positive paired interval in both.
    A weaker second-domain quality effect is acceptable only with a decisive
    compute/memory frontier there.
+   The MRI primary cell is fixed in advance at \(R=4,L=8\); the remaining
+   grid is robustness evidence, not an opportunity to select the best effect.
 4. **Compute:** the headline configuration should use at most about \(1.5\times\)
    passive NFE and less than one quarter of an eight-particle baseline’s NFE.
 5. **PSD validity:** if projection changes rankings substantially or the
@@ -264,6 +266,8 @@ These thresholds are predeclared engineering decisions, not paper results.
    claim if that ablation still wins.
 7. **Scale:** the result must survive volume-level MRI statistics and at least
    250 held-out 256-pixel natural images. CIFAR-only evidence is insufficient.
+   These primary intervals condition on the frozen per-sample seed schedule;
+   submission additionally requires a multi-seed stability ablation.
 
 If gates 2–3 fail by the first week of August, reposition the project or do
 not submit it as a WACV Algorithms paper. A corrected diagonal-only PVAS
@@ -288,8 +292,9 @@ title.
 - **Development:** CIFAR-10 block reveal and guided super-resolution using the
   public DDPM checkpoint.
 - **Headline:** the canonical 50,000-file ILSVRC2012 ImageNet validation
-  layout, with 250 deterministically selected file IDs and hashes. The loader
-  fails closed on subsets, renamed files, training data, or silent fallback.
+  layout, with 250 deterministically selected file IDs and hashes disjoint
+  from a reserved 16-image calibration prefix. The loader fails closed on
+  subsets, renamed files, training data, or silent fallback.
 - Operators: grouped pixel blocks and, if time permits, Fourier masks. One
   well-powered natural-image operator is preferable to several tiny demos.
 - Metrics: PSNR, SSIM, LPIPS, NFE, wall time, peak memory, and per-image paired
@@ -299,12 +304,16 @@ title.
 
 - fastMRI brain Cartesian acquisition, \(R\in\{4,8\}\),
   \(L\in\{8,16\}\).
+- The predeclared MRI primary cell is \(R=4,L=8\); the other three settings are
+  robustness and compute-frontier checks.
 - Target at least 20 volume-disjoint validation volumes (12 is a pilot
   minimum); infer at the volume level, not by treating adjacent slices as
   independent.
 - Headline metrics use every reconstructed slice in each selected volume so
-  RSS NMSE and PSNR are computed on the stacked volume. Center-slice subsets
-  are pilot-only.
+  RSS NMSE and PSNR are computed on the stacked volume. Because the current
+  prior reconstructs fixed 384-by-320 inputs, we use the fastMRI formulas on
+  a declared center-320 square crop rather than claiming native-width
+  challenge evaluation. Center-slice subsets are pilot-only.
 - Per-slice masks, diffusion noise, and probes vary deterministically while
   remaining shared across methods.
 - The headline rank-4 configuration uses one acquisition round, giving
@@ -312,6 +321,9 @@ title.
   higher-cost ablation, not a mislabeled \(1.5\times\) run.
 - The known simulation noise level or an acquisition-valid calibration scan
   supplies \(\Gamma\). Do not estimate it from unacquired full-scan corners.
+- Per-slice scaling is the 99th percentile RSS of the noisy acquired ACS,
+  while the clean-ACS statistic is used only to define controlled synthetic
+  noise power. Full-target maxima are evaluation-only.
 - Optional prior-shift stress test: brain prior on knee. It is a limitation
   test, not a substitute for the in-domain headline.
 

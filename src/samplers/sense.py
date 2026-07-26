@@ -22,6 +22,44 @@ from .mri_forward import fft2c, ifft2c
 # Sensitivity map estimation (low-resolution / "calibration-free")
 # ---------------------------------------------------------------------------
 
+def estimate_acs_rss_scale(
+    y_mc: torch.Tensor,
+    center_fraction: float = 0.08,
+    quantile: float = 0.99,
+    eps: float = 1e-12,
+) -> torch.Tensor:
+    """Estimate an image scale using only acquired central k-space columns.
+
+    This is the prospective counterpart of target-max normalization.  It
+    zero-fills everything outside the contiguous ACS columns, computes the
+    root-sum-of-squares image, and returns its requested quantile.  Therefore
+    unacquired high-frequency data cannot affect the sampler scale.
+    """
+    if y_mc.dim() != 3:
+        raise ValueError(f"y_mc must be (Nc,H,W), got {tuple(y_mc.shape)}")
+    if not 0.0 < center_fraction <= 1.0:
+        raise ValueError("center_fraction must be in (0, 1]")
+    if not 0.0 < quantile <= 1.0:
+        raise ValueError("quantile must be in (0, 1]")
+
+    width = y_mc.shape[-1]
+    acs_width = max(2, int(round(float(center_fraction) * width)))
+    center = width // 2
+    start = center - acs_width // 2
+    stop = center + acs_width // 2
+    if stop <= start:
+        raise ValueError("ACS region is empty")
+
+    acs = torch.zeros_like(y_mc)
+    acs[..., start:stop] = y_mc[..., start:stop]
+    low_resolution = ifft2c(acs)
+    rss = torch.sqrt(low_resolution.abs().square().sum(dim=0))
+    scale = torch.quantile(rss.float().flatten(), float(quantile))
+    if not bool(torch.isfinite(scale)) or float(scale) <= float(eps):
+        raise ValueError("ACS-derived normalization scale is not positive")
+    return scale
+
+
 def _tukey_window_2d(h: int, w: int, alpha: float = 0.5,
                      device=None, dtype=torch.float32) -> torch.Tensor:
     """Separable 2D Tukey window."""

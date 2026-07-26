@@ -181,6 +181,33 @@ SketchSense path now uses a pure PSD low-rank factor. Cross-Hutchinson remains
 a separate diagonal-only control; any residual estimator must use independent
 probes and report their extra denoiser calls.
 
+### 17. Target-derived normalization leaked future data
+
+The earlier MRI runner divided the sampler input by a maximum computed from
+the complete RSS target. That statistic could change both the reconstruction
+trajectory and selected lines. The corrected runner defines synthetic noise
+power relative to a clean-ACS statistic, then recomputes the deployable
+normalization from the noisy acquired ACS only. The target maximum is used
+only after reconstruction for evaluation.
+
+### 18. Fixed-support metrics are not the native fastMRI challenge protocol
+
+The MRI prior reconstructs 384-by-320 inputs, whereas fastMRI's evaluator
+scores each volume on its native target-width square. The active protocol
+therefore uses the same stacked-volume PSNR/NMSE formulas and volume-max SSIM
+on an explicitly declared center-320 crop. It must be described as a fixed
+support protocol, not as official challenge evaluation. Production inputs
+must have at least 384-by-320 native support; padding is pilot/legacy-only.
+
+### 19. Cohort and calibration reuse could contaminate headline evidence
+
+Alphabetically selecting the first available HDF5 files does not freeze
+anatomy, split, or volume identity. Production MRI now requires an exact
+20-volume filename/SHA256 manifest, acquisition-family checks, native-shape
+checks, and a separate model-artifact manifest. ImageNet uses one deterministic
+permutation, reserves its first 16 images for calibration, and evaluates the
+next 250 disjoint images for the headline run.
+
 ## Claim corrections
 
 - The two-trajectory “law of total variance” score is a heuristic combination
@@ -207,4 +234,9 @@ A result becomes **VALIDATED** only when its artifact records:
 6. per-image or per-volume metrics, not only aggregate means;
 7. paired intervals or volume-level resampling where appropriate;
 8. a marker that the run used the corrected complex-noise and operator-space
-   implementations.
+   implementations;
+9. verified cohort and checkpoint manifests, including native shapes and
+   acquisition family for MRI; and
+10. a separate evidence-validator report that leaves raw outputs immutable and
+    keeps `submission_ready=false` while faithful external baselines remain
+    missing.

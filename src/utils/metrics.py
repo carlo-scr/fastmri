@@ -1,3 +1,5 @@
+import math
+
 import torch
 
 
@@ -11,6 +13,42 @@ def psnr(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     mse = torch.mean((target - pred) ** 2)
     max_val = target.max()
     return 20 * torch.log10(max_val / torch.sqrt(mse))
+
+
+def stacked_psnr_from_sufficient_statistics(
+    squared_error_sum: float,
+    numel: int,
+    target_max: float,
+) -> float:
+    """fastMRI-style PSNR for a stacked volume.
+
+    The official evaluator computes one MSE and one target maximum over the
+    complete ``(slice, height, width)`` volume. Keeping these sufficient
+    statistics lets the reconstruction runner process slices independently
+    without silently changing the metric grain.
+    """
+    if numel <= 0:
+        raise ValueError("numel must be positive")
+    if squared_error_sum < 0:
+        raise ValueError("squared_error_sum must be nonnegative")
+    if target_max <= 0:
+        raise ValueError("target_max must be positive")
+    if squared_error_sum == 0:
+        return float("inf")
+    mse = float(squared_error_sum) / int(numel)
+    return float(10.0 * math.log10(float(target_max) ** 2 / mse))
+
+
+def stacked_nmse_from_sufficient_statistics(
+    squared_error_sum: float,
+    target_squared_sum: float,
+) -> float:
+    """fastMRI-style NMSE for a stacked volume."""
+    if squared_error_sum < 0:
+        raise ValueError("squared_error_sum must be nonnegative")
+    if target_squared_sum <= 0:
+        raise ValueError("target_squared_sum must be positive")
+    return float(squared_error_sum) / float(target_squared_sum)
 
 
 def ssim(

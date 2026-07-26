@@ -61,7 +61,8 @@ from src.samplers.mri_forward import fft2c, ifft2c, create_mask, build_radius_gr
 from src.samplers.schedules import edm_sigma_schedule, ddpm_sigma_schedule
 from src.samplers.sense import (
     MultiCoilSENSE, sense_combine,
-    estimate_sens_maps_lowres, estimate_noise_per_coil,
+    estimate_acs_rss_scale, estimate_sens_maps_lowres,
+    estimate_noise_per_coil,
 )
 from src.samplers.multicoil import run_pigdm_mc, run_fakgd_mc
 from src.samplers.multicoil_pv import (
@@ -70,6 +71,10 @@ from src.samplers.multicoil_pv import (
     run_fakgd_mc_pv,
 )
 from src.models.edm_loader import load_edm_model, EDMDenoiser
+from src.utils.metrics import (
+    stacked_nmse_from_sufficient_statistics,
+    stacked_psnr_from_sufficient_statistics,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +188,24 @@ def _add_kspace_noise(mc_k: torch.Tensor, sig_c: torch.Tensor,
     return mc_k + (sig_c.to(mc_k.device).sqrt().view(Nc, 1, 1) * nz).to(mc_k.dtype)
 
 
-def _load_volume(h5_path: str, target_shape: tuple[int, int]):
+_BRAIN_ACQUISITIONS = {"AXT1", "AXT1PRE", "AXT1POST", "AXT2", "AXFLAIR"}
+_KNEE_ACQUISITIONS = {"CORPD_FBK", "CORPDFS_FBK"}
+
+
+def _decode_h5_attribute(value) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    return str(value)
+
+
+def _load_volume(
+    h5_path: str,
+    target_shape: tuple[int, int],
+    *,
+    anatomy: str,
+    allow_spatial_padding: bool,
+    allow_missing_rss_target: bool,
+):
     """Load multi-coil k-space + RSS GT for every slice in a volume.
 
     Returns:
@@ -192,13 +214,51 @@ def _load_volume(h5_path: str, target_shape: tuple[int, int]):
     """
     out = []
     with h5py.File(h5_path, 'r') as f:
+        if 'kspace' not in f:
+            raise ValueError("missing required kspace dataset")
         ks_all = f['kspace'][:]                  # (Nz,Nc,H0,W0)
         if 'reconstruction_rss' in f:
             rss_all = f['reconstruction_rss'][:]
-        else:
+        elif allow_missing_rss_target:
             rss_all = None
+        else:
+            raise ValueError("missing required reconstruction_rss target")
+        acquisition = _decode_h5_attribute(
+            f.attrs.get("acquisition", "unspecified")
+        )
+    if ks_all.ndim != 4:
+        raise ValueError(
+            f"kspace must have shape (slice,coil,height,width), got {ks_all.shape}"
+        )
+    expected_acquisitions = (
+        _BRAIN_ACQUISITIONS if anatomy == "brain"
+        else _KNEE_ACQUISITIONS if anatomy == "knee"
+        else None
+    )
+    if expected_acquisitions is not None and acquisition not in expected_acquisitions:
+        raise ValueError(
+            f"acquisition {acquisition!r} is not in the declared {anatomy} cohort"
+        )
     Nz = ks_all.shape[0]
     H, W = target_shape
+    native_height, native_width = ks_all.shape[-2:]
+    if (
+        not allow_spatial_padding
+        and (native_height < H or native_width < W)
+    ):
+        raise ValueError(
+            f"native k-space support {(native_height, native_width)} is smaller "
+            f"than required model support {(H, W)}"
+        )
+    if (
+        rss_all is not None
+        and not allow_spatial_padding
+        and (rss_all.shape[-2] < H or rss_all.shape[-1] < W)
+    ):
+        raise ValueError(
+            f"native RSS support {rss_all.shape[-2:]} is smaller than required "
+            f"model support {(H, W)}"
+        )
     for sl in range(Nz):
         ks = torch.from_numpy(ks_all[sl])         # (Nc,H0,W0) complex
         coil_imgs = ifft2c(ks)
@@ -210,7 +270,15 @@ def _load_volume(h5_path: str, target_shape: tuple[int, int]):
         else:
             rss = torch.sqrt((coil_imgs.abs() ** 2).sum(0))
         out.append((mc_k.to(torch.complex64), rss.float()))
-    return out
+    metadata = {
+        "acquisition": acquisition,
+        "native_kspace_shape": list(ks_all.shape),
+        "native_rss_shape": (
+            list(rss_all.shape) if rss_all is not None else None
+        ),
+        "used_synthesized_rss_target": rss_all is None,
+    }
+    return out, metadata
 
 
 def _sha256_file(path: str) -> str:
@@ -230,6 +298,49 @@ def subprocess_git_commit() -> str:
         ).strip()
     except Exception:
         return 'unknown'
+
+
+def subprocess_git_tracked_clean() -> bool:
+    try:
+        status = subprocess.check_output(
+            [
+                'git', 'status', '--porcelain',
+                '--untracked-files=no',
+            ],
+            cwd=project_root,
+            text=True,
+        ).strip()
+        return not status
+    except Exception:
+        return False
+
+
+def git_checkout_provenance(path: str | Path) -> dict:
+    checkout = Path(path)
+    if not (checkout / '.git').exists():
+        raise FileNotFoundError(
+            f'expected a Git checkout at {checkout}'
+        )
+    try:
+        commit = subprocess.check_output(
+            ['git', '-C', str(checkout), 'rev-parse', 'HEAD'],
+            text=True,
+        ).strip()
+        status = subprocess.check_output(
+            [
+                'git', '-C', str(checkout), 'status', '--porcelain',
+                '--untracked-files=no',
+            ],
+            text=True,
+        ).strip()
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(
+            f'failed to inspect source checkout {checkout}'
+        ) from error
+    return {
+        'commit': commit,
+        'tracked_worktree_clean': not status,
+    }
 
 
 def _paired_bootstrap_mean_ci(
@@ -261,7 +372,7 @@ def run_slice(
     sigma_schedule,
     mc_k_clean,
     rss_gt,
-    volume_scale: float,
+    volume_data_range: float,
     file_seed: int,
     slice_idx: int,
     device: torch.device,
@@ -280,34 +391,53 @@ def run_slice(
         % (2**32 - 1)
     )
 
-    # One scale per volume preserves the official stacked-volume metric grain.
-    # It also keeps inputs in the range used by the EDM prior.
-    scale = float(volume_scale)
-    if scale < 1e-12:
-        scale = 1.0
-    mc_k = mc_k_clean / scale
-    rss = (rss_gt / scale).to(device)
+    # The prospective mask is fixed before calibration. The sampler scale uses
+    # only its noisy ACS columns; held-out target maxima are evaluation-only.
+    mask_R = create_mask(
+        W,
+        args.center_fraction,
+        args.acceleration,
+        seed=slice_mask_seed,
+    ).expand(H, -1)
+    n_R_cols = int(mask_R[0].sum().item())
+    noise_reference_scale = float(
+        estimate_acs_rss_scale(
+            mask_R * mc_k_clean,
+            center_fraction=args.center_fraction,
+        )
+    )
 
     # Prospective acquisition cannot estimate noise from unacquired full-scan
     # corners. Production runs therefore use a known synthetic complex-noise
     # standard deviation. The former full-scan estimate is available only as
     # an explicitly labeled legacy ablation.
     if args.legacy_full_scan_noise:
-        sig_c = estimate_noise_per_coil(mc_k).to(device)
+        raw_sig_c = estimate_noise_per_coil(mc_k_clean)
         noise_protocol = "legacy_full_scan_corner_estimate"
     else:
-        known_var = max(float(args.noise_scale) ** 2, 1e-12)
-        sig_c = torch.full((Nc,), known_var, device=device)
-        noise_protocol = "known_synthetic"
-    # Add measurement noise (deterministic per slice)
-    noise_seed = args.noise_seed + file_seed + slice_idx * 7919
-    mc_kn = _add_kspace_noise(mc_k, sig_c, seed=noise_seed).to(device)
-    mc_k = mc_k.to(device)
+        raw_noise_std = float(args.noise_scale) * noise_reference_scale
+        known_var = max(raw_noise_std ** 2, 1e-20)
+        raw_sig_c = torch.full((Nc,), known_var)
+        noise_protocol = "known_synthetic_relative_to_clean_acs_q99"
 
-    # R-mask (1D, expanded to 2D)
-    mask_R = create_mask(W, args.center_fraction, args.acceleration,
-                         seed=slice_mask_seed).expand(H, -1).to(device)
-    n_R_cols = int(mask_R[0].sum().item())
+    # Simulate raw measurements, then estimate the deployable normalization
+    # statistic from the noisy acquired ACS alone.
+    noise_seed = args.noise_seed + file_seed + slice_idx * 7919
+    mc_kn_raw = _add_kspace_noise(
+        mc_k_clean,
+        raw_sig_c,
+        seed=noise_seed,
+    )
+    scale = float(estimate_acs_rss_scale(
+        mask_R * mc_kn_raw,
+        center_fraction=args.center_fraction,
+    ))
+    mc_k = (mc_k_clean / scale).to(device)
+    mc_kn = (mc_kn_raw / scale).to(device)
+    sig_c = (raw_sig_c / (scale ** 2)).to(device)
+    mask_R = mask_R.to(device)
+    rss = (rss_gt / scale).to(device)
+    rss_metric = rss_gt.to(device)
 
     # Sens maps from low-res ACS of the (noisy) acquired data
     sens = estimate_sens_maps_lowres(mc_kn, center_fraction=args.center_fraction).to(device)
@@ -327,11 +457,18 @@ def run_slice(
     out: dict = {
         'status': 'CORRECTED_RUN_UNREVIEWED',
         'n_R_cols': n_R_cols,
+        'normalization_scale': scale,
+        'normalization_protocol': 'noisy_acquired_acs_rss_q99',
+        'noise_reference_scale': noise_reference_scale,
+        'volume_rss_data_range': float(volume_data_range),
         'sampler_seed': slice_seed,
         'mask_seed': slice_mask_seed,
         'noise_seed': int(noise_seed),
         'noise_protocol': noise_protocol,
         'complex_noise_variance_per_coil': sig_c.detach().cpu().tolist(),
+        'raw_complex_noise_variance_per_coil': (
+            raw_sig_c.detach().cpu().tolist()
+        ),
         'methods': {},
     }
 
@@ -381,28 +518,32 @@ def run_slice(
             else None
         )
         replay_mag = replay['recon'].abs()
+        replay_metric = replay_mag * scale
         record = {
             'canonical_psnr_rss': _psnr(
-                rss, replay_mag, eval_size=args.eval_size
+                rss_metric, replay_metric, eval_size=args.eval_size
             ),
             'canonical_psnr_sense': _psnr(
                 sense_oracle, replay_mag, eval_size=args.eval_size
             ),
             'canonical_ssim_rss': _ssim(
-                rss, replay_mag, eval_size=args.eval_size, data_range=1.0
+                rss_metric,
+                replay_metric,
+                eval_size=args.eval_size,
+                data_range=volume_data_range,
             ),
             'canonical_ssim_sense': _ssim(
                 sense_oracle, replay_mag, eval_size=args.eval_size
             ),
             'canonical_nmse_rss': _nmse(
-                rss, replay_mag, eval_size=args.eval_size
+                rss_metric, replay_metric, eval_size=args.eval_size
             ),
             'canonical_nmse_sense': _nmse(
                 sense_oracle, replay_mag, eval_size=args.eval_size
             ),
             **_rss_metric_components(
-                rss,
-                replay_mag,
+                rss_metric,
+                replay_metric,
                 prefix='canonical_rss',
                 eval_size=args.eval_size,
             ),
@@ -423,18 +564,26 @@ def run_slice(
     ):
         rec_mag = recon.abs() if torch.is_complex(recon) else recon
         rec_mag = rec_mag.to(device)
+        rec_metric = rec_mag * scale
         rec = {
-            'psnr_rss':    _psnr(rss, rec_mag, eval_size=args.eval_size),
+            'psnr_rss':    _psnr(
+                rss_metric, rec_metric, eval_size=args.eval_size
+            ),
             'psnr_sense':  _psnr(sense_oracle, rec_mag, eval_size=args.eval_size),
             'ssim_rss':    _ssim(
-                rss, rec_mag, eval_size=args.eval_size, data_range=1.0
+                rss_metric,
+                rec_metric,
+                eval_size=args.eval_size,
+                data_range=volume_data_range,
             ),
             'ssim_sense':  _ssim(sense_oracle, rec_mag, eval_size=args.eval_size),
-            'nmse_rss':    _nmse(rss, rec_mag, eval_size=args.eval_size),
+            'nmse_rss':    _nmse(
+                rss_metric, rec_metric, eval_size=args.eval_size
+            ),
             'nmse_sense':  _nmse(sense_oracle, rec_mag, eval_size=args.eval_size),
             **_rss_metric_components(
-                rss,
-                rec_mag,
+                rss_metric,
+                rec_metric,
                 prefix='rss',
                 eval_size=args.eval_size,
             ),
@@ -804,12 +953,45 @@ def main():
         action='store_true',
         help='Pilot-only speed option. Production runs hash every input volume.',
     )
+    p.add_argument(
+        '--volume_manifest',
+        type=str,
+        default=None,
+        help='JSON cohort manifest with dataset_revision, anatomy, and an exact '
+             'volumes list of filename/SHA256 entries. Required for a result '
+             'artifact to mark the production protocol ready.',
+    )
+    p.add_argument(
+        '--anatomy',
+        choices=['brain', 'knee', 'unspecified'],
+        default='brain',
+        help='Fail-closed acquisition-family check for every input volume.',
+    )
     p.add_argument('--num_volumes', type=int, default=2)
+    p.add_argument(
+        '--minimum_production_volumes',
+        type=int,
+        default=20,
+        help='Minimum independent volumes required before the result artifact '
+             'can mark the declared production protocol ready.',
+    )
     p.add_argument('--num_slices', type=int, default=0,
                    help='Slices per volume (0 = all)')
     p.add_argument('--target_resolution', type=int, nargs=2, default=[384, 320])
     p.add_argument('--eval_size', type=int, default=320,
                    help='Center-crop size for PSNR/SSIM evaluation.')
+    p.add_argument(
+        '--allow_spatial_padding',
+        action='store_true',
+        help='Pilot/legacy option allowing native inputs smaller than the model '
+             'support. Production evidence must leave this disabled.',
+    )
+    p.add_argument(
+        '--allow_missing_rss_target',
+        action='store_true',
+        help='Pilot/legacy option synthesizing RSS from cropped coil images when '
+             'reconstruction_rss is absent.',
+    )
 
     # Acquisition / mask
     p.add_argument('--acceleration', type=int, default=4)
@@ -818,9 +1000,9 @@ def main():
 
     # Noise
     p.add_argument('--noise_scale', type=float, default=0.01,
-                   help='Known synthetic complex-noise std used for controlled '
-                        'prospective experiments (default: 0.01 after per-slice '
-                        'normalization).')
+                   help='Synthetic complex-noise std as a fraction of the clean '
+                        'ACS RSS 99th percentile. The deployable sampler '
+                        'normalization is recomputed from the noisy acquired ACS.')
     p.add_argument('--legacy_full_scan_noise', action='store_true',
                    help='Legacy-only: estimate per-coil variance from complete '
                         'unacquired k-space corners. Invalid for prospective '
@@ -835,6 +1017,27 @@ def main():
 
     # Model
     p.add_argument('--checkpoint_dir', type=str, required=True)
+    p.add_argument(
+        '--checkpoint_manifest',
+        type=str,
+        default=None,
+        help='JSON manifest with an exact artifacts list of relative_path/SHA256 '
+             'entries. Required for production-ready evidence.',
+    )
+    p.add_argument(
+        '--adps_root',
+        type=str,
+        default='external/adps',
+        help='Pinned ambient-diffusion-mri source checkout used to deserialize '
+             'the EDM checkpoint.',
+    )
+    p.add_argument(
+        '--expected_adps_commit',
+        type=str,
+        default=None,
+        help='Fail unless --adps_root is at this exact clean Git commit. '
+             'Required for production-ready evidence.',
+    )
     p.add_argument('--device', type=str, default='cuda')
     p.add_argument('--seed', type=int, default=0)
 
@@ -912,11 +1115,17 @@ def main():
     p.add_argument('--output_dir', type=str, required=True)
 
     args = p.parse_args()
+    if args.minimum_production_volumes < 20:
+        raise ValueError(
+            '--minimum_production_volumes cannot be lower than the '
+            'predeclared 20-volume evidence floor'
+        )
     if args.device.startswith('cuda') and not torch.cuda.is_available():
         args.device = 'cpu'
     if args.device == 'mps' and not torch.backends.mps.is_available():
         args.device = 'cpu'
     device = torch.device(args.device)
+    tracked_worktree_clean = subprocess_git_tracked_clean()
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -930,6 +1139,14 @@ def main():
 
     # Model
     print('Loading EDM model...', flush=True)
+    adps_provenance = git_checkout_provenance(args.adps_root)
+    if (
+        args.expected_adps_commit is not None
+        and adps_provenance['commit'] != args.expected_adps_commit
+    ):
+        raise ValueError(
+            'ADPS source commit does not match --expected_adps_commit'
+        )
     checkpoint_dir = Path(args.checkpoint_dir)
     checkpoint_paths = [checkpoint_dir / 'network-snapshot.pkl']
     training_options_path = checkpoint_dir / 'training_options.json'
@@ -949,19 +1166,141 @@ def main():
         }
         for path in checkpoint_paths
     ]
-    net = load_edm_model(args.checkpoint_dir, method='auto', device=str(device))
+    checkpoint_manifest_provenance = None
+    if args.checkpoint_manifest is not None:
+        checkpoint_manifest_path = Path(args.checkpoint_manifest)
+        if not checkpoint_manifest_path.is_file():
+            raise FileNotFoundError(
+                f'checkpoint manifest not found: {checkpoint_manifest_path}'
+            )
+        with checkpoint_manifest_path.open() as handle:
+            checkpoint_spec = json.load(handle)
+        expected_artifacts = checkpoint_spec.get('artifacts')
+        if not isinstance(expected_artifacts, list) or not expected_artifacts:
+            raise ValueError(
+                'checkpoint manifest must contain a nonempty artifacts list'
+            )
+        expected_model_hashes = {
+            str(entry['relative_path']): str(entry['sha256']).lower()
+            for entry in expected_artifacts
+        }
+        if len(expected_model_hashes) != len(expected_artifacts):
+            raise ValueError('checkpoint manifest contains duplicate paths')
+        actual_model_hashes = {
+            entry['relative_path']: entry['sha256'].lower()
+            for entry in model_manifest
+        }
+        if actual_model_hashes != expected_model_hashes:
+            raise ValueError(
+                'checkpoint artifacts do not match the declared manifest: '
+                f'actual={actual_model_hashes}, expected={expected_model_hashes}'
+            )
+        checkpoint_manifest_provenance = {
+            'sha256': _sha256_file(str(checkpoint_manifest_path)),
+            'artifacts_verified': True,
+        }
+    net = load_edm_model(
+        args.checkpoint_dir,
+        method='auto',
+        device=str(device),
+        adps_root=args.adps_root,
+    )
     denoiser = EDMDenoiser(net, device=str(device))
 
     # Files
-    available_files = sorted(glob.glob(os.path.join(args.data_path, '*.h5')))
     if args.num_volumes <= 0:
         raise ValueError('--num_volumes must be positive')
-    if len(available_files) < args.num_volumes:
-        raise ValueError(
-            f'requested {args.num_volumes} volumes but found only '
-            f'{len(available_files)} in {args.data_path}'
+    volume_manifest_provenance = None
+    expected_volume_hashes: dict[str, str] = {}
+    if args.volume_manifest is not None:
+        if args.skip_file_hashes:
+            raise ValueError(
+                '--volume_manifest cannot be combined with --skip_file_hashes'
+            )
+        volume_manifest_path = Path(args.volume_manifest)
+        if not volume_manifest_path.is_file():
+            raise FileNotFoundError(
+                f'volume manifest not found: {volume_manifest_path}'
+            )
+        with volume_manifest_path.open() as handle:
+            volume_spec = json.load(handle)
+        revision_value = volume_spec.get('dataset_revision')
+        manifest_revision = (
+            str(revision_value).strip()
+            if revision_value is not None
+            else 'unspecified'
         )
-    files = available_files[:args.num_volumes]
+        manifest_anatomy = str(volume_spec.get('anatomy', 'unspecified'))
+        manifest_split = str(volume_spec.get('split', 'unspecified'))
+        if manifest_revision.lower() in {'', 'none', 'unspecified'}:
+            raise ValueError('volume manifest must declare dataset_revision')
+        if manifest_anatomy not in {'brain', 'knee'}:
+            raise ValueError(
+                'volume manifest anatomy must be "brain" or "knee"'
+            )
+        if args.dataset_revision == 'unspecified':
+            args.dataset_revision = manifest_revision
+        elif args.dataset_revision != manifest_revision:
+            raise ValueError(
+                'dataset revision does not match the volume manifest'
+            )
+        if args.anatomy != manifest_anatomy:
+            raise ValueError(
+                f'anatomy {args.anatomy!r} does not match volume manifest '
+                f'{manifest_anatomy!r}'
+            )
+        if manifest_split != 'validation':
+            raise ValueError(
+                'headline volume manifest must declare split="validation"'
+            )
+        expected_volumes = volume_spec.get('volumes')
+        if not isinstance(expected_volumes, list) or not expected_volumes:
+            raise ValueError(
+                'volume manifest must contain a nonempty volumes list'
+            )
+        if len(expected_volumes) != args.num_volumes:
+            raise ValueError(
+                f'volume manifest contains {len(expected_volumes)} volumes but '
+                f'--num_volumes={args.num_volumes}'
+            )
+        filenames = [str(entry['filename']) for entry in expected_volumes]
+        if any(Path(name).name != name for name in filenames):
+            raise ValueError('volume manifest filenames must be plain basenames')
+        if len(set(filenames)) != len(filenames):
+            raise ValueError('volume manifest contains duplicate filenames')
+        expected_volume_hashes = {
+            str(entry['filename']): str(entry['sha256']).lower()
+            for entry in expected_volumes
+        }
+        if len(set(expected_volume_hashes.values())) != len(
+            expected_volume_hashes
+        ):
+            raise ValueError(
+                'volume manifest contains duplicate file hashes'
+            )
+        files = [str(Path(args.data_path) / name) for name in filenames]
+        missing_files = [path for path in files if not Path(path).is_file()]
+        if missing_files:
+            raise FileNotFoundError(
+                f'manifest volume files are missing: {missing_files}'
+            )
+        volume_manifest_provenance = {
+            'sha256': _sha256_file(str(volume_manifest_path)),
+            'dataset_revision': manifest_revision,
+            'anatomy': manifest_anatomy,
+            'split': manifest_split,
+            'ordered_filenames': filenames,
+        }
+    else:
+        available_files = sorted(
+            glob.glob(os.path.join(args.data_path, '*.h5'))
+        )
+        if len(available_files) < args.num_volumes:
+            raise ValueError(
+                f'requested {args.num_volumes} volumes but found only '
+                f'{len(available_files)} in {args.data_path}'
+            )
+        files = available_files[:args.num_volumes]
     if not files:
         raise FileNotFoundError(f'No .h5 files in {args.data_path}')
     print(f'Found {len(files)} volumes', flush=True)
@@ -975,19 +1314,34 @@ def main():
         file_sha256 = (
             None if args.skip_file_hashes else _sha256_file(fp)
         )
-        volume_manifest.append({
-            'volume': fname,
-            'sha256': file_sha256,
-        })
+        if (
+            expected_volume_hashes
+            and file_sha256.lower() != expected_volume_hashes[fname]
+        ):
+            raise ValueError(
+                f'input hash mismatch for required volume {fname}: '
+                f'actual={file_sha256}, expected={expected_volume_hashes[fname]}'
+            )
         file_seed = int.from_bytes(
             hashlib.blake2b(fname.encode(), digest_size=4).digest(),
             'little')
         try:
-            slices = _load_volume(fp, target)
+            slices, volume_metadata = _load_volume(
+                fp,
+                target,
+                anatomy=args.anatomy,
+                allow_spatial_padding=args.allow_spatial_padding,
+                allow_missing_rss_target=args.allow_missing_rss_target,
+            )
         except Exception as error:
             raise RuntimeError(
                 f'failed to load required volume {fname}'
             ) from error
+        volume_manifest.append({
+            'volume': fname,
+            'sha256': file_sha256,
+            **volume_metadata,
+        })
 
         if args.num_slices > 0:
             mid = len(slices) // 2
@@ -1006,15 +1360,15 @@ def main():
             evaluation_maxima.append(float(
                 _center_crop(rss_selected, crop_h, crop_w).max()
             ))
-        volume_scale = max(evaluation_maxima)
-        if volume_scale < 1e-12:
-            volume_scale = 1.0
+        volume_data_range = max(evaluation_maxima)
+        if volume_data_range < 1e-12:
+            volume_data_range = 1.0
 
         for si in sl_idx:
             mc_k_clean, rss_gt = slices[si]
             t_slice = time.time()
             res = run_slice(args, denoiser, sigma_schedule,
-                            mc_k_clean, rss_gt, volume_scale,
+                            mc_k_clean, rss_gt, volume_data_range,
                             file_seed, si, device)
             res.update({
                 'volume': fname,
@@ -1189,13 +1543,11 @@ def main():
                         method_row['ssim_sense'],
                     ))
         psnr_rss_by_volume = {
-            volume: float(10.0 * np.log10(
-                values['target_max'] ** 2
-                / max(
-                    values['squared_error_sum'] / values['numel'],
-                    1e-12,
-                )
-            ))
+            volume: stacked_psnr_from_sufficient_statistics(
+                values['squared_error_sum'],
+                values['numel'],
+                values['target_max'],
+            )
             for volume, values in volume_rss_components.items()
         }
         primary_psnr_rss_by_method[m] = psnr_rss_by_volume
@@ -1205,8 +1557,10 @@ def main():
         ssim_rss_volume_means = np.array(
             [np.mean(values) for values in volume_ssim_rss.values()])
         nmse_rss_volume_means = np.array([
-            values['squared_error_sum']
-            / max(values['target_squared_sum'], 1e-12)
+            stacked_nmse_from_sufficient_statistics(
+                values['squared_error_sum'],
+                values['target_squared_sum'],
+            )
             for values in volume_rss_components.values()
         ])
         psnr_sense_volume_means = np.array(
@@ -1228,10 +1582,11 @@ def main():
         })
         print(f'  {m:14s}  budget={int(budget.mean()):3d} cols  '
               f'NFE={np.nanmean(nfe):.1f}  '
-              f'PSNR_RSS={psnr_rss.mean():.3f}±{psnr_rss.std():.3f}  '
+              f'VOLUME_PSNR_RSS={psnr_rss_volume_means.mean():.3f}'
+              f'±{psnr_rss_volume_means.std():.3f}  '
               f'PSNR_SENSE={psnr_sense.mean():.3f}±{psnr_sense.std():.3f}  '
-              f'SSIM_RSS={ssim_rss.mean():.4f}  SSIM_SENSE={ssim_sense.mean():.4f}  '
-              f'SELECTION_RSS_PSNR={selection_psnr_rss.mean():.3f}')
+              f'VOLUME_SSIM_RSS={ssim_rss_volume_means.mean():.4f}  '
+              f'SSIM_SENSE={ssim_sense.mean():.4f}')
         # PV diagnostics: K-divergence vs PiGDM and angular fraction of P
         kdiv = [r['methods'][m].get('K_div_mean')
                 for r in all_results if m in r['methods']
@@ -1315,6 +1670,45 @@ def main():
                     args.dataset_revision != 'unspecified'
                 ),
                 'input_hashes_complete': not args.skip_file_hashes,
+                'tracked_worktree_clean': tracked_worktree_clean,
+                'declared_volume_manifest_verified': (
+                    volume_manifest_provenance is not None
+                ),
+                'declared_checkpoint_manifest_verified': (
+                    checkpoint_manifest_provenance is not None
+                ),
+                'adps_source_verified': (
+                    args.expected_adps_commit is not None
+                    and adps_provenance['commit']
+                    == args.expected_adps_commit
+                    and adps_provenance['tracked_worktree_clean']
+                ),
+                'rss_metric_grain': (
+                    'fastMRI PSNR/NMSE/SSIM formulas on a fixed center '
+                    f'{args.eval_size}x{args.eval_size} crop; PSNR/NMSE '
+                    'stack selected slices per volume and SSIM averages '
+                    'slices with one volume target maximum'
+                ),
+                'native_width_fastmri_support': False,
+                'full_volume_metrics': args.num_slices == 0,
+                'production_evidence_ready': (
+                    args.num_slices == 0
+                    and args.num_volumes >= args.minimum_production_volumes
+                    and args.dataset_revision != 'unspecified'
+                    and args.anatomy in {'brain', 'knee'}
+                    and not args.skip_file_hashes
+                    and volume_manifest_provenance is not None
+                    and checkpoint_manifest_provenance is not None
+                    and args.expected_adps_commit is not None
+                    and adps_provenance['commit']
+                    == args.expected_adps_commit
+                    and adps_provenance['tracked_worktree_clean']
+                    and not args.skip_canonical_replay
+                    and not args.legacy_full_scan_noise
+                    and not args.allow_spatial_padding
+                    and not args.allow_missing_rss_target
+                    and tracked_worktree_clean
+                ),
             },
             'environment': {
                 'torch_version': torch.__version__,
@@ -1327,6 +1721,13 @@ def main():
                 ),
             },
             'git_commit': subprocess_git_commit(),
+            'source_provenance': {
+                'tracked_worktree_clean': tracked_worktree_clean,
+                'entrypoint_sha256': _sha256_file(__file__),
+            },
+            'checkpoint_manifest_provenance': checkpoint_manifest_provenance,
+            'adps_provenance': adps_provenance,
+            'volume_manifest_provenance': volume_manifest_provenance,
             'model_manifest': model_manifest,
             'volume_manifest': volume_manifest,
             'per_slice': all_results,

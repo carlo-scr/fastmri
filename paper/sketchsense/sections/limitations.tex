@@ -12,9 +12,15 @@ reconstruction.
 Retrospective active-acquisition experiments reveal measurements from a
 complete held-out scan only to simulate a prospective query.  Full data must
 not leak into noise calibration, sensitivity estimation beyond acquired ACS,
-or deployable scores.  MRI results are research evidence, not a clinical
-claim.  ImageNet and fastMRI use must follow their respective licenses and
-privacy terms.
+normalization, or deployable scores.  Our fixed center-$320$ evaluation uses
+fastMRI metric formulas but is not the native-width challenge protocol.  MRI
+results are research evidence, not a clinical claim.  ImageNet and fastMRI
+use must follow their respective licenses and privacy terms.
+
+Primary paired intervals quantify held-out image/volume variation under a
+frozen per-sample seed schedule.  They do not alone quantify global
+diffusion-seed variability; a separate multi-seed stability ablation is
+required before submission.
 
 \paragraph{Submission status.}
 At the time of this scaffold, large-scale corrected results, faithful external

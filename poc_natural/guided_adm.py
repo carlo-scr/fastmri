@@ -121,6 +121,7 @@ def load_heldout_image_folder(
     *,
     n_images: int,
     seed: int,
+    sample_offset: int = 0,
     image_size: int = 256,
 ) -> tuple[torch.Tensor, list[dict]]:
     """Load an explicit held-out folder and record immutable sample hashes.
@@ -140,22 +141,30 @@ def load_heldout_image_folder(
         ),
         key=lambda path: path.name,
     )
-    if len(files) < n_images:
+    if n_images <= 0:
+        raise ValueError("n_images must be positive")
+    if sample_offset < 0:
+        raise ValueError("sample_offset must be nonnegative")
+    if len(files) < n_images + sample_offset:
         raise ValueError(
-            f"requested {n_images} images but found only {len(files)} in {root}"
+            f"requested offset {sample_offset} plus {n_images} images but found "
+            f"only {len(files)} in {root}"
         )
-    order = torch.randperm(
+    permutation = torch.randperm(
         len(files), generator=torch.Generator().manual_seed(int(seed))
-    )[:n_images].tolist()
+    ).tolist()
+    order = permutation[sample_offset:sample_offset + n_images]
     selected = [files[index] for index in order]
     arrays = []
     manifest = []
-    for path in selected:
+    for rank, (file_index, path) in enumerate(zip(order, selected)):
         with Image.open(path) as image:
             arrays.append(_center_crop_arr(image, image_size))
         manifest.append({
             "relative_path": str(path.relative_to(root)),
             "sha256": _sha256(path),
+            "sorted_file_index": int(file_index),
+            "permutation_rank": int(sample_offset + rank),
         })
     tensor = (
         torch.from_numpy(np.stack(arrays))

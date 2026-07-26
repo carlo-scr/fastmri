@@ -19,7 +19,8 @@ multimodal mixture.
 \paragraph{Natural images.}
 CIFAR-10 is development-only.  The headline experiment uses 250
 deterministically selected images from the canonical 50,000-file ILSVRC2012
-validation layout and OpenAI's unconditional ImageNet-256 ADM prior.  The
+validation layout, disjoint from a reserved 16-image calibration prefix, and
+OpenAI's unconditional ImageNet-256 ADM prior.  The
 operator reveals grouped full-resolution blocks while a box-averaged image is
 always observed.  Metrics are PSNR, SSIM, LPIPS, NFE, time, and memory.
 
@@ -27,9 +28,15 @@ always observed.  Metrics are PSNR, SSIM, LPIPS, NFE, time, and memory.
 We use fastMRI brain Cartesian SENSE lines at $R\in\{4,8\}$ and extra-line
 budgets $L\in\{8,16\}$.  The target is at least 20 volume-disjoint validation
 volumes using all slices, with inference and paired bootstrap intervals at volume level.
+The predeclared primary MRI cell is $R=4,L=8$; the other three settings are
+robustness and compute-frontier checks.
 Primary metrics are RSS-target NMSE, PSNR, and SSIM; SENSE-relative values
-are diagnostic.  Known simulated complex-noise power or acquisition-valid
-calibration defines $\Gamma$.
+are diagnostic.  We apply the fastMRI metric formulas to a declared fixed
+center-$320$ crop, not the variable native-width challenge support, because
+the current prior reconstructs $384\times320$ inputs.  Known simulated
+complex-noise power or acquisition-valid calibration defines $\Gamma$.
+Sampler scaling uses the noisy acquired-ACS RSS 99th percentile; a clean-ACS
+statistic defines only the controlled synthetic noise amplitude.
 
 \paragraph{Policies.}
 Controls include exact-budget variable-density/equispaced masks, static and
@@ -68,8 +75,9 @@ fastMRI brain & \method{} joint & \pending & \pending & \pending & \pending & \p
 
 \paragraph{Primary test and go/no-go.}
 The primary comparison is joint versus conditioned low-rank marginal
-selection under canonical replay.  We require a positive paired interval in
-both domains, with at least $0.2$ dB in one, unless the weaker quality effect
-is offset by a decisive compute/memory frontier.  Rank-$4$, one-round MRI
+selection under canonical replay, with $R=4,L=8$ fixed as the MRI primary
+cell.  We require a positive paired interval in both domains, with at least
+$0.2$ dB in one, unless the weaker quality effect is offset by a decisive
+compute/memory frontier.  Rank-$4$, one-round MRI
 costs $T+2q=28$ versus $T=20$ passive NFEs.  Failure triggers repositioning or
 no submission, not a diagonal-only novelty claim.

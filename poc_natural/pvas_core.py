@@ -320,6 +320,7 @@ class PVASResult:
     nfe: int
     pv_maps: list = field(default_factory=list)
     acq_steps: list = field(default_factory=list)
+    sketch_diagnostics: list[dict] = field(default_factory=list)
 
 
 def _dc_update(x0hat: torch.Tensor, state: BlockMaskState, gain: torch.Tensor) -> torch.Tensor:
@@ -399,7 +400,8 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
             k = acq_schedule[i]
             scores = _score_blocks(cfg.policy, den, xt, t, x0hat, x0_full, state,
                                    pv_cached, cfg, gen_acquire, ensemble_scorer,
-                                   k=k)
+                                   k=k,
+                                   diagnostic_sink=result.sketch_diagnostics)
             state = acquire_blocks(state, x0_full, scores, k, gen_acquire)
             result.acq_steps.append((i, t, int(k)))
             # re-apply DC with the enlarged mask (raw x0hat from same eps)
@@ -437,7 +439,8 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
 def _score_blocks(policy: str, den: EpsDenoiser, xt: torch.Tensor, t: int,
                   x0hat: torch.Tensor, x0_full: torch.Tensor, state: BlockMaskState,
                   pv_map: torch.Tensor, cfg: PVASConfig, gen: torch.Generator,
-                  ensemble_scorer, k: int | None = None) -> torch.Tensor:
+                  ensemble_scorer, k: int | None = None,
+                  diagnostic_sink: list[dict] | None = None) -> torch.Tensor:
     """Score candidate blocks for acquisition. Higher = acquired first."""
     B = xt.shape[0]
     block = state.block
@@ -495,6 +498,11 @@ def _score_blocks(policy: str, den: EpsDenoiser, xt: torch.Tensor, t: int,
             dtype=xt.dtype,
         )
         for image_index, sketch in enumerate(sketches):
+            if diagnostic_sink is not None:
+                diagnostic_sink.append({
+                    "image_index": int(image_index),
+                    **sketch.diagnostics,
+                })
             available = torch.nonzero(
                 ~pooled_mask[image_index], as_tuple=False
             ).flatten()

@@ -7,6 +7,7 @@ training split, silent fallback, or cached unlabeled tensor is accepted.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import time
@@ -48,8 +49,20 @@ def main():
                         help="Official held-out ImageNet validation directory")
     parser.add_argument("--checkpoint", required=True,
                         help="OpenAI 256x256_diffusion_uncond.pt")
+    parser.add_argument(
+        "--expected_checkpoint_sha256",
+        default=None,
+        help="Fail unless the ADM checkpoint matches this frozen SHA256.",
+    )
     parser.add_argument("--guided_repo", default="external/guided-diffusion")
     parser.add_argument("--n_images", type=int, default=250)
+    parser.add_argument(
+        "--sample_offset",
+        type=int,
+        default=0,
+        help="Offset into the deterministic held-out permutation. Use this to "
+             "keep a calibration pilot disjoint from headline evaluation.",
+    )
     parser.add_argument("--batch", type=int, default=2)
     parser.add_argument("--num_steps", type=int, default=50)
     parser.add_argument("--block", type=int, default=16)
@@ -86,12 +99,14 @@ def main():
     if args.fp16 and device.type != "cuda":
         raise ValueError("--fp16 requires CUDA")
     torch.manual_seed(args.seed)
+    tracked_worktree_clean = _git_tracked_clean()
 
     dataset_provenance = validate_imagenet_validation_layout(args.image_dir)
     images, sample_manifest = load_heldout_image_folder(
         args.image_dir,
         n_images=args.n_images,
         seed=args.seed + 17,
+        sample_offset=args.sample_offset,
         image_size=256,
     )
     unet, abar, model_provenance = load_imagenet256_unconditional_adm(
@@ -100,10 +115,33 @@ def main():
         device=str(device),
         use_fp16=args.fp16,
     )
+    if (
+        args.expected_checkpoint_sha256 is not None
+        and model_provenance["checkpoint_sha256"].lower()
+        != args.expected_checkpoint_sha256.lower()
+    ):
+        raise ValueError(
+            "ADM checkpoint hash does not match --expected_checkpoint_sha256"
+        )
     lpips_metric = None
+    lpips_provenance = None
     if args.lpips:
         import lpips as lpips_library
         lpips_metric = lpips_library.LPIPS(net="alex").to(device).eval()
+        digest = hashlib.sha256()
+        for name, tensor in sorted(lpips_metric.state_dict().items()):
+            value = tensor.detach().cpu().contiguous()
+            digest.update(name.encode("utf-8"))
+            digest.update(str(value.dtype).encode("utf-8"))
+            digest.update(str(tuple(value.shape)).encode("utf-8"))
+            digest.update(value.numpy().tobytes())
+        lpips_provenance = {
+            "network": "alex",
+            "state_dict_sha256": digest.hexdigest(),
+            "library_version": getattr(
+                lpips_library, "__version__", "unreported"
+            ),
+        }
 
     grid_h = grid_w = 256 // args.block
     output_dir = Path(args.output_dir)
@@ -119,6 +157,15 @@ def main():
                 else "canonical single-trajectory replay of the final mask"
             ),
             "system_and_selection_metrics_separated": True,
+            "deterministic_sample_offset": int(args.sample_offset),
+            "production_evidence_ready": (
+                args.n_images >= 250
+                and not args.skip_canonical_replay
+                and args.expected_checkpoint_sha256 is not None
+                and len(sample_manifest) == args.n_images
+                and tracked_worktree_clean
+            ),
+            "tracked_worktree_clean": tracked_worktree_clean,
         },
         "environment": {
             "torch_version": torch.__version__,
@@ -132,8 +179,13 @@ def main():
         },
         "dataset_provenance": dataset_provenance,
         "model_provenance": model_provenance,
+        "lpips_provenance": lpips_provenance,
         "sample_manifest": sample_manifest,
         "git_commit": _git_commit(),
+        "source_provenance": {
+            "tracked_worktree_clean": tracked_worktree_clean,
+            "entrypoint_sha256": _sha256_file(Path(__file__)),
+        },
         "per_image": {},
         "summary": {},
         "nfe": {},
@@ -149,6 +201,7 @@ def main():
         selection_lpips: list[float] = []
         final_atom_ids: list[list[int]] = []
         batch_seeds: list[dict[str, int]] = []
+        sketch_diagnostics: list[dict] = []
         nfe_total = 0
         canonical_nfe_total = 0
         system_wall_time = 0.0
@@ -157,8 +210,9 @@ def main():
         canonical_peak_memory_mb = None
         for batch_start in range(0, args.n_images, args.batch):
             x0 = images[batch_start: batch_start + args.batch].to(device)
-            measurement_seed = args.seed + 1000 + batch_start
-            sampler_seed = args.seed + batch_start
+            global_batch_start = args.sample_offset + batch_start
+            measurement_seed = args.seed + 1000 + global_batch_start
+            sampler_seed = args.seed + global_batch_start
             measurement_generator = (
                 torch.Generator(device="cpu").manual_seed(measurement_seed)
             )
@@ -249,6 +303,12 @@ def main():
             if lpips_metric is not None:
                 system_lpips.extend(lpips_batch(lpips_metric, result.x0, x0))
             final_atom_ids.extend(observed_block_ids(result.state))
+            sketch_diagnostics.extend({
+                **row,
+                "global_image_index": int(
+                    args.sample_offset + batch_start + row["image_index"]
+                ),
+            } for row in result.sketch_diagnostics)
             batch_seeds.append({
                 "batch_start": int(batch_start),
                 "measurement_seed": int(measurement_seed),
@@ -298,6 +358,7 @@ def main():
             "system_ssim": system_ssim,
             "final_atom_ids": final_atom_ids,
             "batch_seeds": batch_seeds,
+            "sketch_diagnostics": sketch_diagnostics,
         }
         if lpips_metric is not None:
             results["per_image"][policy].update({
@@ -340,6 +401,41 @@ def main():
                 "system_lpips_mean": float(np.mean(system_lpips)),
                 "system_lpips_std": float(np.std(system_lpips)),
             })
+        if sketch_diagnostics:
+            for key in [
+                "core_asymmetry",
+                "core_negative_mass",
+                "hutchinson_negative_fraction",
+                "hutchinson_negative_mass",
+                "low_rank_diagonal_fraction",
+            ]:
+                values = [
+                    float(row[key])
+                    for row in sketch_diagnostics
+                    if key in row
+                ]
+                if values:
+                    results["summary"][policy][f"sketch_{key}_mean"] = float(
+                        np.mean(values)
+                    )
+                    results["summary"][policy][f"sketch_{key}_max"] = float(
+                        np.max(values)
+                    )
+            ranks = [
+                int(row["effective_rank"])
+                for row in sketch_diagnostics
+                if "effective_rank" in row
+            ]
+            results["summary"][policy]["sketch_diagnostic_count"] = len(
+                sketch_diagnostics
+            )
+            if ranks:
+                results["summary"][policy]["sketch_effective_rank_min"] = min(
+                    ranks
+                )
+                results["summary"][policy]["sketch_effective_rank_mean"] = float(
+                    np.mean(ranks)
+                )
 
     _paired_deltas(results)
     results["runtime_seconds"] = time.time() - start
@@ -383,6 +479,7 @@ def _paired_deltas(results: dict):
                 "std": float(difference.std()),
                 "paired_bootstrap_95ci": [ci_low, ci_high],
                 "wilcoxon_p_greater": p_value,
+                "n": int(difference.size),
             }
 
 
@@ -394,6 +491,25 @@ def _git_commit() -> str:
         ).strip()
     except Exception:
         return "unknown"
+
+
+def _git_tracked_clean() -> bool:
+    try:
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            text=True,
+        ).strip()
+        return not status
+    except Exception:
+        return False
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 if __name__ == "__main__":

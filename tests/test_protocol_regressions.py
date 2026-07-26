@@ -10,13 +10,18 @@ from poc_natural.pvas_core import (
     init_block_state,
     random_block_scores,
 )
+from src.models.edm_loader import load_edm_model
 from poc_natural.run_cifar import paired_bootstrap_mean_ci
 from src.samplers.multicoil_pv import (
     build_active_schedule,
     random_complement_order,
 )
 from src.samplers.mri_forward import fft2c
-from src.samplers.sense import MultiCoilSENSE
+from src.samplers.sense import MultiCoilSENSE, estimate_acs_rss_scale
+from src.utils.metrics import (
+    stacked_nmse_from_sufficient_statistics,
+    stacked_psnr_from_sufficient_statistics,
+)
 
 
 def test_natural_static_and_adaptive_random_share_mask_and_measurements():
@@ -70,6 +75,41 @@ def test_random_complement_order_never_contains_observed_columns():
     assert len(order) == 10
     assert set(order).isdisjoint({1, 4, 9})
     assert len(set(order)) == len(order)
+
+
+def test_acs_normalization_ignores_unacquired_columns():
+    generator = torch.Generator().manual_seed(13)
+    real = torch.randn(3, 12, 20, generator=generator)
+    imag = torch.randn(3, 12, 20, generator=generator)
+    kspace = torch.complex(real, imag)
+    center_fraction = 0.2
+
+    perturbed = kspace.clone()
+    acs_width = int(round(center_fraction * kspace.shape[-1]))
+    center = kspace.shape[-1] // 2
+    start = center - acs_width // 2
+    stop = center + acs_width // 2
+    perturbed[..., :start] += 10_000
+    perturbed[..., stop:] -= 10_000j
+
+    torch.testing.assert_close(
+        estimate_acs_rss_scale(kspace, center_fraction=center_fraction),
+        estimate_acs_rss_scale(perturbed, center_fraction=center_fraction),
+    )
+
+
+def test_edm_loader_never_clones_mutable_source_implicitly(tmp_path):
+    missing_checkout = tmp_path / "missing_adps"
+    try:
+        load_edm_model(
+            str(tmp_path / "checkpoint"),
+            adps_root=str(missing_checkout),
+        )
+    except FileNotFoundError as error:
+        assert "explicit commit" in str(error)
+    else:
+        raise AssertionError("missing ADPS checkout was silently accepted")
+    assert not missing_checkout.exists()
 
 
 def test_sensitivity_refresh_recomputes_forward_before_acquisition(monkeypatch):
@@ -157,6 +197,40 @@ def test_paired_bootstrap_interval_is_deterministic_and_contains_mean():
     assert first[0] <= sum(differences) / len(differences) <= first[1]
 
 
+def test_stacked_volume_metrics_match_fastmri_grain():
+    target = torch.tensor([
+        [[0.0, 1.0], [2.0, 3.0]],
+        [[1.0, 2.0], [3.0, 4.0]],
+    ])
+    prediction = target + torch.tensor([
+        [[0.0, 0.5], [-0.5, 0.0]],
+        [[0.25, -0.25], [0.0, 0.5]],
+    ])
+    squared_error_sum = float((target - prediction).square().sum())
+    target_squared_sum = float(target.square().sum())
+
+    expected_psnr = float(
+        10.0 * torch.log10(
+            target.max().square()
+            / ((target - prediction).square().mean())
+        )
+    )
+    expected_nmse = squared_error_sum / target_squared_sum
+
+    assert abs(
+        stacked_psnr_from_sufficient_statistics(
+            squared_error_sum,
+            target.numel(),
+            float(target.max()),
+        )
+        - expected_psnr
+    ) < 1e-6
+    assert stacked_nmse_from_sufficient_statistics(
+        squared_error_sum,
+        target_squared_sum,
+    ) == expected_nmse
+
+
 def test_imagenet_sample_ids_do_not_depend_on_folder_topology(tmp_path):
     from PIL import Image
 
@@ -190,3 +264,29 @@ def test_imagenet_sample_ids_do_not_depend_on_folder_topology(tmp_path):
     ] == [
         entry["sha256"] for entry in nested_manifest
     ]
+
+
+def test_imagenet_offset_reserves_disjoint_headline_ids(tmp_path):
+    from PIL import Image
+
+    for index in range(1, 11):
+        Image.new("RGB", (8, 8), color=(index, index, index)).save(
+            tmp_path / f"ILSVRC2012_val_{index:08d}.JPEG"
+        )
+    _, pilot = load_heldout_image_folder(
+        tmp_path,
+        n_images=3,
+        seed=29,
+        sample_offset=0,
+        image_size=8,
+    )
+    _, headline = load_heldout_image_folder(
+        tmp_path,
+        n_images=5,
+        seed=29,
+        sample_offset=3,
+        image_size=8,
+    )
+    assert {row["sha256"] for row in pilot}.isdisjoint(
+        {row["sha256"] for row in headline}
+    )
