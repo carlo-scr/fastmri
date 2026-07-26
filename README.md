@@ -1,3 +1,28 @@
+# SketchSense WACV 2027 research branch
+
+The active paper direction is **SketchSense: Operator-Space Diffusion
+Covariance Sketches for Correlation-Aware Active Sensing**. It generalizes the
+project from MRI-only frequency selection to grouped linear sensing in both
+natural images and multi-coil MRI. Start with:
+
+- [`docs/sketchsense_proposal.md`](docs/sketchsense_proposal.md) for the
+  falsifiable paper thesis, novelty boundary, theory, and go/no-go gates;
+- [`docs/protocol_audit.md`](docs/protocol_audit.md) for the implementation and
+  evidence audit;
+- [`notebooks/colab_sketchsense_wacv27.ipynb`](notebooks/colab_sketchsense_wacv27.ipynb)
+  for the reproducible GPU handoff;
+- [`scripts/make_fastmri_cohort_manifest.py`](scripts/make_fastmri_cohort_manifest.py)
+  for freezing the exact brain-validation cohort before any headline run; and
+- [`paper/sketchsense/`](paper/sketchsense/) for the evidence-gated manuscript.
+
+**Evidence status:** all numerical results below and in older PVAS drafts are
+`LEGACY-INVALIDATED`. They remain only as project history and must not appear
+in a submission. The active manuscript deliberately keeps result cells
+`PENDING` until corrected, provenance-complete GPU runs pass the declared
+gates.
+
+---
+
 # FA-KGD: Frequency-Adaptive Kalman-Guided Diffusion for Accelerated MRI
 
 **CS231N Final Project — Stanford, Spring 2025**
