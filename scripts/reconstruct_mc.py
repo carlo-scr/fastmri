@@ -106,12 +106,17 @@ def _psnr(gt_mag: torch.Tensor, rec_mag: torch.Tensor, eval_size: int = 320) -> 
     return float(10 * torch.log10(dr ** 2 / mse))
 
 
-def _ssim(gt_mag: torch.Tensor, rec_mag: torch.Tensor, eval_size: int = 320) -> float:
+def _ssim(
+    gt_mag: torch.Tensor,
+    rec_mag: torch.Tensor,
+    eval_size: int = 320,
+    data_range: float | None = None,
+) -> float:
     H = min(gt_mag.shape[-2], eval_size)
     W = min(gt_mag.shape[-1], eval_size)
     g = _center_crop(gt_mag, H, W).cpu().numpy()
     r = _center_crop(rec_mag, H, W).cpu().numpy()
-    dr = float(g.max() - g.min())
+    dr = float(g.max() - g.min()) if data_range is None else float(data_range)
     if dr < 1e-12:
         return 0.0
     return float(ssim_fn(g, r, data_range=dr))
@@ -126,6 +131,26 @@ def _nmse(gt_mag: torch.Tensor, rec_mag: torch.Tensor, eval_size: int = 320) -> 
     numerator = (g - r).square().sum()
     denominator = g.square().sum().clamp_min(1e-12)
     return float(numerator / denominator)
+
+
+def _rss_metric_components(
+    gt_mag: torch.Tensor,
+    rec_mag: torch.Tensor,
+    *,
+    prefix: str,
+    eval_size: int,
+) -> dict[str, float | int]:
+    """Sufficient statistics for exact stacked-volume RSS PSNR and NMSE."""
+    H = min(gt_mag.shape[-2], eval_size)
+    W = min(gt_mag.shape[-1], eval_size)
+    g = _center_crop(gt_mag, H, W)
+    r = _center_crop(rec_mag, H, W)
+    return {
+        f'{prefix}_squared_error_sum': float((g - r).square().sum()),
+        f'{prefix}_target_squared_sum': float(g.square().sum()),
+        f'{prefix}_target_max': float(g.max()),
+        f'{prefix}_numel': int(g.numel()),
+    }
 
 
 def _static_matched_mask(
@@ -230,8 +255,17 @@ def _paired_bootstrap_mean_ci(
 # Per-slice runner
 # ---------------------------------------------------------------------------
 
-def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
-              file_seed: int, slice_idx: int, device: torch.device) -> dict:
+def run_slice(
+    args,
+    denoiser,
+    sigma_schedule,
+    mc_k_clean,
+    rss_gt,
+    volume_scale: float,
+    file_seed: int,
+    slice_idx: int,
+    device: torch.device,
+) -> dict:
     """Reconstruct one slice with all requested methods. Returns metrics dict."""
     Nc, H, W = mc_k_clean.shape
     # Vary stochastic state across slices while sharing it across methods on
@@ -246,8 +280,9 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         % (2**32 - 1)
     )
 
-    # Normalise so that |RSS| has max 1.0 (consistent with EDM training)
-    scale = float(rss_gt.max()).__pow__(1.0)
+    # One scale per volume preserves the official stacked-volume metric grain.
+    # It also keeps inputs in the range used by the EDM prior.
+    scale = float(volume_scale)
     if scale < 1e-12:
         scale = 1.0
     mc_k = mc_k_clean / scale
@@ -354,7 +389,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                 sense_oracle, replay_mag, eval_size=args.eval_size
             ),
             'canonical_ssim_rss': _ssim(
-                rss, replay_mag, eval_size=args.eval_size
+                rss, replay_mag, eval_size=args.eval_size, data_range=1.0
             ),
             'canonical_ssim_sense': _ssim(
                 sense_oracle, replay_mag, eval_size=args.eval_size
@@ -364,6 +399,12 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
             ),
             'canonical_nmse_sense': _nmse(
                 sense_oracle, replay_mag, eval_size=args.eval_size
+            ),
+            **_rss_metric_components(
+                rss,
+                replay_mag,
+                prefix='canonical_rss',
+                eval_size=args.eval_size,
             ),
             'canonical_runtime_s': float(time.time() - replay_start),
             'canonical_nfe': replay_nfe,
@@ -385,10 +426,18 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         rec = {
             'psnr_rss':    _psnr(rss, rec_mag, eval_size=args.eval_size),
             'psnr_sense':  _psnr(sense_oracle, rec_mag, eval_size=args.eval_size),
-            'ssim_rss':    _ssim(rss, rec_mag, eval_size=args.eval_size),
+            'ssim_rss':    _ssim(
+                rss, rec_mag, eval_size=args.eval_size, data_range=1.0
+            ),
             'ssim_sense':  _ssim(sense_oracle, rec_mag, eval_size=args.eval_size),
             'nmse_rss':    _nmse(rss, rec_mag, eval_size=args.eval_size),
             'nmse_sense':  _nmse(sense_oracle, rec_mag, eval_size=args.eval_size),
+            **_rss_metric_components(
+                rss,
+                rec_mag,
+                prefix='rss',
+                eval_size=args.eval_size,
+            ),
             'budget_cols': int(total_cols),
             'runtime_s':   float(runtime),
             'peak_cuda_memory_mb': _peak_memory_mb(),
@@ -881,11 +930,38 @@ def main():
 
     # Model
     print('Loading EDM model...', flush=True)
+    checkpoint_dir = Path(args.checkpoint_dir)
+    checkpoint_paths = [checkpoint_dir / 'network-snapshot.pkl']
+    training_options_path = checkpoint_dir / 'training_options.json'
+    if training_options_path.is_file():
+        checkpoint_paths.append(training_options_path)
+    missing_checkpoints = [
+        str(path) for path in checkpoint_paths if not path.is_file()
+    ]
+    if missing_checkpoints:
+        raise FileNotFoundError(
+            f'missing required checkpoint artifacts: {missing_checkpoints}'
+        )
+    model_manifest = [
+        {
+            'relative_path': str(path.relative_to(checkpoint_dir)),
+            'sha256': _sha256_file(str(path)),
+        }
+        for path in checkpoint_paths
+    ]
     net = load_edm_model(args.checkpoint_dir, method='auto', device=str(device))
     denoiser = EDMDenoiser(net, device=str(device))
 
     # Files
-    files = sorted(glob.glob(os.path.join(args.data_path, '*.h5')))[:args.num_volumes]
+    available_files = sorted(glob.glob(os.path.join(args.data_path, '*.h5')))
+    if args.num_volumes <= 0:
+        raise ValueError('--num_volumes must be positive')
+    if len(available_files) < args.num_volumes:
+        raise ValueError(
+            f'requested {args.num_volumes} volumes but found only '
+            f'{len(available_files)} in {args.data_path}'
+        )
+    files = available_files[:args.num_volumes]
     if not files:
         raise FileNotFoundError(f'No .h5 files in {args.data_path}')
     print(f'Found {len(files)} volumes', flush=True)
@@ -908,9 +984,10 @@ def main():
             'little')
         try:
             slices = _load_volume(fp, target)
-        except Exception as e:
-            print(f'  SKIP {fname}: {e}', flush=True)
-            continue
+        except Exception as error:
+            raise RuntimeError(
+                f'failed to load required volume {fname}'
+            ) from error
 
         if args.num_slices > 0:
             mid = len(slices) // 2
@@ -919,12 +996,26 @@ def main():
                                 min(len(slices), mid - half + args.num_slices)))
         else:
             sl_idx = list(range(len(slices)))
+        if not sl_idx:
+            raise ValueError(f'required volume {fname} has no selected slices')
+        evaluation_maxima = []
+        for selected_slice in sl_idx:
+            rss_selected = slices[selected_slice][1]
+            crop_h = min(rss_selected.shape[-2], args.eval_size)
+            crop_w = min(rss_selected.shape[-1], args.eval_size)
+            evaluation_maxima.append(float(
+                _center_crop(rss_selected, crop_h, crop_w).max()
+            ))
+        volume_scale = max(evaluation_maxima)
+        if volume_scale < 1e-12:
+            volume_scale = 1.0
 
         for si in sl_idx:
             mc_k_clean, rss_gt = slices[si]
             t_slice = time.time()
             res = run_slice(args, denoiser, sigma_schedule,
-                            mc_k_clean, rss_gt, file_seed, si, device)
+                            mc_k_clean, rss_gt, volume_scale,
+                            file_seed, si, device)
             res.update({
                 'volume': fname,
                 'volume_sha256': file_sha256,
@@ -948,6 +1039,7 @@ def main():
                 method_names.append(m)
 
     summary = {}
+    primary_psnr_rss_by_method: dict[str, dict[str, float]] = {}
     for m in method_names:
         psnr_rss   = np.array([r['methods'][m]['psnr_rss']   for r in all_results if m in r['methods']])
         psnr_sense = np.array([r['methods'][m]['psnr_sense'] for r in all_results if m in r['methods']])
@@ -1050,44 +1142,73 @@ def main():
             ),
             'n':               int(len(psnr_rss)),
         }
-        volume_psnr_rss = defaultdict(list)
+        volume_rss_components = defaultdict(
+            lambda: {
+                'squared_error_sum': 0.0,
+                'target_squared_sum': 0.0,
+                'target_max': 0.0,
+                'numel': 0,
+            }
+        )
         volume_ssim_rss = defaultdict(list)
-        volume_nmse_rss = defaultdict(list)
         volume_psnr_sense = defaultdict(list)
         volume_ssim_sense = defaultdict(list)
         for row in all_results:
             if m in row['methods']:
-                volume_psnr_rss[row['volume']].append(
-                    row['methods'][m].get(
-                        'canonical_psnr_rss',
-                        row['methods'][m]['psnr_rss'],
-                    ))
+                method_row = row['methods'][m]
+                prefix = (
+                    'canonical_rss'
+                    if 'canonical_rss_squared_error_sum' in method_row
+                    else 'rss'
+                )
+                components = volume_rss_components[row['volume']]
+                components['squared_error_sum'] += method_row[
+                    f'{prefix}_squared_error_sum'
+                ]
+                components['target_squared_sum'] += method_row[
+                    f'{prefix}_target_squared_sum'
+                ]
+                components['target_max'] = max(
+                    components['target_max'],
+                    method_row[f'{prefix}_target_max'],
+                )
+                components['numel'] += method_row[f'{prefix}_numel']
                 volume_ssim_rss[row['volume']].append(
-                    row['methods'][m].get(
+                    method_row.get(
                         'canonical_ssim_rss',
-                        row['methods'][m]['ssim_rss'],
-                    ))
-                volume_nmse_rss[row['volume']].append(
-                    row['methods'][m].get(
-                        'canonical_nmse_rss',
-                        row['methods'][m]['nmse_rss'],
+                        method_row['ssim_rss'],
                     ))
                 volume_psnr_sense[row['volume']].append(
-                    row['methods'][m].get(
+                    method_row.get(
                         'canonical_psnr_sense',
-                        row['methods'][m]['psnr_sense'],
+                        method_row['psnr_sense'],
                     ))
                 volume_ssim_sense[row['volume']].append(
-                    row['methods'][m].get(
+                    method_row.get(
                         'canonical_ssim_sense',
-                        row['methods'][m]['ssim_sense'],
+                        method_row['ssim_sense'],
                     ))
+        psnr_rss_by_volume = {
+            volume: float(10.0 * np.log10(
+                values['target_max'] ** 2
+                / max(
+                    values['squared_error_sum'] / values['numel'],
+                    1e-12,
+                )
+            ))
+            for volume, values in volume_rss_components.items()
+        }
+        primary_psnr_rss_by_method[m] = psnr_rss_by_volume
         psnr_rss_volume_means = np.array(
-            [np.mean(values) for values in volume_psnr_rss.values()])
+            list(psnr_rss_by_volume.values())
+        )
         ssim_rss_volume_means = np.array(
             [np.mean(values) for values in volume_ssim_rss.values()])
-        nmse_rss_volume_means = np.array(
-            [np.mean(values) for values in volume_nmse_rss.values()])
+        nmse_rss_volume_means = np.array([
+            values['squared_error_sum']
+            / max(values['target_squared_sum'], 1e-12)
+            for values in volume_rss_components.values()
+        ])
         psnr_sense_volume_means = np.array(
             [np.mean(values) for values in volume_psnr_sense.values()])
         ssim_sense_volume_means = np.array(
@@ -1147,22 +1268,16 @@ def main():
             for ref in baselines + [c for c in candidates if c != cand]:
                 if ref not in summary:
                     continue
-                paired_by_volume = defaultdict(list)
-                for row in all_results:
-                    if cand in row['methods'] and ref in row['methods']:
-                        paired_by_volume[row['volume']].append(
-                            row['methods'][cand].get(
-                                'canonical_psnr_rss',
-                                row['methods'][cand]['psnr_rss'],
-                            )
-                            - row['methods'][ref].get(
-                                'canonical_psnr_rss',
-                                row['methods'][ref]['psnr_rss'],
-                            ))
-                if not paired_by_volume:
+                paired_volumes = sorted(
+                    set(primary_psnr_rss_by_method[cand])
+                    & set(primary_psnr_rss_by_method[ref])
+                )
+                if not paired_volumes:
                     continue
                 d = np.array([
-                    np.mean(values) for values in paired_by_volume.values()
+                    primary_psnr_rss_by_method[cand][volume]
+                    - primary_psnr_rss_by_method[ref][volume]
+                    for volume in paired_volumes
                 ])
                 try:
                     stat, pval = wilcoxon(d, alternative='greater')
@@ -1212,6 +1327,7 @@ def main():
                 ),
             },
             'git_commit': subprocess_git_commit(),
+            'model_manifest': model_manifest,
             'volume_manifest': volume_manifest,
             'per_slice': all_results,
             'summary': summary,

@@ -1,7 +1,10 @@
 import torch
 
 import src.samplers.multicoil_pv as multicoil_pv
-from poc_natural.guided_adm import validate_imagenet_validation_layout
+from poc_natural.guided_adm import (
+    load_heldout_image_folder,
+    validate_imagenet_validation_layout,
+)
 from poc_natural.pvas_core import (
     acquire_blocks,
     init_block_state,
@@ -152,3 +155,38 @@ def test_paired_bootstrap_interval_is_deterministic_and_contains_mean():
     )
     assert first == second
     assert first[0] <= sum(differences) / len(differences) <= first[1]
+
+
+def test_imagenet_sample_ids_do_not_depend_on_folder_topology(tmp_path):
+    from PIL import Image
+
+    flat = tmp_path / "flat"
+    nested = tmp_path / "nested"
+    flat.mkdir()
+    (nested / "class_a").mkdir(parents=True)
+    (nested / "class_b").mkdir(parents=True)
+    names = [f"ILSVRC2012_val_{index:08d}.JPEG" for index in range(1, 5)]
+    for index, name in enumerate(names):
+        image = Image.new("RGB", (8, 8), color=(index, index, index))
+        image.save(flat / name)
+        destination = (
+            nested / ("class_a" if index % 2 == 0 else "class_b") / name
+        )
+        image.save(destination)
+
+    _, flat_manifest = load_heldout_image_folder(
+        flat, n_images=3, seed=17, image_size=8
+    )
+    _, nested_manifest = load_heldout_image_folder(
+        nested, n_images=3, seed=17, image_size=8
+    )
+    assert [
+        entry["relative_path"].split("/")[-1] for entry in flat_manifest
+    ] == [
+        entry["relative_path"].split("/")[-1] for entry in nested_manifest
+    ]
+    assert [
+        entry["sha256"] for entry in flat_manifest
+    ] == [
+        entry["sha256"] for entry in nested_manifest
+    ]

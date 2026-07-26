@@ -134,8 +134,11 @@ def load_heldout_image_folder(
         raise FileNotFoundError(f"held-out image directory not found: {root}")
     extensions = {".jpg", ".jpeg", ".png"}
     files = sorted(
-        path for path in root.rglob("*")
-        if path.is_file() and path.suffix.lower() in extensions
+        (
+            path for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() in extensions
+        ),
+        key=lambda path: path.name,
     )
     if len(files) < n_images:
         raise ValueError(
