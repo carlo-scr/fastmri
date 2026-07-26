@@ -1,4 +1,4 @@
-"""Tweedie second-moment posterior variance estimation.
+"""Tweedie second-moment predictive-variance estimation.
 
 For a diffusion model with denoiser μ_θ, Tweedie's identity gives the
 posterior mean E[x_0|x_t] = μ_θ(x_t). The second-moment identity
@@ -6,42 +6,61 @@ posterior mean E[x_0|x_t] = μ_θ(x_t). The second-moment identity
 
         Cov[x_0 | x_t]  =  σ_t^2 · ∂ μ_θ(x_t) / ∂ x_t           (J)
 
-J is symmetric positive-semidefinite for a proper score network. We need
-the *diagonal of its k-space conjugate* to drive frequency-adaptive data
-consistency (the "Posterior-Variance-Gated DC" of FA-KGD-PV):
+where the equality is in the real coordinate representation used by the
+network. For a proper score, J is symmetric positive semidefinite. We need
+the diagonal of the covariance projected into a candidate measurement basis:
 
         P_i(t) = diag( F · σ_t^2 J · F^H )_i
 
-Computing P_i exactly costs N denoiser calls per step (one per basis
-vector). We use a single-probe **Hutchinson estimator** that costs one
-extra denoiser call:
+Computing P exactly costs one denoiser call per real measurement coordinate.
+We instead use a cross-Hutchinson estimator. In stacked real/imaginary
+coordinates, draw a Rademacher probe z with unit variance per component:
 
-        v ~ CN(0, I)                            (k-space white probe)
-        v_img = F^H v
-        Jv ≈ ( μ_θ(x_t + ε v_img) − μ_θ(x_t) ) / ε
-        P̂_i  =  σ_t^2 · |F(Jv)|_i^2  / mean(|v|^2)              (★)
+        u = F^H z
+        Ju ≈ [μ_θ(x_t + εu) − μ_θ(x_t - εu)] / (2ε)
+        P̂_i = σ_t^2 Re(conj(z_i) [FJu]_i).                       (★)
 
-A second pass with v → −v gives a centered finite-difference and removes
-the O(ε) bias for free. Optionally, we radially smooth P̂ to a low-degree
-polynomial in r — exactly matching the FA-KGD radial parameterisation —
-which makes the per-step cost negligibly noisy.
+The expectation of (★) is the sum of the real and imaginary marginal
+variances for each complex k-space coordinate, directly comparable with a
+complex measurement-noise variance E|n_i|². This cross product is essential:
+the previously used |FJu|² estimates diag(F J J^T F^T), i.e. squared
+Jacobian row energy, and is not a posterior variance.
+
+This module handles the single-coil Fourier basis. Multi-coil acquisition
+must probe the full SENSE candidate operator; see ``operator_sketch.py``.
 """
 from __future__ import annotations
 
 import torch
 from typing import Callable
 
-from .mri_forward import fft2c, build_radius_grid
+from .mri_forward import fft2c, ifft2c, build_radius_grid
 
 
-def _complex_white(H: int, W: int, device, generator: torch.Generator | None = None) -> torch.Tensor:
+def _complex_rademacher(
+    H: int,
+    W: int,
+    device,
+    generator: torch.Generator | None = None,
+) -> torch.Tensor:
+    """Complex probe whose real and imaginary coordinates each have variance 1."""
+    shape = (H, W)
     if generator is None:
-        re = torch.randn(H, W, device=device)
-        im = torch.randn(H, W, device=device)
+        re = torch.empty(shape, device=device).bernoulli_(0.5).mul_(2).sub_(1)
+        im = torch.empty(shape, device=device).bernoulli_(0.5).mul_(2).sub_(1)
     else:
-        re = torch.randn(H, W, generator=generator).to(device)
-        im = torch.randn(H, W, generator=generator).to(device)
-    return (re + 1j * im) / (2 ** 0.5)
+        re = torch.randint(0, 2, shape, generator=generator).to(device=device)
+        im = torch.randint(0, 2, shape, generator=generator).to(device=device)
+        re = re.mul(2).sub(1)
+        im = im.mul(2).sub(1)
+    return re + 1j * im
+
+
+def _real_coordinate_rms(x: torch.Tensor) -> torch.Tensor:
+    """RMS over the stacked real representation of a real or complex tensor."""
+    if torch.is_complex(x):
+        return ((x.real.square().mean() + x.imag.square().mean()) / 2).sqrt()
+    return x.square().mean().sqrt()
 
 
 @torch.no_grad()
@@ -57,14 +76,15 @@ def estimate_posterior_variance_kspace(
     n_probes: int = 1,
     generator: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Hutchinson estimate of the per-frequency posterior variance P̂_i(t).
+    """Estimate complex-coordinate predictive variance in the Fourier basis.
 
     Args:
         x_t: current diffusion iterate (H,W) complex
         mu : already-computed denoiser output μ_θ(x_t)
         sigma_t: current noise level σ_t
         denoiser_fn: callable(x, σ) -> denoised image
-        eps_probe: finite-difference step (relative to σ_t·||v||)
+        eps_probe: central-FD step as a fraction of σ_t after normalizing the
+            pullback direction to unit RMS in stacked real coordinates
         centered: if True, do a centred FD (2 NFEs); else 1 NFE
         radial_smooth: if True, fit a low-degree radial polynomial
         radial_degree: degree of even polynomial in (r/r_max)
@@ -75,39 +95,44 @@ def estimate_posterior_variance_kspace(
     """
     H, W = x_t.shape[-2], x_t.shape[-1]
     device = x_t.device
-    eps = eps_probe * sigma_t
+    delta = max(float(eps_probe) * max(abs(float(sigma_t)), 1e-8), 1e-8)
 
-    P_acc = torch.zeros((H, W), device=device)
+    P_acc = torch.zeros((H, W), device=device, dtype=x_t.real.dtype)
     Jv_last = None
     for _ in range(max(1, n_probes)):
-        # Probe vector — k-space white, transformed to image
-        v_kspace = _complex_white(H, W, device, generator=generator)
-        v_img = torch.fft.ifftshift(torch.fft.ifft2(
-            torch.fft.fftshift(v_kspace), norm="ortho"))
-        v_norm = v_img.abs().pow(2).mean().sqrt().clamp(min=1e-12)
-        v_img = v_img / v_norm
-        v_kspace = v_kspace / v_norm
+        # z has identity covariance in the stacked real/imag representation.
+        z_kspace = _complex_rademacher(H, W, device, generator=generator)
+        pullback = ifft2c(z_kspace)
+        pullback_rms = _real_coordinate_rms(pullback).clamp(min=1e-12)
+        direction = pullback / pullback_rms
 
         if centered:
-            mu_p = denoiser_fn(x_t + eps * v_img, sigma_t)
-            mu_m = denoiser_fn(x_t - eps * v_img, sigma_t)
-            Jv = (mu_p - mu_m) / (2.0 * eps)
+            mu_p = denoiser_fn(x_t + delta * direction, sigma_t)
+            mu_m = denoiser_fn(x_t - delta * direction, sigma_t)
+            J_direction = (mu_p - mu_m) / (2.0 * delta)
         else:
-            mu_p = denoiser_fn(x_t + eps * v_img, sigma_t)
-            Jv = (mu_p - mu) / eps
+            mu_p = denoiser_fn(x_t + delta * direction, sigma_t)
+            J_direction = (mu_p - mu) / delta
 
+        # Undo direction normalization so this is J F^H z.
+        Jv = J_direction * pullback_rms
         Jv_k = fft2c(Jv)
-        P_one = (Jv_k.abs() ** 2) * (sigma_t ** 2)
-        P_one = P_one / v_kspace.abs().pow(2).mean().clamp(min=1e-12)
+        # Real-embedding Hutchinson cross product. Because Re(z) and Im(z)
+        # each have unit variance, this estimates Var(Re k_i)+Var(Im k_i).
+        P_one = (float(sigma_t) ** 2) * (
+            z_kspace.real * Jv_k.real + z_kspace.imag * Jv_k.imag
+        )
         P_acc = P_acc + P_one
         Jv_last = Jv
 
     P = P_acc / max(1, n_probes)
 
     if radial_smooth:
-        P = _radial_polyfit(P, degree=radial_degree)
+        # The exact diagonal is nonnegative, but a finite-probe Hutchinson
+        # estimate need not be. Clip only after probe averaging.
+        P = _radial_polyfit(P.clamp(min=1e-12), degree=radial_degree)
 
-    P = P.clamp(min=1e-12)
+    P = P.clamp(min=0)
     return P, Jv_last
 
 

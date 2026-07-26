@@ -114,8 +114,12 @@ def main():
         # (a,b) PV at each probe count
         for npb in args.probes:
             sp = DenoiserStats(); dp = EpsDenoiser(unet, abar, sp)
+            probe_gen = torch.Generator(device="cpu").manual_seed(
+                args.seed + 3_000_001 + b0 + npb
+            )
             sig = pv_estimate(dp, xt, t, n_probes=npb,
-                              pool_block=block).flatten(1).cpu().numpy()
+                              pool_block=block,
+                              generator=probe_gen).flatten(1).cpu().numpy()
             signals[f"pv{npb}"] = sig
             nfe_cost[f"pv{npb}"] = sp.nfe / B
 
@@ -126,7 +130,9 @@ def main():
             str_ = BlockMaskState(state.mask.repeat_interleave(K, 0),
                                   state.y.repeat_interleave(K, 0), state.sigma_y, block,
                                   y_lr=None if state.y_lr is None
-                                  else state.y_lr.repeat_interleave(K, 0))
+                                  else state.y_lr.repeat_interleave(K, 0),
+                                  y_full=None if state.y_full is None
+                                  else state.y_full.repeat_interleave(K, 0))
             genk = torch.Generator().manual_seed(args.seed + 5000 + b0 + K)
             _, _, x0hat_k = partial_trajectory(de, str_, x0r, cfg, args.stop_frac, genk)
             var_k = x0hat_k.view(B, K, *x0hat_k.shape[1:]).var(1).mean(1, keepdim=True)

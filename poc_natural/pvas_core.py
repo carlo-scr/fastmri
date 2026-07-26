@@ -16,12 +16,11 @@ Define xtilde = x_t / sqrt(abar_t) = x0 + sigma_t eps with
 sigma_t^2 = (1-abar_t)/abar_t.  Tweedie: E[x0|x_t] = xtilde + sigma_t^2 * score.
 Differentiating (Efron 2011):  Cov[x0|x_t] = sigma_t^2 * d mu / d xtilde.
 We estimate diag(Cov) with a Hutchinson probe v ~ N(0, I):
-  diag_est = sigma_t^2 * (J v) * v   (unbiased), or the positive
-  rank-1 form sigma_t^2 * (J v)^2 (biased by off-diagonal energy but positive;
-  matches the MRI implementation).  Both are exposed; experiments use (J v)*v
-  averaged over probes, floored at 0, then block-pooled.  The floor at 0
-  introduces a small positive bias (only the pre-floor estimate is unbiased),
-  traded for lower variance in the block-summed score.
+  diag_est = sigma_t^2 * (J v) * v   (unbiased before finite-probe
+  post-processing). The legacy positive score sigma_t^2 * (J v)^2 is retained
+  only as a row-energy diagnostic: it estimates diag(J J^T), not diag(J).
+  Experiments use (J v)*v averaged over probes and channels before one
+  positivity projection and block pooling.
 """
 
 from __future__ import annotations
@@ -90,17 +89,22 @@ class BlockMaskState:
     y_lr: optional (B,C,H/b,W/b) box-averaged low-resolution observation
     (adaptive super-resolution mode: LR is always measured, the budget buys
     full-resolution blocks).
+    y_full: fixed noisy full-resolution measurement field used by the
+    retrospective protocol. Every policy/particle that acquires the same atom
+    reads the same value rather than receiving a fresh noise realization.
     """
     mask: torch.Tensor
     y: torch.Tensor
     sigma_y: float
     block: int
     y_lr: torch.Tensor | None = None
+    y_full: torch.Tensor | None = None
 
     def clone(self) -> "BlockMaskState":
         return BlockMaskState(self.mask.clone(), self.y.clone(), self.sigma_y,
                               self.block,
-                              None if self.y_lr is None else self.y_lr.clone())
+                              None if self.y_lr is None else self.y_lr.clone(),
+                              None if self.y_full is None else self.y_full.clone())
 
     @property
     def n_blocks_observed(self) -> torch.Tensor:
@@ -126,17 +130,22 @@ def init_block_state(x0: torch.Tensor, frac: float, block: int, sigma_y: float,
             mask_small[b, 0].view(-1)[idx.to(x0.device)] = 1.0
     mask = torch.nn.functional.interpolate(mask_small, scale_factor=block, mode="nearest")
     noise = torch.randn(x0.shape, generator=gen).to(x0.device)
-    y = (x0 + sigma_y * noise) * mask
+    y_full = x0 + sigma_y * noise
+    y = y_full * mask
     y_lr = torch.nn.functional.avg_pool2d(x0, block) if with_lr else None
-    return BlockMaskState(mask=mask, y=y, sigma_y=sigma_y, block=block, y_lr=y_lr)
+    return BlockMaskState(
+        mask=mask, y=y, sigma_y=sigma_y, block=block,
+        y_lr=y_lr, y_full=y_full,
+    )
 
 
 def acquire_blocks(state: BlockMaskState, x0: torch.Tensor, scores: torch.Tensor,
                    k: int, gen: torch.Generator) -> BlockMaskState:
     """Acquire the top-k UNOBSERVED blocks by `scores` (B,1,gh,gw); returns new state.
 
-    Retrospective protocol: new measurements are read off the held-out ground
-    truth x0 (plus fresh noise), exactly as in retrospective active MRI.
+    Retrospective protocol: new measurements are read from one fixed noisy
+    measurement field generated when the state is initialized. Thus policies
+    and particles that acquire the same atom receive the same value.
     """
     B = state.mask.shape[0]
     block = state.block
@@ -154,12 +163,17 @@ def acquire_blocks(state: BlockMaskState, x0: torch.Tensor, scores: torch.Tensor
     gw = state.mask.shape[3] // block
     new_mask = torch.nn.functional.interpolate(
         new_mask_small.view(B, 1, gh, gw), scale_factor=block, mode="nearest")
-    noise = torch.randn(x0.shape, generator=gen).to(x0.device)
-    y_new = (x0 + state.sigma_y * noise) * new_mask
+    if state.y_full is None:
+        # Backward-compatible fallback for manually constructed states.
+        noise = torch.randn(x0.shape, generator=gen).to(x0.device)
+        y_full = x0 + state.sigma_y * noise
+    else:
+        y_full = state.y_full
+    y_new = y_full * new_mask
     mask = torch.clamp(state.mask + new_mask, 0, 1)
     y = state.y + y_new * (1 - (state.mask > 0.5).float())  # don't double-write
     return BlockMaskState(mask=mask, y=y, sigma_y=state.sigma_y, block=block,
-                          y_lr=state.y_lr)
+                          y_lr=state.y_lr, y_full=y_full)
 
 
 # ---------------------------------------------------------------------------
@@ -171,37 +185,46 @@ def pv_estimate(den: EpsDenoiser, xt: torch.Tensor, t: int,
                 eps_probe: float = 5e-2, n_probes: int = 1,
                 pool_block: int | None = None,
                 smooth_sigma: float | None = 1.0,
-                mode: str = "jv_v") -> torch.Tensor:
+                mode: str = "jv_v",
+                generator: torch.Generator | None = None) -> torch.Tensor:
     """Estimate diag Cov[x0 | x_t] per pixel (averaged over channels).
 
     mode "jv_v":  sigma_t^2 * (Jv) * v  -- unbiased for the diagonal.
-    mode "jv_sq": sigma_t^2 * (Jv)^2    -- positive, biased (MRI-style rank-1).
+    mode "jv_sq": sigma_t^2 * (Jv)^2    -- positive squared-row-energy
+        diagnostic; not a covariance diagonal.
 
     The probe is applied in the xtilde = x_t / sqrt(abar) domain, i.e. we
     perturb x_t by eps * sqrt(abar_t) * v so that the finite difference
     approximates (d mu / d xtilde) v.  Central differences cancel the O(eps)
     Taylor term, leaving O(eps^2) truncation error.  Returns (B,1,H,W) after
-    channel-averaging (with a floor at 0: slightly positively biased, lower
-    variance), optional Gaussian smoothing, and optional block sum-pooling
-    (B,1,gh,gw).
+    channel-averaging, optional Gaussian smoothing, optional block sum-pooling,
+    and one final floor at zero (B,1,gh,gw). Only the estimate before the floor
+    is unbiased.
     """
     a = den.abar[t].to(xt.device)
     sig2 = ((1.0 - a) / a).item()
     scale = eps_probe * math.sqrt(a.item())
     est = torch.zeros_like(xt)
     for _ in range(n_probes):
-        v = torch.randn_like(xt)
+        if generator is None:
+            v = torch.randn_like(xt)
+        else:
+            v = torch.randn(xt.shape, generator=generator).to(
+                device=xt.device, dtype=xt.dtype
+            )
         mu_p = den.x0hat(xt + scale * v, t)
         mu_m = den.x0hat(xt - scale * v, t)
         jv = (mu_p - mu_m) / (2.0 * eps_probe)
         est = est + (jv * v if mode == "jv_v" else jv.pow(2))
     est = sig2 * est / n_probes
-    est = est.clamp_min(0.0).mean(dim=1, keepdim=True)  # channel-avg, floor at 0
+    # Average probes/channels before positivity projection. Clipping each
+    # noisy channel separately creates a much larger positive bias.
+    est = est.mean(dim=1, keepdim=True)
     if smooth_sigma is not None and smooth_sigma > 0:
         est = _gaussian_blur(est, smooth_sigma)
     if pool_block is not None:
         est = torch.nn.functional.avg_pool2d(est, pool_block) * (pool_block ** 2)
-    return est
+    return est.clamp_min(0.0)
 
 
 def _gaussian_blur(x: torch.Tensor, sigma: float) -> torch.Tensor:
@@ -209,9 +232,58 @@ def _gaussian_blur(x: torch.Tensor, sigma: float) -> torch.Tensor:
     k = torch.arange(-r, r + 1, device=x.device, dtype=x.dtype)
     k = torch.exp(-0.5 * (k / sigma) ** 2)
     k = (k / k.sum()).view(1, 1, -1)
-    x = torch.nn.functional.conv2d(x, k.unsqueeze(2), padding=(0, r))
-    x = torch.nn.functional.conv2d(x, k.unsqueeze(3), padding=(r, 0))
+    # Reflect padding avoids systematically suppressing border uncertainty.
+    x = torch.nn.functional.pad(x, (r, r, 0, 0), mode="reflect")
+    x = torch.nn.functional.conv2d(x, k.unsqueeze(2))
+    x = torch.nn.functional.pad(x, (0, 0, r, r), mode="reflect")
+    x = torch.nn.functional.conv2d(x, k.unsqueeze(3))
     return x
+
+
+def random_block_scores(
+    batch: int,
+    grid_h: int,
+    grid_w: int,
+    seed: int,
+    device: torch.device,
+) -> torch.Tensor:
+    """One fixed random atom ranking shared by static/adaptive controls."""
+    gen = torch.Generator(device="cpu").manual_seed(int(seed) + 104729)
+    return torch.rand(batch, 1, grid_h, grid_w, generator=gen).to(device)
+
+
+def _active_schedule(
+    num_steps: int,
+    budget: int,
+    rounds: int,
+    window: tuple[float, float],
+) -> dict[int, int]:
+    """Unique acquisition schedule that cannot silently drop budget."""
+    if budget <= 0:
+        return {}
+    n_rounds = max(1, int(rounds))
+    lo = min(num_steps - 1, max(0, int(round(window[0] * (num_steps - 1)))))
+    hi = min(num_steps - 1, max(lo, int(round(window[1] * (num_steps - 1)))))
+    candidates = list(range(lo, hi + 1))
+    if n_rounds > len(candidates):
+        raise ValueError(
+            f"{n_rounds} rounds do not fit unique acquisition window [{lo}, {hi}]"
+        )
+    if n_rounds == 1:
+        steps = [lo]
+    else:
+        steps = [
+            candidates[round(i * (len(candidates) - 1) / (n_rounds - 1))]
+            for i in range(n_rounds)
+        ]
+    if len(set(steps)) != len(steps):
+        raise AssertionError(f"duplicate acquisition steps: {steps}")
+    base, extra = divmod(int(budget), n_rounds)
+    schedule = {step: base + (1 if i < extra else 0)
+                for i, step in enumerate(steps)}
+    if sum(schedule.values()) != int(budget):
+        raise AssertionError("active schedule lost measurement budget")
+    return schedule
 
 
 # ---------------------------------------------------------------------------
@@ -260,42 +332,40 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
     """Run DDIM posterior sampling with (optional) active block acquisition.
 
     x0_full is the held-out ground truth used ONLY to (a) simulate new
-    measurements in the retrospective protocol and (b) implement the 'oracle'
-    upper-bound policy. It never enters the sampler otherwise.
+    measurements in the retrospective protocol and (b) implement the
+    retrospective greedy-oracle reference. That reference is not a bound on
+    final reconstruction quality. x0_full never enters the sampler otherwise.
     """
     device = x0_full.device
-    gen = torch.Generator().manual_seed(cfg.seed)
+    gen_sample = torch.Generator(device="cpu").manual_seed(cfg.seed)
+    gen_probe = torch.Generator(device="cpu").manual_seed(cfg.seed + 1_000_003)
+    gen_acquire = torch.Generator(device="cpu").manual_seed(cfg.seed + 2_000_003)
     B, C, H, W = x0_full.shape
     abar = den.abar
     T = len(abar)
     ts = ddim_timesteps(T, cfg.num_steps)
-    xt = torch.randn(x0_full.shape, generator=gen).to(device)
+    xt = torch.randn(x0_full.shape, generator=gen_sample).to(device)
     state = state.clone()
+    initial_blocks = state.n_blocks_observed.clone()
 
     # Acquisition schedule: rounds at fractions of the trajectory
-    n_rounds = cfg.active_rounds if budget_blocks > 0 else 0
-    if n_rounds > 0:
-        fr = torch.linspace(cfg.active_window[0], cfg.active_window[1], n_rounds)
-        acq_at = set((fr * (cfg.num_steps - 1)).round().long().tolist())
-        per_round = [budget_blocks // n_rounds + (1 if i < budget_blocks % n_rounds else 0)
-                     for i in range(n_rounds)]
-    else:
-        acq_at, per_round = set(), []
+    acq_schedule = _active_schedule(
+        cfg.num_steps, budget_blocks, cfg.active_rounds, cfg.active_window
+    )
 
     pv_cached = None
     result = PVASResult(x0=None, state=state, nfe=0)
-    round_idx = 0
-
     for i, t in enumerate(ts.tolist()):
         a_t = abar[t].to(device)
         x0hat, eps_theta = den.predict(xt, t)
 
         # --- posterior variance (refreshed every pv_every steps if needed) ---
-        need_pv = (cfg.use_pv_gate or (i in acq_at and cfg.policy == "pv"))
-        if need_pv and (pv_cached is None or i % cfg.pv_every == 0 or i in acq_at):
+        need_pv = (cfg.use_pv_gate or (i in acq_schedule and cfg.policy == "pv"))
+        if need_pv and (pv_cached is None or i % cfg.pv_every == 0 or i in acq_schedule):
             pv_cached = pv_estimate(den, xt, t, cfg.pv_eps_probe, cfg.pv_n_probes,
-                                    pool_block=None, smooth_sigma=cfg.pv_smooth_sigma)
-            if i in acq_at:
+                                    pool_block=None, smooth_sigma=cfg.pv_smooth_sigma,
+                                    generator=gen_probe)
+            if i in acq_schedule:
                 result.pv_maps.append((t, pv_cached.detach().cpu()))
 
         # --- data consistency on x0hat ---
@@ -310,12 +380,11 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
         x0hat = _dc_update(x0hat, state, gain)
 
         # --- active acquisition ---
-        if i in acq_at and round_idx < len(per_round):
-            k = per_round[round_idx]
-            round_idx += 1
+        if i in acq_schedule:
+            k = acq_schedule[i]
             scores = _score_blocks(cfg.policy, den, xt, t, x0hat, x0_full, state,
-                                   pv_cached, cfg, gen, ensemble_scorer)
-            state = acquire_blocks(state, x0_full, scores, k, gen)
+                                   pv_cached, cfg, gen_acquire, ensemble_scorer)
+            state = acquire_blocks(state, x0_full, scores, k, gen_acquire)
             result.acq_steps.append((i, t, int(k)))
             # re-apply DC with the enlarged mask (raw x0hat from same eps)
             x0hat_raw = (xt - torch.sqrt(1.0 - a_t) * eps_theta) / torch.sqrt(a_t)
@@ -327,7 +396,7 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
             t_next = ts[i + 1].item()
             a_n = abar[t_next].to(device)
             sigma = cfg.eta * torch.sqrt((1 - a_n) / (1 - a_t)) * torch.sqrt(1 - a_t / a_n)
-            noise = torch.randn(xt.shape, generator=gen).to(device)
+            noise = torch.randn(xt.shape, generator=gen_sample).to(device)
             xt = (torch.sqrt(a_n) * x0hat
                   + torch.sqrt(torch.clamp(1 - a_n - sigma ** 2, min=0)) * eps_theta
                   + sigma * noise)
@@ -337,6 +406,15 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
     result.x0 = xt.clamp(-1, 1)
     result.state = state
     result.nfe = den.stats.nfe
+    expected = torch.clamp(
+        initial_blocks + int(budget_blocks),
+        max=(H // state.block) * (W // state.block),
+    )
+    if not torch.equal(state.n_blocks_observed.cpu(), expected.cpu()):
+        raise AssertionError(
+            "active budget mismatch: "
+            f"expected {expected.tolist()}, got {state.n_blocks_observed.tolist()}"
+        )
     return result
 
 
@@ -351,7 +429,7 @@ def _score_blocks(policy: str, den: EpsDenoiser, xt: torch.Tensor, t: int,
     if policy == "pv":
         return torch.nn.functional.avg_pool2d(pv_map, block) * (block ** 2)
     if policy == "random":
-        return torch.rand(B, 1, gh, gw, generator=gen).to(xt.device)
+        return random_block_scores(B, gh, gw, cfg.seed, xt.device)
     if policy == "raster":
         base = torch.arange(gh * gw, 0, -1, dtype=torch.float32).view(1, 1, gh, gw)
         return base.expand(B, 1, gh, gw).to(xt.device)

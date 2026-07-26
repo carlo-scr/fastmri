@@ -5,9 +5,12 @@ through a `MultiCoilSENSE` operator. The denoiser still consumes a single
 complex-valued image (the SENSE-combined estimate); per-coil information
 enters only through the data-consistency / Kalman update.
 
-The Kalman gain becomes per-coil-per-frequency:
+The Kalman gain becomes per-coil-per-frequency. The EDM checkpoint treats
+real and imaginary channels independently with variance σ_t² per channel,
+while ``sigma_c_sq`` stores the complex measurement variance E|n_c|².
+Therefore the equivalent complex-coordinate form is:
 
-    K_{c,i}(t) = σ_t^2 / (σ_t^2 + σ_{c,i}^2)
+    K_{c,i}(t) = 2σ_t² / (2σ_t² + E|n_{c,i}|²).
 
 For ΠGDM we use the per-coil scalar variance directly. For FA-KGD we
 broadcast a per-frequency `σ_i^2(r)` map across coils, optionally scaled
@@ -15,7 +18,6 @@ by the per-coil scalar so we model both sources of heteroscedasticity.
 """
 from __future__ import annotations
 
-import numpy as np
 import torch
 from typing import Callable, Optional
 
@@ -25,7 +27,8 @@ from .fakgd import fpdc_radius, fpdc_gate
 
 
 def _complex_randn(H: int, W: int, device=torch.device("cpu")) -> torch.Tensor:
-    return (torch.randn(H, W, device=device) + 1j * torch.randn(H, W, device=device)) / np.sqrt(2)
+    """EDM noise with std σ per real network channel when multiplied by σ."""
+    return torch.randn(H, W, device=device) + 1j * torch.randn(H, W, device=device)
 
 
 def _psnr(x_gt: torch.Tensor, x_recon: torch.Tensor) -> float:
@@ -89,8 +92,9 @@ def run_pigdm_mc(
         mu_kc = sense_op.forward(mu)                # (Nc,H,W)
         residual = sense_op.mask * (y_mc - mu_kc)   # (Nc,H,W)
 
-        # Per-coil Kalman gain (scalar per coil)
-        K = sigma_t ** 2 / (sigma_t ** 2 + sig2_view)  # (Nc,1,1)
+        # ``sig2`` is E|n|²; the complex prior variance is 2σ_t².
+        prior_var_complex = 2.0 * sigma_t ** 2
+        K = prior_var_complex / (prior_var_complex + sig2_view)  # (Nc,1,1)
 
         # Combine corrections with SENSE adjoint (Roemer-weighted)
         corr = sense_op.adjoint(K * residual)       # (H,W)
@@ -193,7 +197,8 @@ def run_fakgd_mc(
         # Per-coil per-freq variance and Kalman gain
         # σ_{c,i}^2 = σ_i^2(r) · sig_c_norm[c]
         sig_ci_sq = sigma_i_sq.unsqueeze(0) * sig_c_view   # (Nc,H,W)
-        K = sigma_t**2 / (sigma_t**2 + sig_ci_sq)          # (Nc,H,W)
+        prior_var_complex = 2.0 * sigma_t ** 2
+        K = prior_var_complex / (prior_var_complex + sig_ci_sq)  # (Nc,H,W)
 
         corr = sense_op.adjoint(K * residual)               # (H,W)
         x_corrected = mu + corr

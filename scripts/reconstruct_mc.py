@@ -1,8 +1,11 @@
-"""Multi-coil reconstruction with PV-gated FA-KGD + active line acquisition.
+"""Multi-coil reconstruction with legacy PVAS and active-line baselines.
 
 Sister script to ``scripts/reconstruct.py``. Operates on raw multi-coil
 k-space from fastMRI brain (and similar), and supports the full
-PV/active-sampling family.
+PV/active-sampling family. The ``pv`` and ``pv_active`` methods retain the
+pre-audit single-Fourier estimator for backward compatibility; they are not
+valid operator-space SENSE covariance baselines. Use the SketchSense methods
+for new paper runs once integrated.
 
 Methods (``--methods`` list, any subset):
   pigdm_mc     : multi-coil ΠGDM with per-coil scalar noise
@@ -53,7 +56,11 @@ from src.samplers.sense import (
     estimate_sens_maps_lowres, estimate_noise_per_coil,
 )
 from src.samplers.multicoil import run_pigdm_mc, run_fakgd_mc
-from src.samplers.multicoil_pv import run_fakgd_mc_pv, run_ensemble_active_mc
+from src.samplers.multicoil_pv import (
+    random_complement_order,
+    run_ensemble_active_mc,
+    run_fakgd_mc_pv,
+)
 from src.models.edm_loader import load_edm_model, EDMDenoiser
 
 
@@ -102,25 +109,23 @@ def _ssim(gt_mag: torch.Tensor, rec_mag: torch.Tensor, eval_size: int = 320) -> 
     return float(ssim_fn(g, r, data_range=dr))
 
 
-def _static_matched_mask(W: int, H: int, n_total_cols: int, cf: float,
-                         seed: int, device: torch.device) -> torch.Tensor:
-    """Build a 2D mask (H, W) with `n_total_cols` columns ON, including a
-    centred ACS region of width round(cf*W) (rounded up to even)."""
-    nacs = int(round(cf * W))
-    if nacs % 2:
-        nacs += 1
-    nacs = min(nacs, n_total_cols)
-    n_rand = max(0, n_total_cols - nacs)
-    acs_set = set(range(W // 2 - nacs // 2, W // 2 + nacs // 2))
-    cand = list(set(range(W)) - acs_set)
-    rng = np.random.RandomState(seed)
-    sel = rng.choice(cand, size=min(n_rand, len(cand)), replace=False) if n_rand else []
-    m = np.zeros(W, dtype=np.float32)
-    for c in acs_set:
-        m[c] = 1
-    for c in sel:
-        m[int(c)] = 1
-    return torch.from_numpy(m).expand(H, -1).to(device)
+def _static_matched_mask(
+    base_mask: torch.Tensor,
+    extra_cols: int,
+    seed: int,
+) -> torch.Tensor:
+    """Extend ``base_mask`` by the random policy's exact final complement.
+
+    This creates a timing-only control: the static and mid-trajectory random
+    baselines start from the same mask, end with the same mask, and differ only
+    in when the extra measurements become available.
+    """
+    out = base_mask.clone()
+    order = random_complement_order(base_mask, seed)
+    chosen = order[: max(0, int(extra_cols))]
+    if chosen:
+        out[:, chosen] = 1.0
+    return out
 
 
 def _add_kspace_noise(mc_k: torch.Tensor, sig_c: torch.Tensor,
@@ -172,6 +177,17 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
               file_seed: int, slice_idx: int, device: torch.device) -> dict:
     """Reconstruct one slice with all requested methods. Returns metrics dict."""
     Nc, H, W = mc_k_clean.shape
+    # Vary stochastic state across slices while sharing it across methods on
+    # the same slice. This avoids pseudoreplication from identical masks,
+    # latents, re-noising paths, and probe streams on adjacent slices.
+    slice_seed = int(
+        (int(args.seed) * 1_000_003 + int(file_seed) + int(slice_idx) * 7_919)
+        % (2**63 - 1)
+    )
+    slice_mask_seed = int(
+        (int(args.mask_seed) * 65_537 + int(file_seed) + int(slice_idx) * 104_729)
+        % (2**32 - 1)
+    )
 
     # Normalise so that |RSS| has max 1.0 (consistent with EDM training)
     scale = float(rss_gt.max()).__pow__(1.0)
@@ -180,12 +196,17 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
     mc_k = mc_k_clean / scale
     rss = (rss_gt / scale).to(device)
 
-    # Per-coil noise variance (estimated from data corners), shared across all methods
-    sig_c = estimate_noise_per_coil(mc_k).to(device)
-    # If the user asked for a synthetic noise floor, inflate sig_c to that scalar
-    if args.noise_scale is not None and args.noise_scale > 0:
-        floor = float(args.noise_scale) ** 2
-        sig_c = torch.full_like(sig_c, floor)
+    # Prospective acquisition cannot estimate noise from unacquired full-scan
+    # corners. Production runs therefore use a known synthetic complex-noise
+    # standard deviation. The former full-scan estimate is available only as
+    # an explicitly labeled legacy ablation.
+    if args.legacy_full_scan_noise:
+        sig_c = estimate_noise_per_coil(mc_k).to(device)
+        noise_protocol = "legacy_full_scan_corner_estimate"
+    else:
+        known_var = max(float(args.noise_scale) ** 2, 1e-12)
+        sig_c = torch.full((Nc,), known_var, device=device)
+        noise_protocol = "known_synthetic"
     # Add measurement noise (deterministic per slice)
     noise_seed = args.noise_seed + file_seed + slice_idx * 7919
     mc_kn = _add_kspace_noise(mc_k, sig_c, seed=noise_seed).to(device)
@@ -193,7 +214,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
 
     # R-mask (1D, expanded to 2D)
     mask_R = create_mask(W, args.center_fraction, args.acceleration,
-                         seed=args.mask_seed).expand(H, -1).to(device)
+                         seed=slice_mask_seed).expand(H, -1).to(device)
     n_R_cols = int(mask_R[0].sum().item())
 
     # Sens maps from low-res ACS of the (noisy) acquired data
@@ -213,10 +234,15 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
 
     out: dict = {
         'n_R_cols': n_R_cols,
+        'sampler_seed': slice_seed,
+        'mask_seed': slice_mask_seed,
+        'noise_seed': int(noise_seed),
+        'noise_protocol': noise_protocol,
+        'complex_noise_variance_per_coil': sig_c.detach().cpu().tolist(),
         'methods': {},
     }
 
-    def _record(name, recon, total_cols, runtime, diagnostics=None):
+    def _record(name, recon, total_cols, runtime, diagnostics=None, nfe_start=None):
         rec_mag = recon.abs() if torch.is_complex(recon) else recon
         rec_mag = rec_mag.to(device)
         rec = {
@@ -227,6 +253,8 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
             'budget_cols': int(total_cols),
             'runtime_s':   float(runtime),
         }
+        if nfe_start is not None and hasattr(denoiser, 'nfe'):
+            rec['nfe'] = int(denoiser.nfe) - int(nfe_start)
         if diagnostics is not None:
             kdiv = diagnostics.get('K_div_vs_pigdm') or []
             pang = diagnostics.get('P_ang_frac') or []
@@ -238,30 +266,41 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                 rec['P_ang_frac_max']  = float(np.max(pang))
         out['methods'][name] = rec
 
+    def _actual_cols(result, fallback):
+        mask_final = result.get('mask_final')
+        if mask_final is None:
+            return int(fallback)
+        return int((mask_final.sum(dim=0) > 0).sum().item())
+
     y_R = mask_R * mc_kn
 
     # ---- pigdm_mc ----
     if 'pigdm_mc' in args.methods:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_pigdm_mc(y_mc=y_R, sense_op=sense_op,
                          sigma_schedule=sigma_schedule,
-                         denoiser_fn=denoiser, sigma_y=None, seed=args.seed)
-        _record('pigdm_mc', r['recon'], n_R_cols, time.time() - t0)
+                         denoiser_fn=denoiser, sigma_y=None, seed=slice_seed)
+        _record('pigdm_mc', r['recon'], n_R_cols, time.time() - t0,
+                nfe_start=nfe0)
 
     # ---- fakgd_mc (FPDC, no PV) ----
     if 'fakgd_mc' in args.methods:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc(y_mc=y_R, sense_op=sense_op,
                          sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                          sigma_i_sq_init=sigma_i_sq, r_acs=r_acs, r_max=r_max,
                          beta_fpdc=args.beta_fpdc, alpha_ema=args.alpha_ema,
                          gamma=args.gamma, m_step_mode=args.m_step_mode,
-                         seed=args.seed)
-        _record('fakgd_mc', r['recon'], n_R_cols, time.time() - t0)
+                         seed=slice_seed)
+        _record('fakgd_mc', r['recon'], n_R_cols, time.time() - t0,
+                nfe_start=nfe0)
 
     # ---- pv (PV-gated only) ----
     if 'pv' in args.methods:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
@@ -272,14 +311,15 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             pv_radial_degree=args.pv_radial_degree,
                             pv_normalize=args.pv_normalize,
                             pv_n_probes=args.pv_n_probes,
-                            active_lines=0, seed=args.seed,
+                            active_lines=0, seed=slice_seed,
                             return_diagnostics=True)
         _record('pv', r['recon'], n_R_cols, time.time() - t0,
-                diagnostics=r.get('diagnostics'))
+                diagnostics=r.get('diagnostics'), nfe_start=nfe0)
 
     # ---- pv_active (PV + active acquisition) ----
     if 'pv_active' in args.methods and args.active_lines > 0:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
@@ -295,10 +335,12 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             active_after_frac=args.active_after_frac,
                             active_until_frac=args.active_until_frac,
                             active_score='pv',
-                            y_mc_full=mc_kn, seed=args.seed,
+                            y_mc_full=mc_kn, seed=slice_seed,
                             return_diagnostics=True)
-        _record('pv_active', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0, diagnostics=r.get('diagnostics'))
+        _record('pv_active', r['recon'],
+                _actual_cols(r, n_R_cols + args.active_lines),
+                time.time() - t0, diagnostics=r.get('diagnostics'),
+                nfe_start=nfe0)
 
     # ---- random_adaptive (mid-diffusion uniform-random acquisition) ----
     # Same multi-round schedule and budget as PVAS; columns picked uniformly
@@ -306,6 +348,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
     # selection (vs. "any mid-diffusion adaptation").
     if 'random_adaptive' in args.methods and args.active_lines > 0:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
@@ -321,9 +364,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             active_after_frac=args.active_after_frac,
                             active_until_frac=args.active_until_frac,
                             active_score='random',
-                            y_mc_full=mc_kn, seed=args.seed)
-        _record('random_adaptive', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0)
+                            y_mc_full=mc_kn, seed=slice_seed)
+        _record('random_adaptive', r['recon'],
+                _actual_cols(r, n_R_cols + args.active_lines),
+                time.time() - t0, nfe_start=nfe0)
 
     # ---- energy_active (image-conditional, P-free; primary new score) ----
     # Score(c) = sum_{c,r} |F(S * mu_theta(x_t))[c,r,col]|^2 over unsampled
@@ -331,6 +375,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
     # bypassing the (saturated) PV gate. No oracle access; legal in real MRI.
     if 'energy_active' in args.methods and args.active_lines > 0:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
@@ -346,16 +391,18 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             active_after_frac=args.active_after_frac,
                             active_until_frac=args.active_until_frac,
                             active_score='energy',
-                            y_mc_full=mc_kn, seed=args.seed)
-        _record('energy_active', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0)
+                            y_mc_full=mc_kn, seed=slice_seed)
+        _record('energy_active', r['recon'],
+                _actual_cols(r, n_R_cols + args.active_lines),
+                time.time() - t0, nfe_start=nfe0)
 
-    # ---- oracle_active (UPPER BOUND: residual-vs-truth scoring) ----
+    # ---- oracle_active (retrospective greedy reference) ----
     # Score(c) = sum_{c,r} |y_full - F(S*mu)|^2 over unsampled cols.
-    # Requires y_mc_full -> ORACLE; gives the ceiling for any residual-
-    # driven scoring. Reported as upper bound, not a deployable method.
+    # Requires y_mc_full and is not deployable. It is not an upper bound on
+    # final reconstruction utility.
     if 'oracle_active' in args.methods and args.active_lines > 0:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
@@ -371,14 +418,16 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             active_after_frac=args.active_after_frac,
                             active_until_frac=args.active_until_frac,
                             active_score='residual_oracle',
-                            y_mc_full=mc_kn, seed=args.seed)
-        _record('oracle_active', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0)
+                            y_mc_full=mc_kn, seed=slice_seed)
+        _record('oracle_active', r['recon'],
+                _actual_cols(r, n_R_cols + args.active_lines),
+                time.time() - t0, nfe_start=nfe0)
 
     # ---- equi_adaptive (mid-diffusion gap-filling acquisition) ----
     # Deterministic non-PV baseline: greedily fill the largest column gaps.
     if 'equi_adaptive' in args.methods and args.active_lines > 0:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
                             sigma_schedule=sigma_schedule, denoiser_fn=denoiser,
                             sigma_i_sq_init=sigma_i_sq,
@@ -394,9 +443,10 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             active_after_frac=args.active_after_frac,
                             active_until_frac=args.active_until_frac,
                             active_score='equispaced',
-                            y_mc_full=mc_kn, seed=args.seed)
-        _record('equi_adaptive', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0)
+                            y_mc_full=mc_kn, seed=slice_seed)
+        _record('equi_adaptive', r['recon'],
+                _actual_cols(r, n_R_cols + args.active_lines),
+                time.time() - t0, nfe_start=nfe0)
 
     # ---- ens_active (ADS/AdaSense-style particle-ensemble selection) ----
     # N parallel PiGDM particles (scalar gain); columns scored by cross-
@@ -404,6 +454,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
     # Faithful-cost ensemble reference: NFE = N*T per slice.
     if 'ens_active' in args.methods and args.active_lines > 0:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_ensemble_active_mc(y_mc=y_R, sense_op=sense_op,
                                    sigma_schedule=sigma_schedule,
                                    denoiser_fn=denoiser,
@@ -414,14 +465,16 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                                    active_after_frac=args.active_after_frac,
                                    active_until_frac=args.active_until_frac,
                                    active_score='variance',
-                                   y_mc_full=mc_kn, seed=args.seed)
-        _record('ens_active', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0)
+                                   y_mc_full=mc_kn, seed=slice_seed)
+        _record('ens_active', r['recon'],
+                _actual_cols(r, n_R_cols + args.active_lines),
+                time.time() - t0, nfe_start=nfe0)
 
     # ---- ens_random_active (particle mean + random selection) ----
     # Isolates the particle-averaging benefit from ensemble selection.
     if 'ens_random_active' in args.methods and args.active_lines > 0:
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_ensemble_active_mc(y_mc=y_R, sense_op=sense_op,
                                    sigma_schedule=sigma_schedule,
                                    denoiser_fn=denoiser,
@@ -432,21 +485,25 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                                    active_after_frac=args.active_after_frac,
                                    active_until_frac=args.active_until_frac,
                                    active_score='random',
-                                   y_mc_full=mc_kn, seed=args.seed)
-        _record('ens_random_active', r['recon'], n_R_cols + args.active_lines,
-                time.time() - t0)
+                                   y_mc_full=mc_kn, seed=slice_seed)
+        _record('ens_random_active', r['recon'],
+                _actual_cols(r, n_R_cols + args.active_lines),
+                time.time() - t0, nfe_start=nfe0)
 
     # ---- static_match (matched-budget static-random baseline) ----
     if 'static_match' in args.methods and args.active_lines > 0:
-        budget = n_R_cols + args.active_lines
-        mask_static = _static_matched_mask(W, H, budget, args.center_fraction,
-                                           seed=args.mask_seed, device=device)
+        mask_static = _static_matched_mask(
+            mask_R, args.active_lines, seed=slice_seed,
+        )
+        budget = int((mask_static.sum(dim=0) > 0).sum().item())
         op_static = MultiCoilSENSE(mask_static, sens, sig_c).to(device)
         t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
         r = run_pigdm_mc(y_mc=mask_static * mc_kn, sense_op=op_static,
                          sigma_schedule=sigma_schedule,
-                         denoiser_fn=denoiser, sigma_y=None, seed=args.seed)
-        _record('static_match', r['recon'], budget, time.time() - t0)
+                         denoiser_fn=denoiser, sigma_y=None, seed=slice_seed)
+        _record('static_match', r['recon'], budget, time.time() - t0,
+                nfe_start=nfe0)
 
     return out
 
@@ -472,9 +529,14 @@ def main():
     p.add_argument('--mask_seed', type=int, default=42)
 
     # Noise
-    p.add_argument('--noise_scale', type=float, default=None,
-                   help='If set, use uniform per-coil σ = noise_scale; '
-                        'otherwise estimate from data corners.')
+    p.add_argument('--noise_scale', type=float, default=0.01,
+                   help='Known synthetic complex-noise std used for controlled '
+                        'prospective experiments (default: 0.01 after per-slice '
+                        'normalization).')
+    p.add_argument('--legacy_full_scan_noise', action='store_true',
+                   help='Legacy-only: estimate per-coil variance from complete '
+                        'unacquired k-space corners. Invalid for prospective '
+                        'active-sensing claims.')
     p.add_argument('--noise_seed', type=int, default=12345)
 
     # Diffusion schedule
@@ -508,7 +570,7 @@ def main():
     p.add_argument('--no_pv_radial_smooth', dest='pv_radial_smooth',
                    action='store_false')
     p.add_argument('--pv_radial_degree', type=int, default=4)
-    # Normalization rescales P so mean(P)=sigma_t^2 — helpful when P is noisy,
+    # Normalization rescales P so mean(P)=2*sigma_t^2 — helpful when P is noisy,
     # harmful when P actually has structure (it cancels with sigma_ci^2 in K).
     p.add_argument('--pv_normalize', dest='pv_normalize',
                    action='store_true', default=False)
@@ -623,15 +685,38 @@ def main():
         ssim_rss   = np.array([r['methods'][m]['ssim_rss']   for r in all_results if m in r['methods']])
         ssim_sense = np.array([r['methods'][m]['ssim_sense'] for r in all_results if m in r['methods']])
         budget     = np.array([r['methods'][m]['budget_cols'] for r in all_results if m in r['methods']])
+        nfe         = np.array([r['methods'][m].get('nfe', np.nan)
+                                for r in all_results if m in r['methods']])
         summary[m] = {
             'psnr_rss_mean':   float(psnr_rss.mean()),   'psnr_rss_std':   float(psnr_rss.std()),
             'psnr_sense_mean': float(psnr_sense.mean()), 'psnr_sense_std': float(psnr_sense.std()),
             'ssim_rss_mean':   float(ssim_rss.mean()),   'ssim_rss_std':   float(ssim_rss.std()),
             'ssim_sense_mean': float(ssim_sense.mean()), 'ssim_sense_std': float(ssim_sense.std()),
             'budget_cols':     int(budget.mean()),
+            'nfe_mean':        float(np.nanmean(nfe)),
             'n':               int(len(psnr_rss)),
         }
+        volume_psnr = defaultdict(list)
+        volume_ssim = defaultdict(list)
+        for row in all_results:
+            if m in row['methods']:
+                volume_psnr[row['volume']].append(
+                    row['methods'][m]['psnr_sense'])
+                volume_ssim[row['volume']].append(
+                    row['methods'][m]['ssim_sense'])
+        psnr_volume_means = np.array(
+            [np.mean(values) for values in volume_psnr.values()])
+        ssim_volume_means = np.array(
+            [np.mean(values) for values in volume_ssim.values()])
+        summary[m].update({
+            'psnr_sense_volume_mean': float(psnr_volume_means.mean()),
+            'psnr_sense_volume_std': float(psnr_volume_means.std()),
+            'ssim_sense_volume_mean': float(ssim_volume_means.mean()),
+            'ssim_sense_volume_std': float(ssim_volume_means.std()),
+            'n_volumes': int(len(psnr_volume_means)),
+        })
         print(f'  {m:14s}  budget={int(budget.mean()):3d} cols  '
+              f'NFE={np.nanmean(nfe):.1f}  '
               f'PSNR_RSS={psnr_rss.mean():.3f}±{psnr_rss.std():.3f}  '
               f'PSNR_SENSE={psnr_sense.mean():.3f}±{psnr_sense.std():.3f}  '
               f'SSIM_RSS={ssim_rss.mean():.4f}  SSIM_SENSE={ssim_sense.mean():.4f}')
@@ -650,7 +735,9 @@ def main():
             summary[m]['K_div_mean']      = float(kd.mean())
             summary[m]['P_ang_frac_mean'] = float(pa.mean())
 
-    # Paired Wilcoxon for each adaptive method vs each non-self baseline.
+    # Cluster-aware paired inference: first average paired slice differences
+    # within each volume, then apply Wilcoxon across independent volumes.
+    # Per-slice p-values would pseudoreplicate adjacent anatomy.
     try:
         from scipy.stats import wilcoxon
         candidates = ['pv_active', 'energy_active', 'oracle_active']
@@ -661,25 +748,28 @@ def main():
             for ref in baselines + [c for c in candidates if c != cand]:
                 if ref not in summary:
                     continue
-                paired = [(r['methods'][cand]['psnr_sense'],
-                           r['methods'][ref]['psnr_sense'])
-                          for r in all_results
-                          if cand in r['methods'] and ref in r['methods']]
-                if not paired:
+                paired_by_volume = defaultdict(list)
+                for row in all_results:
+                    if cand in row['methods'] and ref in row['methods']:
+                        paired_by_volume[row['volume']].append(
+                            row['methods'][cand]['psnr_sense']
+                            - row['methods'][ref]['psnr_sense'])
+                if not paired_by_volume:
                     continue
-                a = np.array([p[0] for p in paired]); b = np.array([p[1] for p in paired])
-                d = a - b
+                d = np.array([
+                    np.mean(values) for values in paired_by_volume.values()
+                ])
                 try:
                     stat, pval = wilcoxon(d, alternative='greater')
                 except ValueError:
                     pval = float('nan')
                 print(f'  {cand:14s} − {ref:15s}  ΔSENSE={d.mean():+.3f}±{d.std():.3f} dB '
-                      f'(n={len(d)}, Wilcoxon p={pval:.2e})')
+                      f'(n_volumes={len(d)}, Wilcoxon p={pval:.2e})')
                 summary[f'_{cand}_vs_{ref}'] = {
                     'delta_psnr_sense_mean': float(d.mean()),
                     'delta_psnr_sense_std':  float(d.std()),
                     'wilcoxon_p_greater':    float(pval),
-                    'n':                     int(len(d)),
+                    'n_volumes':             int(len(d)),
                 }
     except ImportError:
         pass

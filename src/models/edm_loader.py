@@ -134,6 +134,7 @@ class EDMDenoiser:
     def __init__(self, net: torch.nn.Module, device: str = "cpu"):
         self.net = net
         self.device = torch.device(device)
+        self.nfe = 0
 
     @torch.no_grad()
     def __call__(self, x_complex: torch.Tensor, sigma_t: float) -> torch.Tensor:
@@ -146,6 +147,8 @@ class EDMDenoiser:
         Returns:
             Denoised complex image, shape [H, W].
         """
+        self.nfe += 1
+
         # Complex [H, W] → real [1, 2, H, W]
         x_real = torch.stack([x_complex.real, x_complex.imag], dim=0)
         x_real = x_real.unsqueeze(0).float().to(self.device)

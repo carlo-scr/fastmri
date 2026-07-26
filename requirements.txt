@@ -10,6 +10,11 @@ scipy
 matplotlib
 tensorboard
 
+# Natural-image diffusion experiments
+diffusers
+datasets
+huggingface_hub
+
 # Utilities
 tqdm
 pyyaml
@@ -21,3 +26,6 @@ wandb
 # Notebooks
 jupyter
 ipywidgets
+
+# Validation
+pytest

@@ -23,7 +23,8 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from poc_natural.pvas_core import (  # noqa: E402
     BlockMaskState, DenoiserStats, EpsDenoiser, PVASConfig, PVASResult,
-    acquire_blocks, init_block_state, make_abar, pv_estimate, run_pvas,
+    acquire_blocks, init_block_state, make_abar, pv_estimate,
+    random_block_scores, run_pvas,
 )
 
 
@@ -59,7 +60,9 @@ def run_ensemble_active(unet, abar, state: BlockMaskState, x0_full: torch.Tensor
     st = BlockMaskState(state.mask.repeat_interleave(K, dim=0),
                         state.y.repeat_interleave(K, dim=0), state.sigma_y, state.block,
                         y_lr=None if state.y_lr is None
-                        else state.y_lr.repeat_interleave(K, dim=0))
+                        else state.y_lr.repeat_interleave(K, dim=0),
+                        y_full=None if state.y_full is None
+                        else state.y_full.repeat_interleave(K, dim=0))
     stats = DenoiserStats()
     den = EpsDenoiser(unet, abar, stats)
 
@@ -71,25 +74,38 @@ def run_ensemble_active(unet, abar, state: BlockMaskState, x0_full: torch.Tensor
     from poc_natural import pvas_core as core
 
     orig_score = core._score_blocks
+    duo_probe_gen = torch.Generator(device="cpu").manual_seed(
+        cfg.seed + 3_000_001
+    )
 
     def patched(policy, den_, xt, t, x0hat, x0f, st_, pv, cfg_, gen, ens):
         if policy == "duo":
-            # PVAS-duo: total-variance score from K=2 trajectories ---
-            # within-mode Tweedie PV (particle 1) + cross-trajectory
-            # disagreement (unbiased 2-sample variance). Law of total
-            # variance: Var_total = E[within-mode] + Var[mode means]; the
-            # disagreement term restores the cross-mode component that a
-            # single trajectory cannot see.
+            # Exploratory two-trajectory score: local Tweedie uncertainty from
+            # particle 1 plus between-trajectory disagreement. The latter is a
+            # two-sample variance of solver outputs, but the current DDNM-style
+            # trajectories are not proven draws from the required conditional
+            # mode distribution. Do not call this an exact law-of-total-
+            # variance posterior decomposition without further validation.
             block = st_.block
             Bk = x0hat.shape[0] // K
             x0v = x0hat.view(Bk, K, *x0hat.shape[1:])
             disagree = 0.5 * (x0v[:, 0] - x0v[:, 1]).pow(2).mean(1, keepdim=True)
             xt_first = xt.view(Bk, K, *xt.shape[1:])[:, 0]
             pv1 = pv_estimate(den_, xt_first, t, n_probes=cfg_.pv_n_probes,
-                              smooth_sigma=cfg_.pv_smooth_sigma)
+                              smooth_sigma=cfg_.pv_smooth_sigma,
+                              generator=duo_probe_gen)
             total = pv1 + disagree
             total = total.repeat_interleave(K, dim=0)
             return torch.nn.functional.avg_pool2d(total, block) * (block ** 2)
+        if policy == "random":
+            # All particles acquire the same atoms. Independent per-particle
+            # masks would leak a much larger union of measurements into the
+            # particle mean and invalidate this control.
+            Bk = x0hat.shape[0] // K
+            gh = x0hat.shape[-2] // st_.block
+            gw = x0hat.shape[-1] // st_.block
+            base = random_block_scores(Bk, gh, gw, cfg_.seed, x0hat.device)
+            return base.repeat_interleave(K, dim=0)
         if policy != "ensemble":
             return orig_score(policy, den_, xt, t, x0hat, x0f, st_, pv, cfg_, gen, ens)
         block = st_.block
@@ -131,7 +147,7 @@ def main():
     p.add_argument("--pv_gate", action="store_true",
                    help="PV-gated DC for the 'pv' policy (ablation); default: "
                         "scalar gain for all policies so the main table isolates "
-                        "the acquisition policy at near-matched NFE.")
+                        "the acquisition policy. Actual unequal NFE is reported.")
     p.add_argument("--device", default="mps")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--tag", default="v1")
@@ -178,10 +194,12 @@ def main():
                              seed=args.seed + b0)
 
             if pol == "static":
-                # all budget up-front at random; no mid-trajectory acquisition
-                gen2 = torch.Generator().manual_seed(args.seed + 2000 + b0)
-                scores = torch.rand(x0.shape[0], 1, gh, gw,
-                                    generator=gen2).to(device)
+                # Reveal the same fixed random ranking used by the adaptive
+                # random policy, but all up-front: a timing-only control.
+                gen2 = torch.Generator().manual_seed(cfg.seed + 2_000_003)
+                scores = random_block_scores(
+                    x0.shape[0], gh, gw, cfg.seed, device
+                )
                 state0 = acquire_blocks(state0, x0, scores, args.budget_blocks, gen2)
                 stats = DenoiserStats()
                 den = EpsDenoiser(unet, abar, stats)

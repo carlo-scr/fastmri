@@ -1,6 +1,12 @@
-"""Posterior-Variance-Gated FA-KGD with optional in-loop SENSE refinement
-and active line acquisition. The three new components on top of
-`run_fakgd_mc`:
+"""Legacy PVAS sampler plus corrected protocol utilities.
+
+This module remains for backward compatibility while the operator-space
+SketchSense sampler is developed. Its single-coil Fourier PV path is not a
+valid multi-coil SENSE covariance model and must not support new multi-coil
+paper claims. Correct candidate-operator sketches live in
+``operator_sketch.py``.
+
+Components on top of `run_fakgd_mc`:
 
   (A) Posterior-Variance-Gated DC.   The Kalman gain is
 
@@ -13,18 +19,17 @@ and active line acquisition. The three new components on top of
       gain → automatic deferral, exactly mirroring FPDC. At high t (late
       sampling) P_i grows so all frequencies receive their measurement.
 
-  (B) In-loop SENSE refinement.  Every `sens_refresh_every` steps, refine
+  (B) Experimental in-loop SENSE refinement. Every `sens_refresh_every` steps, refine
       the sensitivity maps using the current iterate's magnitude:
 
           S_c <- LowPass( IFFT(M*y_c) / x̂_0 )
 
-      enforced smooth via a Gaussian low-pass in image domain. This is
-      the diffusion analogue of JSENSE — the first time it has been used
-      inside a training-free MR-diffusion sampler.
+      enforced smooth via a Gaussian low-pass in image domain. This is a
+      diffusion analogue of JSENSE; no priority claim is made.
 
   (D) Active line selection.  After `active_warmup_frac * T` steps, query
-      `num_active_lines` extra k-space columns chosen as those that
-      maximise expected information gain, scored by
+      `num_active_lines` extra k-space columns ranked by the legacy marginal
+      score
 
           score(col) = sum_r∈col P_r(t) / σ_{c,r}^2.
 
@@ -34,7 +39,6 @@ and active line acquisition. The three new components on top of
 """
 from __future__ import annotations
 
-import numpy as np
 import torch
 from typing import Callable, Optional
 
@@ -44,7 +48,76 @@ from .posterior_var import estimate_posterior_variance_kspace
 
 
 def _complex_randn(H, W, device):
-    return (torch.randn(H, W, device=device) + 1j * torch.randn(H, W, device=device)) / np.sqrt(2)
+    """EDM noise with std σ per real network channel when multiplied by σ."""
+    return torch.randn(H, W, device=device) + 1j * torch.randn(H, W, device=device)
+
+
+def build_active_schedule(
+    total_steps: int,
+    total_atoms: int,
+    rounds: int,
+    after_frac: float,
+    until_frac: float,
+) -> dict[int, int]:
+    """Return a unique ``step -> atoms`` acquisition schedule.
+
+    Rounding a linspace into a set/dict can silently merge rounds and lose
+    budget. This helper chooses unique integer steps and asserts that the
+    requested budget is preserved.
+    """
+    if total_atoms <= 0:
+        return {}
+    if total_steps <= 0:
+        raise ValueError("total_steps must be positive")
+    n_rounds = max(1, int(rounds))
+    lo = min(total_steps - 1, max(0, int(round(after_frac * (total_steps - 1)))))
+    hi = min(total_steps - 1, max(lo, int(round(until_frac * (total_steps - 1)))))
+    candidates = list(range(lo, hi + 1))
+    if n_rounds > len(candidates):
+        raise ValueError(
+            f"{n_rounds} acquisition rounds do not fit in unique step window "
+            f"[{lo}, {hi}]"
+        )
+    if n_rounds == 1:
+        steps = [lo]
+    else:
+        steps = [
+            candidates[round(i * (len(candidates) - 1) / (n_rounds - 1))]
+            for i in range(n_rounds)
+        ]
+    if len(set(steps)) != len(steps):
+        raise AssertionError(f"non-unique acquisition steps: {steps}")
+    base, extra = divmod(int(total_atoms), n_rounds)
+    schedule = {step: base + (1 if i < extra else 0)
+                for i, step in enumerate(steps)}
+    if sum(schedule.values()) != int(total_atoms):
+        raise AssertionError("active schedule lost measurement budget")
+    return schedule
+
+
+def random_complement_order(mask: torch.Tensor, seed: int) -> list[int]:
+    """Deterministic random ordering of columns absent from ``mask``.
+
+    The same ordering is shared by up-front and mid-trajectory random
+    baselines so their final masks are identical and only timing differs.
+    """
+    mask_col = (mask.sum(dim=0) > 0) if mask.dim() == 2 else (mask > 0)
+    available = torch.nonzero(~mask_col, as_tuple=False).flatten().cpu()
+    gen = torch.Generator(device="cpu").manual_seed(int(seed) + 104729)
+    perm = torch.randperm(int(available.numel()), generator=gen)
+    return available[perm].tolist()
+
+
+def _topk_available(
+    score_per_col: torch.Tensor,
+    available: torch.Tensor,
+    k: int,
+) -> list[int]:
+    """Top-k column indices restricted strictly to the available set."""
+    if k <= 0 or available.numel() == 0:
+        return []
+    local = torch.topk(score_per_col[available], k=min(k, available.numel())).indices
+    return available[local].tolist()
 
 
 def _psnr(x_gt, x_recon):
@@ -146,7 +219,7 @@ def run_fakgd_mc_pv(
     active_rounds: int = 1,               # split across this many timesteps (>=1)
     active_after_frac: float = 0.5,       # first round at this fraction of T
     active_until_frac: float = 0.85,      # last round at this fraction of T
-    active_score: str = "pv",             # "pv" | "random" | "equispaced"
+    active_score: str = "pv",             # legacy pv | random | equispaced
     y_mc_full: Optional[torch.Tensor] = None,   # full k-space (Nc,H,W) for retrospective query
     x_gt: Optional[torch.Tensor] = None,
     seed: int = 0,
@@ -169,6 +242,7 @@ def run_fakgd_mc_pv(
 
     # Mutable state — mask, sens, y can change with active acquisition / refine.
     mask = sense_op.mask.clone()
+    initial_cols = int((mask.sum(dim=0) > 0).sum().item())
     sens = sense_op.sens.clone()
     inv_sumS2 = 1.0 / ((sens.abs() ** 2).sum(dim=0) + sense_op.eps)
     y_active = y_mc.clone()
@@ -177,29 +251,22 @@ def run_fakgd_mc_pv(
     x_t = sigma_max * _complex_randn(H, W, device=device)
 
     # Active acquisition schedule: which timesteps fire, and how many lines each.
-    if active_lines > 0 and y_mc_full is not None and active_rounds >= 1:
-        n_rounds = max(1, active_rounds)
-        first = int(active_after_frac * T)
-        last = int(active_until_frac * T)
-        if n_rounds == 1:
-            active_steps = [first]
-        else:
-            active_steps = [int(round(first + i * (last - first) / (n_rounds - 1)))
-                            for i in range(n_rounds)]
-        # Distribute lines as evenly as possible
-        base = active_lines // n_rounds
-        extra = active_lines - base * n_rounds
-        active_per_round = {s: base + (1 if i < extra else 0)
-                            for i, s in enumerate(active_steps)}
-    else:
-        active_per_round = {}
+    active_per_round = (
+        build_active_schedule(
+            T, active_lines, active_rounds,
+            active_after_frac, active_until_frac,
+        )
+        if active_lines > 0 and y_mc_full is not None
+        else {}
+    )
+    random_order = random_complement_order(mask, seed) if active_score == "random" else []
+    random_cursor = 0
 
     psnr_traj = []
     diagnostics = {"P_maps": {}, "K_maps": {}, "sens_iters": [],
                    "active_cols": [], "num_lines_per_step": []}
     gen_probe = torch.Generator(device="cpu").manual_seed(seed + 991)
 
-    active_done = False
     for step in range(T):
         sigma_t = sigma_schedule[step].item()
         mu = denoiser_fn(x_t, sigma_t)                  # (H,W)
@@ -217,11 +284,12 @@ def run_fakgd_mc_pv(
                 generator=gen_probe,
             )                                            # (H,W) real positive
             if pv_normalize:
-                # Rescale so that mean(P) = σ_t^2 — preserves the global
-                # scale of the original FA-KGD gain while distributing
-                # the σ_t^2 budget across frequencies. K then has the same
+                # Rescale so mean(P) is the total complex prior variance
+                # 2σ_t², directly comparable with sigma_i_sq = E|n_i|².
+                # This preserves the global gain scale while distributing
+                # the prior budget across frequencies. K then has the same
                 # *average* magnitude but a learned per-i shape.
-                P = P * (sigma_t ** 2 / P.mean().clamp(min=eps))
+                P = P * (2.0 * sigma_t ** 2 / P.mean().clamp(min=eps))
             # σ_{c,i}^2 broadcast across coils
             sig_ci_sq = sigma_i_sq.unsqueeze(0) * sig_c_view     # (Nc,H,W)
             P_ci = P.unsqueeze(0).expand(Nc, -1, -1)             # (Nc,H,W)
@@ -229,7 +297,8 @@ def run_fakgd_mc_pv(
         else:
             # Fall back to the original FA-KGD gain (no FPDC).
             sig_ci_sq = sigma_i_sq.unsqueeze(0) * sig_c_view
-            K = (sigma_t ** 2) / (sigma_t ** 2 + sig_ci_sq)
+            prior_var_complex = 2.0 * sigma_t ** 2
+            K = prior_var_complex / (prior_var_complex + sig_ci_sq)
             P = None
 
         # ----- standard k-space residual -----
@@ -282,8 +351,7 @@ def run_fakgd_mc_pv(
                     )
                 if active_score == "pv" and P is not None:
                     score_per_col = (P / (sigma_i_sq + eps)).sum(dim=0)
-                    score_per_col = score_per_col * (1.0 - mask_col)
-                    new_cols = torch.topk(score_per_col, k=k).indices.tolist()
+                    new_cols = _topk_available(score_per_col, avail_idx, k)
                 elif active_score == "energy":
                     # Image-conditional: weight columns by predicted k-space
                     # energy of S * mu_theta(x_t). Measures "where the
@@ -291,29 +359,30 @@ def run_fakgd_mc_pv(
                     # of the (saturated) PV gate.
                     pred_k = fft2c(sens * mu.unsqueeze(0))           # (Nc,H,W)
                     score_per_col = (pred_k.abs() ** 2).sum(dim=(0, 1))  # (W,)
-                    score_per_col = score_per_col * (1.0 - mask_col)
-                    new_cols = torch.topk(score_per_col, k=k).indices.tolist()
+                    new_cols = _topk_available(score_per_col, avail_idx, k)
                 elif active_score == "residual_oracle":
-                    # ORACLE upper bound: pick columns with the most
-                    # *unexplained* k-space energy under current iterate,
-                    # measured against the (in real MRI unavailable) full
-                    # k-space. This is the best a residual-based scoring
-                    # could ever do; not a deployable method.
+                    # Retrospective greedy-oracle reference: pick columns with
+                    # the most unexplained energy under the current iterate,
+                    # measured against unavailable full k-space. This is not a
+                    # bound on final reconstruction utility.
                     if y_mc_full is not None:
                         pred_k = fft2c(sens * mu.unsqueeze(0))
                         unexp = (y_mc_full - pred_k).abs() ** 2     # (Nc,H,W)
                         score_per_col = unexp.sum(dim=(0, 1))        # (W,)
                     else:
                         score_per_col = (residual.abs() ** 2).sum(dim=(0, 1))
-                    score_per_col = score_per_col * (1.0 - mask_col)
-                    new_cols = torch.topk(score_per_col, k=k).indices.tolist()
+                    new_cols = _topk_available(score_per_col, avail_idx, k)
                 elif active_score == "random":
-                    # Use a deterministic CPU generator so different seeds give
-                    # reproducible random-adaptive masks.
-                    g_act = torch.Generator(device="cpu").manual_seed(
-                        seed + 7919 * (step + 1))
-                    perm = torch.randperm(n_avail, generator=g_act)
-                    new_cols = avail_idx[perm[:k]].tolist()
+                    # Reveal the next entries of one fixed random complement
+                    # ranking. Static and adaptive random controls share this
+                    # exact final mask.
+                    chosen = []
+                    while len(chosen) < k and random_cursor < len(random_order):
+                        c = random_order[random_cursor]
+                        random_cursor += 1
+                        if mask_col[c] < 0.5:
+                            chosen.append(c)
+                    new_cols = chosen
                 elif active_score == "equispaced":
                     # Pick the columns that maximally fill the largest gaps in
                     # the current 1-D mask. Greedy: each pick goes to the
@@ -351,14 +420,23 @@ def run_fakgd_mc_pv(
                 for c in new_cols:
                     mask[:, c] = 1.0
                 y_active = torch.where(mask > 0, y_mc_full, y_active)
+                # Apply newly acquired data immediately, matching the ensemble
+                # policy and the natural-image implementation. Otherwise the
+                # final acquisition round receives one fewer correction.
+                residual = mask * (y_active - mu_kc)
+                coil_corr = ifft2c(K * residual)
+                corr = (torch.conj(sens) * coil_corr).sum(dim=0) * inv_sumS2
+                x_corrected = mu + corr
 
         if return_diagnostics:
             diagnostics["num_lines_per_step"].append(int((mask.sum(dim=0) > 0).sum().item()))
             # Per-step divergence of PV gain from the scalar PiGDM gain — if
             # this stays ~0 the PV gate is collapsing (Issue #1 in the
-            # post-mortem). Reference: K_pigdm = sigma_t^2/(sigma_t^2+sigma^2_ci)
+            # post-mortem). The reference uses total complex prior variance
+            # 2σ_t² and complex measurement variance E|n|².
             if P is not None:
-                K_ref = (sigma_t ** 2) / (sigma_t ** 2 + sig_ci_sq)
+                prior_var_complex = 2.0 * sigma_t ** 2
+                K_ref = prior_var_complex / (prior_var_complex + sig_ci_sq)
                 kdiv = (K - K_ref).abs().mean().item() / max(
                     K_ref.abs().mean().item(), 1e-12)
                 diagnostics.setdefault("K_div_vs_pigdm", []).append(kdiv)
@@ -403,6 +481,13 @@ def run_fakgd_mc_pv(
     # Final SENSE combination uses the final (possibly refined) maps
     out = {"recon": x_t, "psnr_trajectory": psnr_traj,
            "sens_final": sens, "mask_final": mask}
+    if active_per_round:
+        expected = initial_cols + min(active_lines, W - initial_cols)
+        actual = int((mask.sum(dim=0) > 0).sum().item())
+        if actual != expected:
+            raise AssertionError(
+                f"active budget mismatch: expected {expected} columns, got {actual}"
+            )
     if return_diagnostics:
         diagnostics.pop("_rgrid", None)
         out["diagnostics"] = diagnostics
@@ -449,29 +534,24 @@ def run_ensemble_active_mc(
     sigma_i_sq = sigma_i_sq_init.clone().to(device)
 
     mask = sense_op.mask.clone()
+    initial_cols = int((mask.sum(dim=0) > 0).sum().item())
     sens = sense_op.sens.clone()
     inv_sumS2 = 1.0 / ((sens.abs() ** 2).sum(dim=0) + sense_op.eps)
     y_active = y_mc.clone()
 
     sigma_max = sigma_schedule[0].item()
-    gen = torch.Generator(device="cpu").manual_seed(seed)
     xs = [sigma_max * _complex_randn(H, W, device=device) for _ in range(N)]
 
-    if active_lines > 0 and y_mc_full is not None and active_rounds >= 1:
-        n_rounds = max(1, active_rounds)
-        first = int(active_after_frac * T)
-        last = int(active_until_frac * T)
-        if n_rounds == 1:
-            active_steps = [first]
-        else:
-            active_steps = [int(round(first + i * (last - first) / (n_rounds - 1)))
-                            for i in range(n_rounds)]
-        base = active_lines // n_rounds
-        extra = active_lines - base * n_rounds
-        active_per_round = {s: base + (1 if i < extra else 0)
-                            for i, s in enumerate(active_steps)}
-    else:
-        active_per_round = {}
+    active_per_round = (
+        build_active_schedule(
+            T, active_lines, active_rounds,
+            active_after_frac, active_until_frac,
+        )
+        if active_lines > 0 and y_mc_full is not None
+        else {}
+    )
+    random_order = random_complement_order(mask, seed) if active_score == "random" else []
+    random_cursor = 0
 
     nfe = 0
     for step in range(T):
@@ -494,13 +574,15 @@ def run_ensemble_active_mc(
                 if active_score == "variance":
                     stack = torch.stack(preds, dim=0)          # (N,Nc,H,W)
                     var = stack.var(dim=0).sum(dim=(0, 1)).real  # (W,)
-                    var = var * (1.0 - mask_col)
-                    new_cols = torch.topk(var, k=k).indices.tolist()
+                    new_cols = _topk_available(var, avail_idx, k)
                 elif active_score == "random":
-                    g_act = torch.Generator(device="cpu").manual_seed(
-                        seed + 7919 * (step + 1))
-                    perm = torch.randperm(int(avail_idx.numel()), generator=g_act)
-                    new_cols = avail_idx[perm[:k]].tolist()
+                    chosen = []
+                    while len(chosen) < k and random_cursor < len(random_order):
+                        c = random_order[random_cursor]
+                        random_cursor += 1
+                        if mask_col[c] < 0.5:
+                            chosen.append(c)
+                    new_cols = chosen
                 else:
                     raise ValueError(active_score)
             if y_mc_full is not None and new_cols:
@@ -510,7 +592,8 @@ def run_ensemble_active_mc(
 
         # ----- scalar-gain PiGDM correction per particle -----
         sig_ci_sq = sigma_i_sq.unsqueeze(0) * sig_c_view
-        K = (sigma_t ** 2) / (sigma_t ** 2 + sig_ci_sq)
+        prior_var_complex = 2.0 * sigma_t ** 2
+        K = prior_var_complex / (prior_var_complex + sig_ci_sq)
         for n in range(N):
             residual = mask * (y_active - preds[n])
             corr = (torch.conj(sens) * ifft2c(K * residual)).sum(dim=0) * inv_sumS2
@@ -522,5 +605,12 @@ def run_ensemble_active_mc(
                 xs[n] = xc
 
     recon = torch.stack(xs, dim=0).mean(dim=0)
+    if active_per_round:
+        expected = initial_cols + min(active_lines, W - initial_cols)
+        actual = int((mask.sum(dim=0) > 0).sum().item())
+        if actual != expected:
+            raise AssertionError(
+                f"active budget mismatch: expected {expected} columns, got {actual}"
+            )
     return {"recon": recon, "mask_final": mask, "nfe": nfe,
             "particle_recons": xs}
