@@ -1,0 +1,75 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\paragraph{Evidence policy.}
+All pre-audit PVAS outputs are excluded.  Every reported run must record its
+Git commit, input revision and hashes, per-sample seeds, final atom set,
+measurement budget, actual denoiser evaluations, wall time, peak memory, and
+per-image or per-volume metrics.  We report system reconstruction separately
+from a canonical passive replay of each final mask.
+
+\paragraph{Analytic falsification.}
+Controlled real and complex Gaussian problems measure diagonal and covariance
+error, subspace angles, log-determinant error, top-$k$ overlap, and selection
+regret versus exact $C_t$.  Tests include non-idempotent covariance,
+heteroscedastic noise, grouped complex atoms, nonsymmetric/indefinite
+Jacobians, ill-conditioned operators, existing-set conditioning, and a
+multimodal mixture.
+
+\paragraph{Natural images.}
+CIFAR-10 is development-only.  The headline experiment uses 250
+deterministically selected images from the canonical 50,000-file ILSVRC2012
+validation layout and OpenAI's unconditional ImageNet-256 ADM prior.  The
+operator reveals grouped full-resolution blocks while a box-averaged image is
+always observed.  Metrics are PSNR, SSIM, LPIPS, NFE, time, and memory.
+
+\paragraph{Multi-coil MRI.}
+We use fastMRI brain Cartesian SENSE lines at $R\in\{4,8\}$ and extra-line
+budgets $L\in\{8,16\}$.  The target is at least 20 volume-disjoint validation
+volumes using all slices, with inference and paired bootstrap intervals at volume level.
+Primary metrics are RSS-target NMSE, PSNR, and SSIM; SENSE-relative values
+are diagnostic.  Known simulated complex-noise power or acquisition-valid
+calibration defines $\Gamma$.
+
+\paragraph{Policies.}
+Controls include exact-budget variable-density/equispaced masks, static and
+adaptive random timing controls, corrected cross-Hutchinson marginal
+selection, conditioned low-rank marginal selection, conditioned joint
+\method{}, empirical covariance with marginal and log-det scoring, faithful
+ADS and AdaSense implementations, diffusion MRI BED, Free Hunch,
+Christoffel-DPS on a supported common operator, and a small exhaustive
+canonical final-utility oracle.  Retrospective residual/error policies are
+references, not upper bounds.
+
+\begin{table*}[t]
+\centering
+\caption{Primary canonical final-mask comparison.  No cell is populated until
+the corrected artifact passes provenance and statistical review.}
+\label{tab:main}
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Domain & Policy & Measurements & NFE & Time & Memory & PSNR & SSIM & LPIPS/NMSE\\
+\midrule
+ImageNet-256 & Static matched & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+ImageNet-256 & Corrected diagonal & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+ImageNet-256 & Low-rank marginal & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+ImageNet-256 & \method{} joint & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+\midrule
+fastMRI brain & Static matched & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+fastMRI brain & Corrected diagonal & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+fastMRI brain & Low-rank marginal & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+fastMRI brain & \method{} joint & \pending & \pending & \pending & \pending & \pending & \pending & \pending\\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+\paragraph{Primary test and go/no-go.}
+The primary comparison is joint versus conditioned low-rank marginal
+selection under canonical replay.  We require a positive paired interval in
+both domains, with at least $0.2$ dB in one, unless the weaker quality effect
+is offset by a decisive compute/memory frontier.  Rank-$4$, one-round MRI
+costs $T+2q=28$ versus $T=20$ passive NFEs.  Failure triggers repositioning or
+no submission, not a diagonal-only novelty claim.

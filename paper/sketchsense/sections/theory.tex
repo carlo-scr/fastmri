@@ -1,0 +1,30 @@
+\section{Properties of the Local Model}
+
+\paragraph{PSD and rank.}
+If $C_t\succeq0$, then the retained core eigenspace is positive and
+$\widehat C_t=LL^\top\succeq0$ with
+$\rank(\widehat C_t)\leq q$.  With an imperfect denoiser, this statement
+applies to the protected surrogate, not necessarily to the raw asymmetric or
+indefinite operator product.
+
+\paragraph{Conditional greedy design.}
+Under the PSD surrogate and independent Gaussian measurement noise, $F_t$ is
+normalized, monotone, and submodular over grouped atoms.  The conditional
+objective $F_t(M\cup S)-F_t(M)$ inherits these properties in $S$; hence
+cardinality-constrained greedy selection achieves the standard
+$1-1/e$ guarantee relative to the optimum of the \emph{same approximate local
+model}~\cite{nemhauser1978analysis}.  This guarantee says nothing about model
+mismatch to the true multimodal inverse-problem posterior.
+
+\paragraph{Utility sensitivity.}
+For a set containing $m$ scalar measurements, let $A$ and $\widehat A$ be the
+true and sketched covariances whitened by measurement noise.  If both are PSD
+and $\|A-\widehat A\|_2\leq\delta$, Weyl's inequality and the
+$1$-Lipschitz denominator of $\log(1+x)$ on $x\geq0$ give
+\begin{equation}
+ \left|\tfrac12\log\det(I+A)
+ -\tfrac12\log\det(I+\widehat A)\right|
+ \leq \frac{m}{2}\log(1+\delta).
+\end{equation}
+We use this only to connect covariance calibration to design error; empirical
+conditional-particle and final-utility calibration remains necessary.

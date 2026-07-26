@@ -1,5 +1,13 @@
 # PVAS Literature Review Synthesis (WACV 2027 target)
 
+> **Superseded on 2026-07-25.** This file preserves the pre-audit search
+> notes, but its proposed novelty sentence and several “matched NFE”
+> statements are no longer valid. ADS already performs mid-trajectory active
+> diffusion, and newer 2026 work further narrows the gap. Use
+> [`sketchsense_proposal.md`](sketchsense_proposal.md) for the active claim,
+> related-work positioning, baselines, and go/no-go criteria. Use
+> [`protocol_audit.md`](protocol_audit.md) for the invalidated-result record.
+
 Synthesized 2026-07-07 from an 8-lens verified literature sweep (106 papers screened, 18 verified-closest),
 followed by an adversarial completeness pass (Section 0). Verified BibTeX for the 18 closest works:
 `docs/verified_bibliography.json`.

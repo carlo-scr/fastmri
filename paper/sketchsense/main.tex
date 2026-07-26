@@ -1,0 +1,49 @@
+% SketchSense — WACV 2027 Algorithms-track working draft.
+% Numerical result cells are deliberately PENDING until corrected GPU runs.
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{wacv}
+\wacvalgorithmstrack
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage[pagebackref=true,breaklinks=true,colorlinks,bookmarks=false]{hyperref}
+
+% \wacvfinalcopy % Keep commented for anonymous review.
+\def\wacvPaperID{****}
+\ifwacvfinal\pagestyle{empty}\fi
+
+\newcommand{\method}{SketchSense}
+\newcommand{\pending}{\textcolor{red}{\textbf{PENDING}}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\rank}{\operatorname{rank}}
+
+\begin{document}
+
+\title{Operator-Space Diffusion Covariance Sketches\\
+for Correlation-Aware Active Sensing}
+\author{Anonymous WACV submission\\Paper ID \wacvPaperID}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/intro}
+\input{sections/related}
+\input{sections/method}
+\input{sections/theory}
+\input{sections/experiments}
+\input{sections/limitations}
+
+{\small
+\bibliographystyle{ieee_fullname}
+\bibliography{../pvas_v2/pvas,sketchsense}
+}
+
+\end{document}

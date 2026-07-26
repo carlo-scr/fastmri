@@ -1,0 +1,47 @@
+\section{Introduction}
+
+An active sensing system chooses not only how to reconstruct an object, but
+which measurement to buy next.  Diffusion priors are attractive in this
+setting because a pretrained model can supply an image prior without a
+task-specific acquisition network.  The difficulty is uncertainty.  A single
+guided trajectory produces one reconstruction path, whereas acquisition
+requires comparing many feasible future observations.
+
+Recent diffusion active-sensing methods solve this problem with samples.
+AdaSense repeatedly estimates projected posterior covariance from complete
+posterior runs~\cite{elata2024adasense}; ADS maintains parallel particles
+inside the reverse process~\cite{nolan2025ads}; diffusion-guided MRI Bayesian
+experimental design estimates information gain by Monte
+Carlo~\cite{iollo2025bedmri}.  These are strong baselines, but their cost grows
+with the number of particles or trajectories.
+
+We ask a narrower question: can a few local denoiser products reveal enough
+\emph{correlation} between candidate measurements to design a useful batch?
+For an ideal MMSE denoiser, Tweedie's identity connects its Jacobian with a
+local denoising covariance~\cite{efron2011tweedie,manor2024posterior}.  Rather
+than materialize that image-space matrix, \method{} applies the candidate bank
+and its adjoint around a single measurement-guided state.  Randomized products
+form a PSD rank-$q$ operator-space sketch.  A conditional D-optimal objective
+then accounts for measurements already owned and updates after every atom in
+the prospective batch.
+
+This is not a claim of exact inverse-problem posterior covariance.  The
+unconditional learned denoiser is evaluated at a state shaped by data
+consistency; its Jacobian is a local surrogate that can be asymmetric or
+indefinite.  We therefore expose PSD defects, calibrate against conditional
+particles, and predeclare a no-submit gate if the correlations do not survive
+both domains.
+
+Our intended contributions are:
+\begin{itemize}
+  \item an ensemble-free mechanism that sketches the covariance surrogate of
+  a general \emph{linear} candidate-measurement bank from a few JVPs of one
+  live trajectory;
+  \item observed-set-conditioned marginal and joint acquisition, including
+  existing linear observations outside the candidate atomization;
+  \item limited PSD, submodularity, and perturbation guarantees for the
+  approximate local model, with explicit learned-Jacobian failure criteria;
+  \item a compute-accounted protocol that separates system reconstructions
+  from canonical final-mask replay across multi-coil MRI and held-out
+  ImageNet-256.
+\end{itemize}

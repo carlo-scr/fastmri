@@ -1,0 +1,23 @@
+\section{Limitations and Ethics}
+
+\method{} is local and Gaussian.  A single trajectory can commit to one mode,
+so the sketch may miss uncertainty between distant posterior modes.
+Finite-difference JVPs add denoiser calls and depend on step size.  A learned
+Jacobian may be asymmetric or indefinite; PSD protection makes the design
+well-defined but can change its meaning.  The method currently supports
+linear candidate banks only, uses a different pretrained prior per image
+domain, and has no guarantee that its local-model utility improves final
+reconstruction.
+
+Retrospective active-acquisition experiments reveal measurements from a
+complete held-out scan only to simulate a prospective query.  Full data must
+not leak into noise calibration, sensitivity estimation beyond acquired ACS,
+or deployable scores.  MRI results are research evidence, not a clinical
+claim.  ImageNet and fastMRI use must follow their respective licenses and
+privacy terms.
+
+\paragraph{Submission status.}
+At the time of this scaffold, large-scale corrected results, faithful external
+baselines, and final statistical intervals are \pending.  Those omissions
+must be resolved in the main paper; WACV Round 2 has no rebuttal in which to
+repair an incomplete evaluation.

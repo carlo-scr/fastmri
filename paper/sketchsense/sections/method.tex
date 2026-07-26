@@ -1,0 +1,101 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Local operator-space surrogate}
+
+All quantities use the real representation of the network.  Complex MRI
+vectors stack real and imaginary coordinates.  At a selected reverse step,
+let
+\begin{equation}
+ \mu_t=\mu_\theta(x_t,t),\qquad
+ \Sigma_t=\sigma_t^2J_t,\qquad
+ J_t=\frac{\partial\mu_\theta(x_t,t)}{\partial x_t}.
+\end{equation}
+For an ideal MMSE denoiser, $\Sigma_t$ is a Tweedie covariance.  With a
+learned denoiser and measurement-guided state it is only a local surrogate.
+
+Let $B:\R^n\!\rightarrow\!\R^p$ be the full linear bank of candidate scalar
+measurements.  Its predictive surrogate is
+\begin{equation}
+ C_t=B\Sigma_tB^\top.
+\end{equation}
+For multi-coil MRI, $Bx=\{\mathcal{F}(S_cx)\}_c$ before masking.  Importantly,
+$B^\top$ is the true unmasked, unnormalized adjoint; a SENSE pseudoinverse
+would produce a different matrix.
+
+\subsection{Cross-Hutchinson diagonal}
+
+For independent Rademacher $z\in\R^p$,
+\begin{equation}
+ \widehat d(z)=z\odot \sigma_t^2BJ_tB^\top z.
+\end{equation}
+With exact products, $\mathbb{E}\widehat d(z)=\diag(C_t)$.  A central
+finite-difference product uses
+\begin{equation}
+ J_tu\approx
+ \frac{\mu_\theta(x_t+\epsilon u,t)
+       -\mu_\theta(x_t-\epsilon u,t)}{2\epsilon},
+ \quad u=B^\top z.
+\end{equation}
+The legacy positive statistic $\sigma_t^2|BJ_tB^\top z|^2$ instead estimates
+a squared-Jacobian row energy and is retained only as an invalidated
+diagnostic.
+
+\subsection{Protected PSD Nystr\"om sketch}
+
+Draw $\Omega\in\R^{p\times q}$ and compute
+\begin{equation}
+ X=\Sigma_tB^\top\Omega,\qquad Y=BX=C_t\Omega.
+\end{equation}
+We symmetrize the small core
+$G=(\Omega^\top Y+Y^\top\Omega)/2$, discard nonpositive or numerically small
+eigenvalues, and form
+\begin{equation}
+ \widehat C_t=Y G_+^\dagger Y^\top=LL^\top.
+\end{equation}
+The implementation reports core asymmetry, negative eigenvalue mass, retained
+rank, and disagreement with the cross-Hutchinson diagonal.  The headline
+method has no same-probe residual diagonal: such a completion is PSD but is
+not an independent residual estimator.
+
+\subsection{Conditional grouped design}
+
+Each atom groups scalar coordinates: all coils and readout locations in one
+phase-encode column, or all channels and pixels in one image block.  For a set
+$A$ with independent noise covariance $\Gamma_A$, define
+\begin{equation}
+ F_t(A)=\frac12\log\det\left(
+ I+\Gamma_A^{-1/2}\widehat C_{t,AA}\Gamma_A^{-1/2}
+ \right).
+\end{equation}
+Given acquired atoms $M$, the batch utility is
+\begin{equation}
+ \mathcal{I}_t(S\mid M)=F_t(M\cup S)-F_t(M).
+\end{equation}
+Using $\widehat C_t=LL^\top$, every atom contributes a small $q\times q$
+Gram.  We initialize the determinant state with $M$ and greedily add the
+candidate with largest conditional gain.  The marginal low-rank control uses
+the same initialized state but does not update it within $S$.
+
+Existing linear observations outside the atom bank contribute an additional
+initial Gram.  For example, natural-image experiments condition on the
+always-observed box-averaged image as well as any acquired full-resolution
+blocks.
+
+\begin{algorithm}[t]
+\caption{\method{} acquisition at one reverse step}
+\label{alg:sketchsense}
+\begin{algorithmic}[1]
+\Require state $x_t$, denoiser $\mu_\theta$, bank $(B,B^\top)$, acquired
+measurements $M$, probe count $q$, batch budget $k$
+\State draw nested Rademacher probes $\Omega$
+\State compute $X=\sigma_t^2J_tB^\top\Omega$ by central differences
+\State set $Y=BX$ and construct protected factor $L$
+\State initialize $H\gets I+\sum_{a\in M}G_a+G_{\rm external}$
+\For{$j=1,\ldots,k$}
+  \State choose $a^\star$ maximizing the conditional determinant gain
+  \State $H\gets H+G_{a^\star}$; add $a^\star$ to the batch
+\EndFor
+\State acquire the batch, apply immediate data consistency, continue sampling
+\end{algorithmic}
+\end{algorithm}

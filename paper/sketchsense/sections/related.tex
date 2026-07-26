@@ -1,0 +1,32 @@
+\section{Related Work}
+
+\paragraph{Diffusion active sensing.}
+AdaSense established zero-shot projected-variance acquisition across
+compressive imaging, MRI, and CT~\cite{elata2024adasense}.  ADS performs
+mid-trajectory acquisition using particle entropy~\cite{nolan2025ads}.
+Iollo et al.\ formulate diffusion-guided Bayesian experimental design for
+MRI~\cite{iollo2025bedmri}, and Christoffel-DPS develops offline and online
+sensor placement beyond Gaussian design assumptions~\cite{christoffel2026dps}.
+Consequently, we do not claim the first training-free, adaptive, variance
+based, or mid-trajectory diffusion sensing method.  Our empirical question is
+whether an operator-pushed local JVP sketch offers a favorable
+correlation-quality/compute tradeoff.
+
+\paragraph{Diffusion covariance.}
+Tweedie second moments and learned-denoiser Jacobians have been used for
+uncertainty and inverse problems~\cite{manor2024posterior,peng2024covariance,
+boys2024tmpd}.  Free Hunch obtains structured low-rank covariance information
+from trajectory statistics with no extra denoiser
+calls~\cite{rissanen2025freehunch}; Schioppa and Salimans study a one-JVP
+structured covariance approximation~\cite{schioppa2026covaware}.  These works
+rule out novelty claims for JVPs, low-rank covariance, or Tweedie moments
+alone.  We compare their covariance constructions as acquisition inputs.
+
+\paragraph{Experimental design and randomized linear algebra.}
+Log-determinant Gaussian design and its submodularity are
+classical~\cite{krause2005nearoptimal,nemhauser1978analysis}; randomized range
+finding and Nystr\"om approximations are likewise
+established~\cite{halko2011finding}.  \method{} combines these tools in the
+candidate-measurement space of a live diffusion trajectory.  The contribution
+must therefore be supported by the conditional mechanism, efficiency, and
+cross-domain evidence rather than by presenting the ingredients as new.

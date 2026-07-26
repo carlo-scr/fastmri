@@ -1,0 +1,18 @@
+\begin{abstract}
+Diffusion priors enable test-time active sensing without training an
+acquisition policy, but existing methods commonly estimate uncertainty with
+multiple posterior trajectories.  We study an ensemble-free alternative.
+Around selected states of one measurement-guided trajectory, \method{} pushes
+a small number of finite-difference denoiser Jacobian--vector products through
+the complete linear candidate-measurement bank.  A protected Nystr\"om
+factorization yields a positive-semidefinite, low-rank local
+Tweedie-covariance surrogate in operator space.  The same factor supports
+conditional local-Gaussian design: already acquired measurements initialize
+the determinant state, and greedy log-determinant updates avoid selecting
+multiple atoms that expose the same uncertainty direction.  We separate
+mask quality from reconstruction effects by replaying every final mask with
+one canonical sampler, and evaluate grouped SENSE lines and natural-image
+blocks with actual denoiser-call accounting.  \textbf{Results are pending
+corrected large-scale experiments; this working abstract intentionally makes
+no empirical superiority claim.}
+\end{abstract}
