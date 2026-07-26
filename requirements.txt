@@ -14,6 +14,7 @@ tensorboard
 diffusers
 datasets
 huggingface_hub
+lpips
 
 # Utilities
 tqdm

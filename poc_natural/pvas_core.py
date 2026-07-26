@@ -186,7 +186,8 @@ def pv_estimate(den: EpsDenoiser, xt: torch.Tensor, t: int,
                 pool_block: int | None = None,
                 smooth_sigma: float | None = 1.0,
                 mode: str = "jv_v",
-                generator: torch.Generator | None = None) -> torch.Tensor:
+                generator: torch.Generator | None = None,
+                clamp_final: bool = True) -> torch.Tensor:
     """Estimate diag Cov[x0 | x_t] per pixel (averaged over channels).
 
     mode "jv_v":  sigma_t^2 * (Jv) * v  -- unbiased for the diagonal.
@@ -198,8 +199,10 @@ def pv_estimate(den: EpsDenoiser, xt: torch.Tensor, t: int,
     approximates (d mu / d xtilde) v.  Central differences cancel the O(eps)
     Taylor term, leaving O(eps^2) truncation error.  Returns (B,1,H,W) after
     channel-averaging, optional Gaussian smoothing, optional block sum-pooling,
-    and one final floor at zero (B,1,gh,gw). Only the estimate before the floor
-    is unbiased.
+    and (by default) one final floor at zero (B,1,gh,gw). Set
+    ``clamp_final=False`` when a caller will aggregate signed coordinates into
+    measurement atoms before applying the floor. Only the signed estimate is
+    unbiased.
     """
     a = den.abar[t].to(xt.device)
     sig2 = ((1.0 - a) / a).item()
@@ -224,7 +227,7 @@ def pv_estimate(den: EpsDenoiser, xt: torch.Tensor, t: int,
         est = _gaussian_blur(est, smooth_sigma)
     if pool_block is not None:
         est = torch.nn.functional.avg_pool2d(est, pool_block) * (pool_block ** 2)
-    return est.clamp_min(0.0)
+    return est.clamp_min(0.0) if clamp_final else est
 
 
 def _gaussian_blur(x: torch.Tensor, sigma: float) -> torch.Tensor:
@@ -301,8 +304,12 @@ class PVASConfig:
     use_pv_gate: bool = True            # PV-gated vs scalar PiGDM-style gain
     active_rounds: int = 2
     active_window: tuple[float, float] = (0.45, 0.75)  # fraction of trajectory
-    policy: str = "pv"                  # pv|random|raster|oracle|ensemble
+    policy: str = "pv"                  # pv|operator_diag|sketch_*|baselines
     ensemble_k: int = 8                 # posterior samples for 'ensemble' policy
+    sketch_rank: int = 4
+    sketch_fd_step: float = 5e-2
+    sketch_psd_rtol: float = 1e-6
+    sketch_noise_variance_floor: float = 1e-4
     seed: int = 0
 
 
@@ -338,7 +345,6 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
     """
     device = x0_full.device
     gen_sample = torch.Generator(device="cpu").manual_seed(cfg.seed)
-    gen_probe = torch.Generator(device="cpu").manual_seed(cfg.seed + 1_000_003)
     gen_acquire = torch.Generator(device="cpu").manual_seed(cfg.seed + 2_000_003)
     B, C, H, W = x0_full.shape
     abar = den.abar
@@ -362,9 +368,17 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
         # --- posterior variance (refreshed every pv_every steps if needed) ---
         need_pv = (cfg.use_pv_gate or (i in acq_schedule and cfg.policy == "pv"))
         if need_pv and (pv_cached is None or i % cfg.pv_every == 0 or i in acq_schedule):
+            # Counter-based seed: gate-on and selection-only arms use the same
+            # probe prefix at the same diffusion timestep even if one arm
+            # refreshed its gate at additional earlier steps.
+            probe_seed = int(
+                (int(cfg.seed) * 1_000_003 + int(t) * 104_729 + 17)
+                % (2**63 - 1)
+            )
+            gen_probe = torch.Generator(device="cpu").manual_seed(probe_seed)
             pv_cached = pv_estimate(den, xt, t, cfg.pv_eps_probe, cfg.pv_n_probes,
                                     pool_block=None, smooth_sigma=cfg.pv_smooth_sigma,
-                                    generator=gen_probe)
+                                    generator=gen_probe, clamp_final=False)
             if i in acq_schedule:
                 result.pv_maps.append((t, pv_cached.detach().cpu()))
 
@@ -374,7 +388,8 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
         if state.sigma_y == 0.0:
             gain = torch.ones(1, 1, 1, 1, device=device)
         elif cfg.use_pv_gate and pv_cached is not None:
-            gain = pv_cached / (pv_cached + sy2)
+            pv_gate = pv_cached.clamp_min(0.0)
+            gain = pv_gate / (pv_gate + sy2)
         else:
             gain = (sig2_t / (sig2_t + sy2)).view(1, 1, 1, 1)
         x0hat = _dc_update(x0hat, state, gain)
@@ -383,7 +398,8 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
         if i in acq_schedule:
             k = acq_schedule[i]
             scores = _score_blocks(cfg.policy, den, xt, t, x0hat, x0_full, state,
-                                   pv_cached, cfg, gen_acquire, ensemble_scorer)
+                                   pv_cached, cfg, gen_acquire, ensemble_scorer,
+                                   k=k)
             state = acquire_blocks(state, x0_full, scores, k, gen_acquire)
             result.acq_steps.append((i, t, int(k)))
             # re-apply DC with the enlarged mask (raw x0hat from same eps)
@@ -421,13 +437,122 @@ def run_pvas(den: EpsDenoiser, state: BlockMaskState, x0_full: torch.Tensor,
 def _score_blocks(policy: str, den: EpsDenoiser, xt: torch.Tensor, t: int,
                   x0hat: torch.Tensor, x0_full: torch.Tensor, state: BlockMaskState,
                   pv_map: torch.Tensor, cfg: PVASConfig, gen: torch.Generator,
-                  ensemble_scorer) -> torch.Tensor:
+                  ensemble_scorer, k: int | None = None) -> torch.Tensor:
     """Score candidate blocks for acquisition. Higher = acquired first."""
     B = xt.shape[0]
     block = state.block
     gh, gw = xt.shape[2] // block, xt.shape[3] // block
     if policy == "pv":
-        return torch.nn.functional.avg_pool2d(pv_map, block) * (block ** 2)
+        # Aggregate the unbiased signed coordinate estimates into atoms before
+        # the one positivity projection.
+        return (
+            torch.nn.functional.avg_pool2d(pv_map, block) * (block ** 2)
+        ).clamp_min(0.0)
+    if policy in {"operator_diag", "sketch_marginal", "sketch_logdet"}:
+        from poc_natural.sketchsense import (
+            average_pool_conditioning_gram,
+            block_atom_ids,
+            sketch_identity_measurements_batched,
+        )
+        from src.samplers.operator_sketch import (
+            build_atom_information,
+            conditional_atom_scores,
+            diagonal_atom_scores,
+            greedy_logdet_select,
+        )
+
+        probe_seed = int(
+            (int(cfg.seed) * 1_000_003 + int(t) * 104_729 + 8_000_021)
+            % (2**63 - 1)
+        )
+        probe_generator = torch.Generator(device="cpu").manual_seed(probe_seed)
+        sketches = sketch_identity_measurements_batched(
+            den,
+            xt,
+            t,
+            num_probes=cfg.sketch_rank,
+            fd_step=cfg.sketch_fd_step,
+            generator=probe_generator,
+            psd_rtol=cfg.sketch_psd_rtol,
+        )
+        atom_ids = block_atom_ids(
+            xt.shape[1], xt.shape[2], xt.shape[3], block,
+            device=xt.device,
+        )
+        num_atoms = gh * gw
+        noise_variance = max(
+            state.sigma_y ** 2,
+            float(cfg.sketch_noise_variance_floor),
+        )
+        pooled_mask = (
+            torch.nn.functional.avg_pool2d(state.mask, block)
+            .flatten(1) > 0.5
+        )
+        score_batch = torch.full(
+            (B, num_atoms),
+            float("-inf"),
+            device=xt.device,
+            dtype=xt.dtype,
+        )
+        for image_index, sketch in enumerate(sketches):
+            available = torch.nonzero(
+                ~pooled_mask[image_index], as_tuple=False
+            ).flatten()
+            observed = torch.nonzero(
+                pooled_mask[image_index], as_tuple=False
+            ).flatten()
+            initial_gram = (
+                average_pool_conditioning_gram(
+                    sketch,
+                    block,
+                    noise_variance,
+                )
+                if state.y_lr is not None
+                else None
+            )
+            if policy == "operator_diag":
+                score_batch[image_index] = diagonal_atom_scores(
+                    sketch,
+                    atom_ids,
+                    noise_variance,
+                    num_atoms=num_atoms,
+                    complex_noise_is_total=False,
+                    source="hutchinson",
+                )
+            else:
+                information = build_atom_information(
+                    sketch,
+                    atom_ids,
+                    noise_variance,
+                    num_atoms=num_atoms,
+                    complex_noise_is_total=False,
+                )
+                if policy == "sketch_marginal":
+                    score_batch[image_index] = conditional_atom_scores(
+                        information,
+                        conditioned_on=observed,
+                        initial_gram=initial_gram,
+                    )
+                else:
+                    selected, _ = greedy_logdet_select(
+                        information,
+                        int(k or 0),
+                        eligible=available,
+                        conditioned_on=observed,
+                        initial_gram=initial_gram,
+                    )
+                    if selected:
+                        # acquire_blocks needs a score field; assigning a
+                        # strict prefix order reproduces the joint-greedy set.
+                        priority = torch.arange(
+                            len(selected), 0, -1,
+                            device=xt.device, dtype=xt.dtype,
+                        )
+                        score_batch[
+                            image_index,
+                            torch.as_tensor(selected, device=xt.device),
+                        ] = priority
+        return score_batch.view(B, 1, gh, gw)
     if policy == "random":
         return random_block_scores(B, gh, gw, cfg.seed, xt.device)
     if policy == "raster":

@@ -12,6 +12,12 @@ Methods (``--methods`` list, any subset):
   fakgd_mc     : multi-coil FA-KGD+FPDC (per-frequency Kalman gain)
   pv           : (A) PV-gated FA-KGD only
   pv_active    : (A) + (D) active line acquisition
+  operator_diag_active
+                : corrected full-SENSE cross-Hutchinson marginal selection
+  sketch_marginal_active
+                : PSD operator sketch scored one line at a time
+  sketch_logdet_active
+                : PSD operator sketch with correlation-aware joint batches
   static_match : ΠGDM-MC at the matched-budget static mask (a fair
                  baseline for the active runs; budget = R-mask + active_lines)
 
@@ -32,8 +38,10 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import json
 import os
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -109,6 +117,17 @@ def _ssim(gt_mag: torch.Tensor, rec_mag: torch.Tensor, eval_size: int = 320) -> 
     return float(ssim_fn(g, r, data_range=dr))
 
 
+def _nmse(gt_mag: torch.Tensor, rec_mag: torch.Tensor, eval_size: int = 320) -> float:
+    """Normalized squared error on the same center crop as PSNR/SSIM."""
+    H = min(gt_mag.shape[-2], eval_size)
+    W = min(gt_mag.shape[-1], eval_size)
+    g = _center_crop(gt_mag, H, W)
+    r = _center_crop(rec_mag, H, W)
+    numerator = (g - r).square().sum()
+    denominator = g.square().sum().clamp_min(1e-12)
+    return float(numerator / denominator)
+
+
 def _static_matched_mask(
     base_mask: torch.Tensor,
     extra_cols: int,
@@ -167,6 +186,44 @@ def _load_volume(h5_path: str, target_shape: tuple[int, int]):
             rss = torch.sqrt((coil_imgs.abs() ** 2).sum(0))
         out.append((mc_k.to(torch.complex64), rss.float()))
     return out
+
+
+def _sha256_file(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def subprocess_git_commit() -> str:
+    try:
+        return subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=project_root,
+            text=True,
+        ).strip()
+    except Exception:
+        return 'unknown'
+
+
+def _paired_bootstrap_mean_ci(
+    differences: np.ndarray,
+    *,
+    seed: int,
+    resamples: int = 10_000,
+) -> tuple[float, float]:
+    """Deterministic percentile interval for independent volume effects."""
+    values = np.asarray(differences, dtype=np.float64)
+    if values.ndim != 1 or values.size == 0:
+        raise ValueError('differences must be a nonempty one-dimensional array')
+    generator = np.random.default_rng(int(seed))
+    indices = generator.integers(
+        0, values.size, size=(int(resamples), values.size)
+    )
+    means = values[indices].mean(axis=1)
+    low, high = np.quantile(means, [0.025, 0.975])
+    return float(low), float(high)
 
 
 # ---------------------------------------------------------------------------
@@ -233,6 +290,7 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
     r_acs = args.center_fraction * r_max
 
     out: dict = {
+        'status': 'CORRECTED_RUN_UNREVIEWED',
         'n_R_cols': n_R_cols,
         'sampler_seed': slice_seed,
         'mask_seed': slice_mask_seed,
@@ -242,7 +300,86 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         'methods': {},
     }
 
-    def _record(name, recon, total_cols, runtime, diagnostics=None, nfe_start=None):
+    def _reset_peak_memory() -> None:
+        if device.type == 'cuda':
+            torch.cuda.synchronize(device)
+            torch.cuda.reset_peak_memory_stats(device)
+
+    def _peak_memory_mb() -> float | None:
+        if device.type != 'cuda':
+            return None
+        torch.cuda.synchronize(device)
+        return float(torch.cuda.max_memory_allocated(device) / (1024 ** 2))
+
+    def _elapsed(started_at: float) -> float:
+        if device.type == 'cuda':
+            torch.cuda.synchronize(device)
+        return float(time.time() - started_at)
+
+    canonical_cache: dict[tuple[int, ...], dict] = {}
+
+    def _canonical_replay(final_mask: torch.Tensor) -> dict | None:
+        """Evaluate a selected mask with one common passive PiGDM solver."""
+        if args.skip_canonical_replay:
+            return None
+        selected_columns = tuple(
+            torch.nonzero(
+                final_mask.sum(dim=0) > 0, as_tuple=False
+            ).flatten().cpu().tolist()
+        )
+        if selected_columns in canonical_cache:
+            return canonical_cache[selected_columns]
+        replay_operator = MultiCoilSENSE(final_mask, sens, sig_c).to(device)
+        replay_start = time.time()
+        replay_nfe_start = getattr(denoiser, 'nfe', None)
+        replay = run_pigdm_mc(
+            y_mc=final_mask * mc_kn,
+            sense_op=replay_operator,
+            sigma_schedule=sigma_schedule,
+            denoiser_fn=denoiser,
+            sigma_y=None,
+            seed=slice_seed,
+        )
+        replay_nfe = (
+            int(denoiser.nfe) - int(replay_nfe_start)
+            if replay_nfe_start is not None and hasattr(denoiser, 'nfe')
+            else None
+        )
+        replay_mag = replay['recon'].abs()
+        record = {
+            'canonical_psnr_rss': _psnr(
+                rss, replay_mag, eval_size=args.eval_size
+            ),
+            'canonical_psnr_sense': _psnr(
+                sense_oracle, replay_mag, eval_size=args.eval_size
+            ),
+            'canonical_ssim_rss': _ssim(
+                rss, replay_mag, eval_size=args.eval_size
+            ),
+            'canonical_ssim_sense': _ssim(
+                sense_oracle, replay_mag, eval_size=args.eval_size
+            ),
+            'canonical_nmse_rss': _nmse(
+                rss, replay_mag, eval_size=args.eval_size
+            ),
+            'canonical_nmse_sense': _nmse(
+                sense_oracle, replay_mag, eval_size=args.eval_size
+            ),
+            'canonical_runtime_s': float(time.time() - replay_start),
+            'canonical_nfe': replay_nfe,
+        }
+        canonical_cache[selected_columns] = record
+        return record
+
+    def _record(
+        name,
+        recon,
+        total_cols,
+        runtime,
+        diagnostics=None,
+        nfe_start=None,
+        final_mask=None,
+    ):
         rec_mag = recon.abs() if torch.is_complex(recon) else recon
         rec_mag = rec_mag.to(device)
         rec = {
@@ -250,11 +387,27 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
             'psnr_sense':  _psnr(sense_oracle, rec_mag, eval_size=args.eval_size),
             'ssim_rss':    _ssim(rss, rec_mag, eval_size=args.eval_size),
             'ssim_sense':  _ssim(sense_oracle, rec_mag, eval_size=args.eval_size),
+            'nmse_rss':    _nmse(rss, rec_mag, eval_size=args.eval_size),
+            'nmse_sense':  _nmse(sense_oracle, rec_mag, eval_size=args.eval_size),
             'budget_cols': int(total_cols),
             'runtime_s':   float(runtime),
+            'peak_cuda_memory_mb': _peak_memory_mb(),
         }
         if nfe_start is not None and hasattr(denoiser, 'nfe'):
             rec['nfe'] = int(denoiser.nfe) - int(nfe_start)
+        if final_mask is not None:
+            selected_columns = torch.nonzero(
+                final_mask.sum(dim=0) > 0, as_tuple=False
+            ).flatten()
+            rec['final_columns'] = selected_columns.cpu().tolist()
+            if int(selected_columns.numel()) != int(total_cols):
+                raise AssertionError(
+                    f"{name} reports {total_cols} columns but its final mask "
+                    f"contains {selected_columns.numel()}"
+                )
+            canonical = _canonical_replay(final_mask)
+            if canonical is not None:
+                rec.update(canonical)
         if diagnostics is not None:
             kdiv = diagnostics.get('K_div_vs_pigdm') or []
             pang = diagnostics.get('P_ang_frac') or []
@@ -264,6 +417,17 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
             if pang:
                 rec['P_ang_frac_mean'] = float(np.mean(pang))
                 rec['P_ang_frac_max']  = float(np.max(pang))
+            sketch_rows = diagnostics.get('operator_sketches') or []
+            if sketch_rows:
+                rec['sketch_effective_rank_mean'] = float(np.mean([
+                    row['effective_rank'] for row in sketch_rows
+                ]))
+                rec['sketch_core_asymmetry_mean'] = float(np.mean([
+                    row['core_asymmetry'] for row in sketch_rows
+                ]))
+                rec['sketch_negative_mass_mean'] = float(np.mean([
+                    row['core_negative_mass'] for row in sketch_rows
+                ]))
         out['methods'][name] = rec
 
     def _actual_cols(result, fallback):
@@ -276,16 +440,18 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
 
     # ---- pigdm_mc ----
     if 'pigdm_mc' in args.methods:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_pigdm_mc(y_mc=y_R, sense_op=sense_op,
                          sigma_schedule=sigma_schedule,
                          denoiser_fn=denoiser, sigma_y=None, seed=slice_seed)
-        _record('pigdm_mc', r['recon'], n_R_cols, time.time() - t0,
-                nfe_start=nfe0)
+        _record('pigdm_mc', r['recon'], n_R_cols, _elapsed(t0),
+                nfe_start=nfe0, final_mask=mask_R)
 
     # ---- fakgd_mc (FPDC, no PV) ----
     if 'fakgd_mc' in args.methods:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc(y_mc=y_R, sense_op=sense_op,
@@ -294,11 +460,12 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                          beta_fpdc=args.beta_fpdc, alpha_ema=args.alpha_ema,
                          gamma=args.gamma, m_step_mode=args.m_step_mode,
                          seed=slice_seed)
-        _record('fakgd_mc', r['recon'], n_R_cols, time.time() - t0,
-                nfe_start=nfe0)
+        _record('fakgd_mc', r['recon'], n_R_cols, _elapsed(t0),
+                nfe_start=nfe0, final_mask=mask_R)
 
     # ---- pv (PV-gated only) ----
     if 'pv' in args.methods:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
@@ -313,11 +480,13 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             pv_n_probes=args.pv_n_probes,
                             active_lines=0, seed=slice_seed,
                             return_diagnostics=True)
-        _record('pv', r['recon'], n_R_cols, time.time() - t0,
-                diagnostics=r.get('diagnostics'), nfe_start=nfe0)
+        _record('pv', r['recon'], n_R_cols, _elapsed(t0),
+                diagnostics=r.get('diagnostics'), nfe_start=nfe0,
+                final_mask=mask_R)
 
     # ---- pv_active (PV + active acquisition) ----
     if 'pv_active' in args.methods and args.active_lines > 0:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
@@ -339,14 +508,60 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             return_diagnostics=True)
         _record('pv_active', r['recon'],
                 _actual_cols(r, n_R_cols + args.active_lines),
-                time.time() - t0, diagnostics=r.get('diagnostics'),
-                nfe_start=nfe0)
+                _elapsed(t0), diagnostics=r.get('diagnostics'),
+                nfe_start=nfe0, final_mask=r.get('mask_final'))
+
+    # ---- corrected full-operator and SketchSense acquisition policies ----
+    sketch_methods = {
+        'operator_diag_active': 'operator_diag',
+        'sketch_marginal_active': 'sketch_marginal',
+        'sketch_logdet_active': 'sketch_logdet',
+    }
+    for method_name, active_score in sketch_methods.items():
+        if method_name not in args.methods or args.active_lines <= 0:
+            continue
+        _reset_peak_memory()
+        t0 = time.time()
+        nfe0 = getattr(denoiser, 'nfe', None)
+        r = run_fakgd_mc_pv(
+            y_mc=y_R,
+            sense_op=sense_op,
+            sigma_schedule=sigma_schedule,
+            denoiser_fn=denoiser,
+            sigma_i_sq_init=sigma_i_sq,
+            # Acquisition-only comparison: legacy single-Fourier PV gating is
+            # deliberately disabled for every operator-sketch policy.
+            use_pv_gate=False,
+            refine_sens=False,
+            pv_centered=True,
+            active_lines=args.active_lines,
+            active_rounds=args.active_rounds,
+            active_after_frac=args.active_after_frac,
+            active_until_frac=args.active_until_frac,
+            active_score=active_score,
+            sketch_rank=args.sketch_rank,
+            sketch_fd_step=args.sketch_fd_step,
+            sketch_psd_rtol=args.sketch_psd_rtol,
+            y_mc_full=mc_kn,
+            seed=slice_seed,
+            return_diagnostics=True,
+        )
+        _record(
+            method_name,
+            r['recon'],
+            _actual_cols(r, n_R_cols + args.active_lines),
+            _elapsed(t0),
+            diagnostics=r.get('diagnostics'),
+            nfe_start=nfe0,
+            final_mask=r.get('mask_final'),
+        )
 
     # ---- random_adaptive (mid-diffusion uniform-random acquisition) ----
     # Same multi-round schedule and budget as PVAS; columns picked uniformly
     # at random instead of by PV score. Isolates the value of variance-guided
     # selection (vs. "any mid-diffusion adaptation").
     if 'random_adaptive' in args.methods and args.active_lines > 0:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
@@ -367,13 +582,15 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             y_mc_full=mc_kn, seed=slice_seed)
         _record('random_adaptive', r['recon'],
                 _actual_cols(r, n_R_cols + args.active_lines),
-                time.time() - t0, nfe_start=nfe0)
+                _elapsed(t0), nfe_start=nfe0,
+                final_mask=r.get('mask_final'))
 
     # ---- energy_active (image-conditional, P-free; primary new score) ----
     # Score(c) = sum_{c,r} |F(S * mu_theta(x_t))[c,r,col]|^2 over unsampled
     # cols. Uses the diffusion prior's predicted k-space energy directly,
     # bypassing the (saturated) PV gate. No oracle access; legal in real MRI.
     if 'energy_active' in args.methods and args.active_lines > 0:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
@@ -394,13 +611,15 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             y_mc_full=mc_kn, seed=slice_seed)
         _record('energy_active', r['recon'],
                 _actual_cols(r, n_R_cols + args.active_lines),
-                time.time() - t0, nfe_start=nfe0)
+                _elapsed(t0), nfe_start=nfe0,
+                final_mask=r.get('mask_final'))
 
     # ---- oracle_active (retrospective greedy reference) ----
     # Score(c) = sum_{c,r} |y_full - F(S*mu)|^2 over unsampled cols.
     # Requires y_mc_full and is not deployable. It is not an upper bound on
     # final reconstruction utility.
     if 'oracle_active' in args.methods and args.active_lines > 0:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
@@ -421,11 +640,13 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             y_mc_full=mc_kn, seed=slice_seed)
         _record('oracle_active', r['recon'],
                 _actual_cols(r, n_R_cols + args.active_lines),
-                time.time() - t0, nfe_start=nfe0)
+                _elapsed(t0), nfe_start=nfe0,
+                final_mask=r.get('mask_final'))
 
     # ---- equi_adaptive (mid-diffusion gap-filling acquisition) ----
     # Deterministic non-PV baseline: greedily fill the largest column gaps.
     if 'equi_adaptive' in args.methods and args.active_lines > 0:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_fakgd_mc_pv(y_mc=y_R, sense_op=sense_op,
@@ -446,13 +667,15 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                             y_mc_full=mc_kn, seed=slice_seed)
         _record('equi_adaptive', r['recon'],
                 _actual_cols(r, n_R_cols + args.active_lines),
-                time.time() - t0, nfe_start=nfe0)
+                _elapsed(t0), nfe_start=nfe0,
+                final_mask=r.get('mask_final'))
 
-    # ---- ens_active (ADS/AdaSense-style particle-ensemble selection) ----
+    # ---- ens_active (shared-pipeline particle-covariance control) ----
     # N parallel PiGDM particles (scalar gain); columns scored by cross-
     # particle variance of predicted k-space; recon = particle mean.
     # Faithful-cost ensemble reference: NFE = N*T per slice.
     if 'ens_active' in args.methods and args.active_lines > 0:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_ensemble_active_mc(y_mc=y_R, sense_op=sense_op,
@@ -468,11 +691,13 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                                    y_mc_full=mc_kn, seed=slice_seed)
         _record('ens_active', r['recon'],
                 _actual_cols(r, n_R_cols + args.active_lines),
-                time.time() - t0, nfe_start=nfe0)
+                _elapsed(t0), nfe_start=nfe0,
+                final_mask=r.get('mask_final'))
 
     # ---- ens_random_active (particle mean + random selection) ----
     # Isolates the particle-averaging benefit from ensemble selection.
     if 'ens_random_active' in args.methods and args.active_lines > 0:
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_ensemble_active_mc(y_mc=y_R, sense_op=sense_op,
@@ -488,7 +713,8 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
                                    y_mc_full=mc_kn, seed=slice_seed)
         _record('ens_random_active', r['recon'],
                 _actual_cols(r, n_R_cols + args.active_lines),
-                time.time() - t0, nfe_start=nfe0)
+                _elapsed(t0), nfe_start=nfe0,
+                final_mask=r.get('mask_final'))
 
     # ---- static_match (matched-budget static-random baseline) ----
     if 'static_match' in args.methods and args.active_lines > 0:
@@ -497,13 +723,14 @@ def run_slice(args, denoiser, sigma_schedule, mc_k_clean, rss_gt,
         )
         budget = int((mask_static.sum(dim=0) > 0).sum().item())
         op_static = MultiCoilSENSE(mask_static, sens, sig_c).to(device)
+        _reset_peak_memory()
         t0 = time.time()
         nfe0 = getattr(denoiser, 'nfe', None)
         r = run_pigdm_mc(y_mc=mask_static * mc_kn, sense_op=op_static,
                          sigma_schedule=sigma_schedule,
                          denoiser_fn=denoiser, sigma_y=None, seed=slice_seed)
-        _record('static_match', r['recon'], budget, time.time() - t0,
-                nfe_start=nfe0)
+        _record('static_match', r['recon'], budget, _elapsed(t0),
+                nfe_start=nfe0, final_mask=mask_static)
 
     return out
 
@@ -516,6 +743,18 @@ def main():
     p = argparse.ArgumentParser()
     # Data
     p.add_argument('--data_path', type=str, required=True)
+    p.add_argument(
+        '--dataset_revision',
+        type=str,
+        default='unspecified',
+        help='Dataset release/snapshot identifier recorded in results. '
+             'Production artifacts must not leave this as unspecified.',
+    )
+    p.add_argument(
+        '--skip_file_hashes',
+        action='store_true',
+        help='Pilot-only speed option. Production runs hash every input volume.',
+    )
     p.add_argument('--num_volumes', type=int, default=2)
     p.add_argument('--num_slices', type=int, default=0,
                    help='Slices per volume (0 = all)')
@@ -585,19 +824,37 @@ def main():
     p.add_argument('--active_rounds', type=int, default=1)
     p.add_argument('--active_after_frac', type=float, default=0.5)
     p.add_argument('--active_until_frac', type=float, default=0.85)
-    p.add_argument('--active_gate', choices=['on', 'off'], default='on',
+    p.add_argument('--active_gate', choices=['on', 'off'], default='off',
                    help="'off' = selection-only active methods: scalar PiGDM "
                         "gain everywhere, PV computed only at acquisition "
                         "rounds (NFE = T + 2*pv_n_probes*active_rounds).")
     p.add_argument('--ens_particles', type=int, default=4,
                    help='Particles for the ens_active / ens_random_active '
                         'ADS-style ensemble baselines (NFE = N*T).')
+    p.add_argument('--sketch_rank', type=int, default=4,
+                   help='Number of real-embedded operator probes for '
+                        'operator_diag/sketch policies.')
+    p.add_argument('--sketch_fd_step', type=float, default=5e-2,
+                   help='Central finite-difference step as a fraction of the '
+                        'current diffusion sigma after pullback normalization.')
+    p.add_argument('--sketch_psd_rtol', type=float, default=1e-6,
+                   help='Relative eigenvalue floor for the Nyström core.')
+    p.add_argument(
+        '--skip_canonical_replay',
+        action='store_true',
+        help='Pilot-only speed option. By default each final mask is replayed '
+             'with the same passive single-trajectory PiGDM solver so mask '
+             'quality is separated from the online reconstruction method.',
+    )
 
     # Methods
     p.add_argument('--methods', type=str, nargs='+',
                    default=['pigdm_mc', 'fakgd_mc', 'pv', 'pv_active',
                             'random_adaptive', 'static_match'],
                    choices=['pigdm_mc', 'fakgd_mc', 'pv', 'pv_active',
+                            'operator_diag_active',
+                            'sketch_marginal_active',
+                            'sketch_logdet_active',
                             'energy_active', 'oracle_active',
                             'random_adaptive', 'equi_adaptive', 'static_match',
                             'ens_active', 'ens_random_active'])
@@ -635,11 +892,19 @@ def main():
 
     target = tuple(args.target_resolution)
     all_results = []
+    volume_manifest = []
 
     for fi, fp in enumerate(files):
         fname = Path(fp).name
+        file_sha256 = (
+            None if args.skip_file_hashes else _sha256_file(fp)
+        )
+        volume_manifest.append({
+            'volume': fname,
+            'sha256': file_sha256,
+        })
         file_seed = int.from_bytes(
-            __import__('hashlib').blake2b(fname.encode(), digest_size=4).digest(),
+            hashlib.blake2b(fname.encode(), digest_size=4).digest(),
             'little')
         try:
             slices = _load_volume(fp, target)
@@ -660,7 +925,11 @@ def main():
             t_slice = time.time()
             res = run_slice(args, denoiser, sigma_schedule,
                             mc_k_clean, rss_gt, file_seed, si, device)
-            res.update({'volume': fname, 'slice': si})
+            res.update({
+                'volume': fname,
+                'volume_sha256': file_sha256,
+                'slice': si,
+            })
             all_results.append(res)
             # Pretty per-slice line
             line = f'[{fi+1}/{len(files)}] {fname} sl={si} ({time.time()-t_slice:.0f}s):'
@@ -684,42 +953,164 @@ def main():
         psnr_sense = np.array([r['methods'][m]['psnr_sense'] for r in all_results if m in r['methods']])
         ssim_rss   = np.array([r['methods'][m]['ssim_rss']   for r in all_results if m in r['methods']])
         ssim_sense = np.array([r['methods'][m]['ssim_sense'] for r in all_results if m in r['methods']])
+        selection_psnr_rss = np.array([
+            r['methods'][m].get(
+                'canonical_psnr_rss', r['methods'][m]['psnr_rss']
+            )
+            for r in all_results if m in r['methods']
+        ])
+        selection_psnr_sense = np.array([
+            r['methods'][m].get(
+                'canonical_psnr_sense', r['methods'][m]['psnr_sense']
+            )
+            for r in all_results if m in r['methods']
+        ])
+        selection_ssim_rss = np.array([
+            r['methods'][m].get(
+                'canonical_ssim_rss', r['methods'][m]['ssim_rss']
+            )
+            for r in all_results if m in r['methods']
+        ])
+        selection_ssim_sense = np.array([
+            r['methods'][m].get(
+                'canonical_ssim_sense', r['methods'][m]['ssim_sense']
+            )
+            for r in all_results if m in r['methods']
+        ])
+        nmse_rss = np.array([
+            r['methods'][m]['nmse_rss']
+            for r in all_results if m in r['methods']
+        ])
+        nmse_sense = np.array([
+            r['methods'][m]['nmse_sense']
+            for r in all_results if m in r['methods']
+        ])
+        selection_nmse_rss = np.array([
+            r['methods'][m].get(
+                'canonical_nmse_rss', r['methods'][m]['nmse_rss']
+            )
+            for r in all_results if m in r['methods']
+        ])
+        selection_nmse_sense = np.array([
+            r['methods'][m].get(
+                'canonical_nmse_sense', r['methods'][m]['nmse_sense']
+            )
+            for r in all_results if m in r['methods']
+        ])
         budget     = np.array([r['methods'][m]['budget_cols'] for r in all_results if m in r['methods']])
         nfe         = np.array([r['methods'][m].get('nfe', np.nan)
                                 for r in all_results if m in r['methods']])
+        runtime = np.array([
+            r['methods'][m]['runtime_s']
+            for r in all_results if m in r['methods']
+        ])
+        peak_memory = np.array([
+            r['methods'][m].get('peak_cuda_memory_mb', np.nan)
+            if r['methods'][m].get('peak_cuda_memory_mb') is not None
+            else np.nan
+            for r in all_results if m in r['methods']
+        ])
         summary[m] = {
             'psnr_rss_mean':   float(psnr_rss.mean()),   'psnr_rss_std':   float(psnr_rss.std()),
             'psnr_sense_mean': float(psnr_sense.mean()), 'psnr_sense_std': float(psnr_sense.std()),
             'ssim_rss_mean':   float(ssim_rss.mean()),   'ssim_rss_std':   float(ssim_rss.std()),
             'ssim_sense_mean': float(ssim_sense.mean()), 'ssim_sense_std': float(ssim_sense.std()),
+            'nmse_rss_mean':   float(nmse_rss.mean()),   'nmse_rss_std':   float(nmse_rss.std()),
+            'nmse_sense_mean': float(nmse_sense.mean()), 'nmse_sense_std': float(nmse_sense.std()),
+            'selection_psnr_rss_mean': float(selection_psnr_rss.mean()),
+            'selection_psnr_rss_std': float(selection_psnr_rss.std()),
+            'selection_psnr_sense_mean': float(selection_psnr_sense.mean()),
+            'selection_psnr_sense_std': float(selection_psnr_sense.std()),
+            'selection_ssim_rss_mean': float(selection_ssim_rss.mean()),
+            'selection_ssim_rss_std': float(selection_ssim_rss.std()),
+            'selection_ssim_sense_mean': float(selection_ssim_sense.mean()),
+            'selection_ssim_sense_std': float(selection_ssim_sense.std()),
+            'selection_nmse_rss_mean': float(selection_nmse_rss.mean()),
+            'selection_nmse_rss_std': float(selection_nmse_rss.std()),
+            'selection_nmse_sense_mean': float(selection_nmse_sense.mean()),
+            'selection_nmse_sense_std': float(selection_nmse_sense.std()),
+            'selection_metric_source': (
+                'system reconstruction'
+                if args.skip_canonical_replay
+                else 'canonical passive replay'
+            ),
             'budget_cols':     int(budget.mean()),
             'nfe_mean':        float(np.nanmean(nfe)),
+            'runtime_s_mean':  float(runtime.mean()),
+            'runtime_s_std':   float(runtime.std()),
+            'peak_cuda_memory_mb_mean': (
+                float(np.nanmean(peak_memory))
+                if bool(np.isfinite(peak_memory).any())
+                else None
+            ),
+            'peak_cuda_memory_mb_max': (
+                float(np.nanmax(peak_memory))
+                if bool(np.isfinite(peak_memory).any())
+                else None
+            ),
             'n':               int(len(psnr_rss)),
         }
-        volume_psnr = defaultdict(list)
-        volume_ssim = defaultdict(list)
+        volume_psnr_rss = defaultdict(list)
+        volume_ssim_rss = defaultdict(list)
+        volume_nmse_rss = defaultdict(list)
+        volume_psnr_sense = defaultdict(list)
+        volume_ssim_sense = defaultdict(list)
         for row in all_results:
             if m in row['methods']:
-                volume_psnr[row['volume']].append(
-                    row['methods'][m]['psnr_sense'])
-                volume_ssim[row['volume']].append(
-                    row['methods'][m]['ssim_sense'])
-        psnr_volume_means = np.array(
-            [np.mean(values) for values in volume_psnr.values()])
-        ssim_volume_means = np.array(
-            [np.mean(values) for values in volume_ssim.values()])
+                volume_psnr_rss[row['volume']].append(
+                    row['methods'][m].get(
+                        'canonical_psnr_rss',
+                        row['methods'][m]['psnr_rss'],
+                    ))
+                volume_ssim_rss[row['volume']].append(
+                    row['methods'][m].get(
+                        'canonical_ssim_rss',
+                        row['methods'][m]['ssim_rss'],
+                    ))
+                volume_nmse_rss[row['volume']].append(
+                    row['methods'][m].get(
+                        'canonical_nmse_rss',
+                        row['methods'][m]['nmse_rss'],
+                    ))
+                volume_psnr_sense[row['volume']].append(
+                    row['methods'][m].get(
+                        'canonical_psnr_sense',
+                        row['methods'][m]['psnr_sense'],
+                    ))
+                volume_ssim_sense[row['volume']].append(
+                    row['methods'][m].get(
+                        'canonical_ssim_sense',
+                        row['methods'][m]['ssim_sense'],
+                    ))
+        psnr_rss_volume_means = np.array(
+            [np.mean(values) for values in volume_psnr_rss.values()])
+        ssim_rss_volume_means = np.array(
+            [np.mean(values) for values in volume_ssim_rss.values()])
+        nmse_rss_volume_means = np.array(
+            [np.mean(values) for values in volume_nmse_rss.values()])
+        psnr_sense_volume_means = np.array(
+            [np.mean(values) for values in volume_psnr_sense.values()])
+        ssim_sense_volume_means = np.array(
+            [np.mean(values) for values in volume_ssim_sense.values()])
         summary[m].update({
-            'psnr_sense_volume_mean': float(psnr_volume_means.mean()),
-            'psnr_sense_volume_std': float(psnr_volume_means.std()),
-            'ssim_sense_volume_mean': float(ssim_volume_means.mean()),
-            'ssim_sense_volume_std': float(ssim_volume_means.std()),
-            'n_volumes': int(len(psnr_volume_means)),
+            'selection_psnr_rss_volume_mean': float(psnr_rss_volume_means.mean()),
+            'selection_psnr_rss_volume_std': float(psnr_rss_volume_means.std()),
+            'selection_ssim_rss_volume_mean': float(ssim_rss_volume_means.mean()),
+            'selection_ssim_rss_volume_std': float(ssim_rss_volume_means.std()),
+            'selection_nmse_rss_volume_mean': float(nmse_rss_volume_means.mean()),
+            'selection_nmse_rss_volume_std': float(nmse_rss_volume_means.std()),
+            'psnr_sense_volume_mean': float(psnr_sense_volume_means.mean()),
+            'psnr_sense_volume_std': float(psnr_sense_volume_means.std()),
+            'ssim_sense_volume_mean': float(ssim_sense_volume_means.mean()),
+            'ssim_sense_volume_std': float(ssim_sense_volume_means.std()),
+            'n_volumes': int(len(psnr_rss_volume_means)),
         })
         print(f'  {m:14s}  budget={int(budget.mean()):3d} cols  '
               f'NFE={np.nanmean(nfe):.1f}  '
               f'PSNR_RSS={psnr_rss.mean():.3f}±{psnr_rss.std():.3f}  '
               f'PSNR_SENSE={psnr_sense.mean():.3f}±{psnr_sense.std():.3f}  '
-              f'SSIM_RSS={ssim_rss.mean():.4f}  SSIM_SENSE={ssim_sense.mean():.4f}')
+              f'SSIM_RSS={ssim_rss.mean():.4f}  SSIM_SENSE={ssim_sense.mean():.4f}  '
+              f'SELECTION_RSS_PSNR={selection_psnr_rss.mean():.3f}')
         # PV diagnostics: K-divergence vs PiGDM and angular fraction of P
         kdiv = [r['methods'][m].get('K_div_mean')
                 for r in all_results if m in r['methods']
@@ -735,12 +1126,20 @@ def main():
             summary[m]['K_div_mean']      = float(kd.mean())
             summary[m]['P_ang_frac_mean'] = float(pa.mean())
 
-    # Cluster-aware paired inference: first average paired slice differences
+    # Cluster-aware primary inference on RSS-target PSNR: first average paired
+    # slice differences
     # within each volume, then apply Wilcoxon across independent volumes.
     # Per-slice p-values would pseudoreplicate adjacent anatomy.
     try:
         from scipy.stats import wilcoxon
-        candidates = ['pv_active', 'energy_active', 'oracle_active']
+        candidates = [
+            'operator_diag_active',
+            'sketch_marginal_active',
+            'sketch_logdet_active',
+            'pv_active',
+            'energy_active',
+            'oracle_active',
+        ]
         baselines  = ['static_match', 'random_adaptive', 'equi_adaptive']
         for cand in candidates:
             if cand not in summary:
@@ -752,8 +1151,14 @@ def main():
                 for row in all_results:
                     if cand in row['methods'] and ref in row['methods']:
                         paired_by_volume[row['volume']].append(
-                            row['methods'][cand]['psnr_sense']
-                            - row['methods'][ref]['psnr_sense'])
+                            row['methods'][cand].get(
+                                'canonical_psnr_rss',
+                                row['methods'][cand]['psnr_rss'],
+                            )
+                            - row['methods'][ref].get(
+                                'canonical_psnr_rss',
+                                row['methods'][ref]['psnr_rss'],
+                            ))
                 if not paired_by_volume:
                     continue
                 d = np.array([
@@ -763,11 +1168,16 @@ def main():
                     stat, pval = wilcoxon(d, alternative='greater')
                 except ValueError:
                     pval = float('nan')
-                print(f'  {cand:14s} − {ref:15s}  ΔSENSE={d.mean():+.3f}±{d.std():.3f} dB '
+                ci_low, ci_high = _paired_bootstrap_mean_ci(
+                    d,
+                    seed=args.seed + 91,
+                )
+                print(f'  {cand:14s} − {ref:15s}  ΔRSS={d.mean():+.3f}±{d.std():.3f} dB '
                       f'(n_volumes={len(d)}, Wilcoxon p={pval:.2e})')
                 summary[f'_{cand}_vs_{ref}'] = {
-                    'delta_psnr_sense_mean': float(d.mean()),
-                    'delta_psnr_sense_std':  float(d.std()),
+                    'delta_selection_psnr_rss_mean': float(d.mean()),
+                    'delta_selection_psnr_rss_std':  float(d.std()),
+                    'paired_bootstrap_95ci': [ci_low, ci_high],
                     'wilcoxon_p_greater':    float(pval),
                     'n_volumes':             int(len(d)),
                 }
@@ -777,7 +1187,32 @@ def main():
     out_json = os.path.join(args.output_dir, 'results.json')
     with open(out_json, 'w') as f:
         json.dump({
+            'status': 'CORRECTED_RUN_UNREVIEWED',
             'config': vars(args),
+            'protocol': {
+                'primary_selection_metric': (
+                    'system reconstruction'
+                    if args.skip_canonical_replay
+                    else 'canonical single-trajectory replay of the final mask'
+                ),
+                'system_and_selection_metrics_separated': True,
+                'dataset_revision_complete': (
+                    args.dataset_revision != 'unspecified'
+                ),
+                'input_hashes_complete': not args.skip_file_hashes,
+            },
+            'environment': {
+                'torch_version': torch.__version__,
+                'cuda_version': torch.version.cuda,
+                'device': str(device),
+                'device_name': (
+                    torch.cuda.get_device_name(device)
+                    if device.type == 'cuda'
+                    else str(device)
+                ),
+            },
+            'git_commit': subprocess_git_commit(),
+            'volume_manifest': volume_manifest,
             'per_slice': all_results,
             'summary': summary,
         }, f, indent=2)

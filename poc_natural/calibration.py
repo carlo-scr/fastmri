@@ -115,7 +115,7 @@ def main():
         for npb in args.probes:
             sp = DenoiserStats(); dp = EpsDenoiser(unet, abar, sp)
             probe_gen = torch.Generator(device="cpu").manual_seed(
-                args.seed + 3_000_001 + b0 + npb
+                args.seed + 3_000_001 + b0
             )
             sig = pv_estimate(dp, xt, t, n_probes=npb,
                               pool_block=block,

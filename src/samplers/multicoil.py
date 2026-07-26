@@ -65,8 +65,9 @@ def run_pigdm_mc(
         sense_op: MultiCoilSENSE operator (mask + sens + per-coil σ_c^2).
         sigma_schedule: descending noise schedule (T,).
         denoiser_fn: callable(complex [H,W], σ) -> complex [H,W].
-        sigma_y: if given, override per-coil σ_c^2 with a scalar (true ΠGDM
-            isotropic baseline). If None we use sense_op.sigma_c_sq directly.
+        sigma_y: if given, the isotropic complex-noise standard deviation
+            ``sqrt(E|n|^2)``; its square overrides every per-coil total complex
+            variance. If None we use ``sense_op.sigma_c_sq`` directly.
     """
     torch.manual_seed(seed)
     Nc, H, W = y_mc.shape
@@ -139,8 +140,8 @@ def run_fakgd_mc(
     Args:
         y_mc: Multi-coil k-space (Nc,H,W).
         sense_op: MultiCoilSENSE operator (mask, sens, σ_c^2).
-        sigma_i_sq_init: (H,W) per-frequency variance map (shared across
-            coils). The effective per-(coil,freq) variance is
+        sigma_i_sq_init: (H,W) total complex variance ``E|n_i|^2`` map
+            (shared across coils). The effective per-(coil,freq) variance is
                 σ_{c,i}^2 = σ_i^2(r) · (σ_c^2 / mean(σ_c^2))
             i.e. the per-coil scalar modulates the per-frequency profile.
         Other args identical to single-coil run_fakgd.

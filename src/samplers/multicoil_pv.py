@@ -43,6 +43,13 @@ import torch
 from typing import Callable, Optional
 
 from .mri_forward import fft2c, ifft2c, build_radius_grid
+from .operator_sketch import (
+    build_atom_information,
+    conditional_atom_scores,
+    diagonal_atom_scores,
+    greedy_logdet_select,
+    sketch_operator_posterior_covariance,
+)
 from .sense import MultiCoilSENSE
 from .posterior_var import estimate_posterior_variance_kspace
 
@@ -50,6 +57,15 @@ from .posterior_var import estimate_posterior_variance_kspace
 def _complex_randn(H, W, device):
     """EDM noise with std σ per real network channel when multiplied by σ."""
     return torch.randn(H, W, device=device) + 1j * torch.randn(H, W, device=device)
+
+
+def _probe_generator(seed: int, step: int) -> torch.Generator:
+    """Counter-based probe stream shared by gate-on/off ablations."""
+    probe_seed = int(
+        (int(seed) * 1_000_003 + int(step) * 104_729 + 17)
+        % (2**63 - 1)
+    )
+    return torch.Generator(device="cpu").manual_seed(probe_seed)
 
 
 def build_active_schedule(
@@ -198,7 +214,7 @@ def run_fakgd_mc_pv(
     sigma_schedule: torch.Tensor,
     denoiser_fn: Callable[[torch.Tensor, float], torch.Tensor],
     # noise model
-    sigma_i_sq_init: torch.Tensor,
+    sigma_i_sq_init: torch.Tensor,       # total complex variance E|n_i|^2
     eps: float = 1e-8,
     # (A) posterior-variance gating
     use_pv_gate: bool = True,
@@ -206,7 +222,7 @@ def run_fakgd_mc_pv(
     pv_radial_smooth: bool = True,
     pv_radial_degree: int = 4,
     pv_centered: bool = True,
-    pv_normalize: bool = True,            # rescale P̂ so its mean ≈ σ_t²
+    pv_normalize: bool = True,            # rescale mean(P̂) to 2σ_t²
     pv_n_probes: int = 1,
     # (B) in-loop sens refinement
     refine_sens: bool = True,
@@ -219,7 +235,10 @@ def run_fakgd_mc_pv(
     active_rounds: int = 1,               # split across this many timesteps (>=1)
     active_after_frac: float = 0.5,       # first round at this fraction of T
     active_until_frac: float = 0.85,      # last round at this fraction of T
-    active_score: str = "pv",             # legacy pv | random | equispaced
+    active_score: str = "pv",             # legacy pv | operator/sketch policies
+    sketch_rank: int = 4,
+    sketch_fd_step: float = 5e-2,
+    sketch_psd_rtol: float = 1e-6,
     y_mc_full: Optional[torch.Tensor] = None,   # full k-space (Nc,H,W) for retrospective query
     x_gt: Optional[torch.Tensor] = None,
     seed: int = 0,
@@ -264,9 +283,8 @@ def run_fakgd_mc_pv(
 
     psnr_traj = []
     diagnostics = {"P_maps": {}, "K_maps": {}, "sens_iters": [],
-                   "active_cols": [], "num_lines_per_step": []}
-    gen_probe = torch.Generator(device="cpu").manual_seed(seed + 991)
-
+                   "active_cols": [], "num_lines_per_step": [],
+                   "operator_sketches": []}
     for step in range(T):
         sigma_t = sigma_schedule[step].item()
         mu = denoiser_fn(x_t, sigma_t)                  # (H,W)
@@ -281,7 +299,7 @@ def run_fakgd_mc_pv(
                 radial_smooth=pv_radial_smooth,
                 radial_degree=pv_radial_degree,
                 n_probes=pv_n_probes,
-                generator=gen_probe,
+                generator=_probe_generator(seed, step),
             )                                            # (H,W) real positive
             if pv_normalize:
                 # Rescale so mean(P) is the total complex prior variance
@@ -322,6 +340,10 @@ def run_fakgd_mc_pv(
                 cutoff_frac=sens_lp_cutoff, blend=sens_blend,
             )
             inv_sumS2 = 1.0 / ((sens.abs() ** 2).sum(dim=0) + sense_op.eps)
+            # An acquisition can fire on the same step. Its immediate
+            # correction must use the refreshed forward operator as well as
+            # the refreshed adjoint/normalization.
+            mu_kc = fft2c(sens * mu.unsqueeze(0))
             if return_diagnostics:
                 diagnostics["sens_iters"].append(step)
 
@@ -334,22 +356,115 @@ def run_fakgd_mc_pv(
             k = min(n_lines_now, n_avail)
             new_cols: list = []
             if k > 0:
-                if active_score == "pv" and P is None:
-                    # Selection-only mode (gate off): compute the PV estimate
-                    # on demand, only at acquisition rounds. Costs
-                    # 2*pv_n_probes denoiser calls per round instead of per
-                    # step; the DC gain stays the scalar FA-KGD/PiGDM one.
-                    P, _ = estimate_posterior_variance_kspace(
-                        x_t=x_t, mu=mu, sigma_t=sigma_t,
-                        denoiser_fn=denoiser_fn,
-                        eps_probe=pv_eps_probe,
+                if active_score in {
+                    "operator_diag", "sketch_marginal", "sketch_logdet"
+                }:
+                    # Full unmasked SENSE candidate bank B_c x = F(S_c x).
+                    # The pullback is the true Hilbert adjoint, not the
+                    # normalized/masked MultiCoilSENSE.adjoint pseudoinverse.
+                    def candidate_forward(value):
+                        return fft2c(sens * value.unsqueeze(0))
+
+                    def candidate_adjoint(value):
+                        return (
+                            torch.conj(sens) * ifft2c(value)
+                        ).sum(dim=0)
+
+                    measurement_template = candidate_forward(mu)
+                    sketch = sketch_operator_posterior_covariance(
+                        x_t=x_t,
+                        mu=mu,
+                        sigma_t=sigma_t,
+                        denoiser=denoiser_fn,
+                        forward=candidate_forward,
+                        adjoint=candidate_adjoint,
+                        measurement_template=measurement_template,
+                        num_probes=sketch_rank,
+                        fd_step=sketch_fd_step,
                         centered=pv_centered,
-                        radial_smooth=pv_radial_smooth,
-                        radial_degree=pv_radial_degree,
-                        n_probes=pv_n_probes,
-                        generator=gen_probe,
+                        generator=_probe_generator(seed + 8_000_003, step),
+                        psd_rtol=sketch_psd_rtol,
                     )
-                if active_score == "pv" and P is not None:
+                    atom_ids = torch.arange(
+                        W, device=device, dtype=torch.long
+                    ).view(1, 1, W).expand(Nc, H, W)
+                    if active_score == "operator_diag":
+                        score_per_col = diagonal_atom_scores(
+                            sketch,
+                            atom_ids,
+                            sig_ci_sq,
+                            num_atoms=W,
+                            complex_noise_is_total=True,
+                            source="hutchinson",
+                        )
+                        new_cols = _topk_available(
+                            score_per_col, avail_idx, k
+                        )
+                        selected_gains = [
+                            float(score_per_col[c].item()) for c in new_cols
+                        ]
+                    else:
+                        atom_information = build_atom_information(
+                            sketch,
+                            atom_ids,
+                            sig_ci_sq,
+                            num_atoms=W,
+                            complex_noise_is_total=True,
+                        )
+                        if active_score == "sketch_marginal":
+                            observed_idx = torch.nonzero(
+                                mask_col > 0.5, as_tuple=False
+                            ).flatten()
+                            conditioned_scores = conditional_atom_scores(
+                                atom_information,
+                                conditioned_on=observed_idx,
+                            )
+                            new_cols = _topk_available(
+                                conditioned_scores,
+                                avail_idx,
+                                k,
+                            )
+                            selected_gains = [
+                                float(
+                                    conditioned_scores[c].item()
+                                )
+                                for c in new_cols
+                            ]
+                        else:
+                            observed_idx = torch.nonzero(
+                                mask_col > 0.5, as_tuple=False
+                            ).flatten()
+                            new_cols, selected_gains = greedy_logdet_select(
+                                atom_information,
+                                k,
+                                eligible=avail_idx,
+                                conditioned_on=observed_idx,
+                            )
+                    if return_diagnostics:
+                        diagnostics["operator_sketches"].append({
+                            "step": int(step),
+                            "sigma_t": float(sigma_t),
+                            "policy": active_score,
+                            "selected_cols": [int(c) for c in new_cols],
+                            "selected_gains": [
+                                float(g) for g in selected_gains
+                            ],
+                            **sketch.diagnostics,
+                        })
+                elif active_score == "pv":
+                    if P is None:
+                        # Selection-only mode (gate off): compute the legacy
+                        # Fourier score on demand at acquisition rounds.
+                        P, _ = estimate_posterior_variance_kspace(
+                            x_t=x_t, mu=mu, sigma_t=sigma_t,
+                            denoiser_fn=denoiser_fn,
+                            eps_probe=pv_eps_probe,
+                            centered=pv_centered,
+                            radial_smooth=pv_radial_smooth,
+                            radial_degree=pv_radial_degree,
+                            n_probes=pv_n_probes,
+                            generator=_probe_generator(seed, step),
+                        )
                     score_per_col = (P / (sigma_i_sq + eps)).sum(dim=0)
                     new_cols = _topk_available(score_per_col, avail_idx, k)
                 elif active_score == "energy":
@@ -510,15 +625,15 @@ def run_ensemble_active_mc(
     y_mc_full: Optional[torch.Tensor] = None,
     seed: int = 0,
 ) -> dict:
-    """ADS/AdaSense-style ensemble reference for multi-coil MRI.
+    """Shared-pipeline particle-covariance reference for multi-coil MRI.
 
     N parallel PiGDM particle trajectories (scalar gain, no PV gate) share the
     measurement state; at each acquisition round, unscanned k-space columns are
     scored by the CROSS-PARTICLE variance of the particles' predicted coil
-    k-space (Tweedie means pushed through the forward model) --- the
-    measurement-space disagreement signal that ADS (Nolan et al., TMLR 2025)
-    and AdaSense (Elata et al., ECCV 2024) obtain from posterior-sample
-    ensembles. Reconstruction = complex mean of the particle recons.
+    k-space (Tweedie means pushed through the forward model). This isolates a
+    measurement-space disagreement mechanism inspired by ADS and AdaSense; it
+    is not a faithful reproduction of either published algorithm.
+    Reconstruction = complex mean of the particle recons.
     NFE = n_particles * T. `active_score="random"` isolates the pure
     particle-averaging benefit (selection value = variance minus random).
     """
