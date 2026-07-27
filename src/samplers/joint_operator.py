@@ -20,16 +20,27 @@ known-operator design.  For one local Gaussian it reports
 
 The last quantity is the optimistic score implicitly used by an acquisition
 method that ignores calibration uncertainty.
+
+For a finite branch mixture, the H1 target utility treats the target as
+``(branch label, selected target-state rows)``.  It marginalizes nuisance
+directions analytically within each branch, estimates only branch-label
+information in the ordinary RaoSense sufficient subspace, and exposes
+certified lower/upper bounds for safe one-step screening.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
-from typing import Callable, Sequence
+from typing import Callable, Mapping, Sequence
 
 import torch
 
 from .operator_sketch import real_flatten
-from .rao_belief import DiffusionBeliefBranch
+from .rao_belief import DiffusionBeliefBranch, RaoBlackwellizedBelief
+
+_ActionNoise = (
+    float | torch.Tensor | Mapping[int, float | torch.Tensor]
+)
 
 
 @dataclass(frozen=True)
@@ -40,6 +51,45 @@ class TargetInformationDiagnostic:
     known_operator_optimism: float
     target_rank: int
     nuisance_rank: int
+
+
+@dataclass(frozen=True)
+class MixtureTargetInformationBounds:
+    """Analytic bounds on ``I((Z, X_target); Y_action)``.
+
+    The lower bound is the weight-averaged, within-branch Gaussian target
+    information.  The upper bound adds at most the smaller of categorical
+    branch entropy and the remaining joint moment-Gaussian information.
+    """
+
+    lower: float
+    upper: float
+    gaussian_upper: float
+    mode_upper: float
+    entropy_cap: float
+    sufficient_rank: int
+    scalar_measurements: int
+
+
+@dataclass(frozen=True)
+class MixtureTargetInformationEstimate:
+    """Monte Carlo estimate of ``I((Z, X_target); Y_action)``."""
+
+    total: float
+    within_target: float
+    mode: float
+    standard_error: float
+    num_samples: int
+    sufficient_rank: int
+
+
+@dataclass(frozen=True)
+class TargetActionEvaluation:
+    """One H1 target-information screening decision."""
+
+    action: int
+    bounds: MixtureTargetInformationBounds
+    safely_pruned: bool
 
 
 def augment_branch_with_nuisance(
@@ -177,6 +227,8 @@ def gaussian_target_information(
     The target information follows from the difference between marginal
     measurement entropy and measurement entropy conditional on ``X``.
     """
+    if not math.isfinite(rank_tolerance) or rank_tolerance < 0:
+        raise ValueError("rank_tolerance must be finite and nonnegative")
     if branch.state_mean is None or branch.state_factor is None:
         raise ValueError("branch must carry joint state factors")
     measurement_indices = _indices(
@@ -241,6 +293,162 @@ def gaussian_target_information(
         target_rank=target_rank,
         nuisance_rank=nuisance_rank,
     )
+
+
+def mixture_target_information_bounds(
+    belief: RaoBlackwellizedBelief,
+    indices: Sequence[int] | torch.Tensor,
+    noise_variance: float | torch.Tensor,
+    *,
+    target_state_rows: Sequence[int] | torch.Tensor,
+    rank_tolerance: float = 1e-7,
+) -> MixtureTargetInformationBounds:
+    """Bound target information while marginalizing within-branch nuisance.
+
+    The target is explicitly the pair ``(Z, X_target)``.  Consequently,
+    information that distinguishes branch labels counts as useful even when
+    two branches induce overlapping target-state distributions.  Callers
+    should not use this objective when ``Z`` encodes nuisance-only hypotheses
+    that are not part of the desired target.
+
+    Within a branch, every coefficient direction not identified by
+    ``target_state_rows`` is marginalized as nuisance.  Across branches, the
+    ordinary RaoSense predictive mixture supplies ``I(Z; Y)``.  The returned
+    upper bound is
+
+    ``min(joint_moment_gaussian_upper, lower + H(Z))``.
+
+    The joint moment bound includes nuisance-driven predictive variance and
+    can therefore be loose, but it remains a valid upper bound on target
+    information under the frozen mixture surrogate.
+    """
+    if belief.state_dimension is None:
+        raise ValueError("belief must carry aligned state factors")
+    if not math.isfinite(rank_tolerance) or rank_tolerance < 0:
+        raise ValueError("rank_tolerance must be finite and nonnegative")
+
+    within_target = 0.0
+    for weight, branch in zip(belief.weights, belief.branches):
+        branch_weight = float(weight.item())
+        if branch_weight == 0.0:
+            continue
+        diagnostic = gaussian_target_information(
+            branch,
+            indices,
+            noise_variance,
+            target_state_rows=target_state_rows,
+            # Target information already marginalizes every coefficient
+            # direction in the target factor's null space.  No explicit
+            # nuisance rows are needed for this quantity.
+            nuisance_state_rows=(),
+            rank_tolerance=rank_tolerance,
+        )
+        within_target += branch_weight * diagnostic.target_information
+
+    joint_bounds = belief.information_bounds(indices, noise_variance)
+    # In exact arithmetic the full-state moment upper bound dominates target
+    # information.  Protect that ordering against null-space/logdet roundoff.
+    gaussian_upper = max(joint_bounds.gaussian_upper, within_target)
+    entropy = joint_bounds.entropy_cap
+    mode_upper = min(max(0.0, gaussian_upper - within_target), entropy)
+    upper = within_target + mode_upper
+    return MixtureTargetInformationBounds(
+        lower=within_target,
+        upper=upper,
+        gaussian_upper=gaussian_upper,
+        mode_upper=mode_upper,
+        entropy_cap=entropy,
+        sufficient_rank=joint_bounds.sufficient_rank,
+        scalar_measurements=joint_bounds.scalar_measurements,
+    )
+
+
+def estimate_mixture_target_information(
+    belief: RaoBlackwellizedBelief,
+    indices: Sequence[int] | torch.Tensor,
+    noise_variance: float | torch.Tensor,
+    *,
+    target_state_rows: Sequence[int] | torch.Tensor,
+    rank_tolerance: float = 1e-7,
+    num_samples: int = 256,
+    generator: torch.Generator | None = None,
+) -> MixtureTargetInformationEstimate:
+    """Estimate ``I((Z, X_target); Y_action)`` under the mixture belief.
+
+    Within-branch target information is analytic.  Monte Carlo is used only
+    for the same projected branch-label term ``I(Z; Y)`` as ordinary
+    RaoSense.  The estimate is unbiased under the exact frozen surrogate and
+    exact sufficient projection; ``standard_error`` covers only that mode
+    Monte Carlo term and is not a selection-adjusted confidence interval.
+    """
+    bounds = mixture_target_information_bounds(
+        belief,
+        indices,
+        noise_variance,
+        target_state_rows=target_state_rows,
+        rank_tolerance=rank_tolerance,
+    )
+    joint_estimate = belief.estimate_information(
+        indices,
+        noise_variance,
+        num_samples=num_samples,
+        generator=generator,
+    )
+    return MixtureTargetInformationEstimate(
+        total=bounds.lower + joint_estimate.mode,
+        within_target=bounds.lower,
+        mode=joint_estimate.mode,
+        standard_error=joint_estimate.standard_error,
+        num_samples=joint_estimate.num_samples,
+        sufficient_rank=joint_estimate.sufficient_rank,
+    )
+
+
+def screen_target_information_actions(
+    belief: RaoBlackwellizedBelief,
+    actions: Mapping[int, Sequence[int] | torch.Tensor],
+    noise_variance: _ActionNoise,
+    *,
+    target_state_rows: Sequence[int] | torch.Tensor,
+    rank_tolerance: float = 1e-7,
+    tolerance: float = 1e-10,
+) -> tuple[tuple[int, ...], tuple[TargetActionEvaluation, ...]]:
+    """Safely prune H1 actions using target-information bounds.
+
+    An action is removed only when its target-information upper bound is
+    strictly below another action's lower bound (up to ``tolerance``).  This
+    certificate is for the frozen-surrogate, one-step, zero-cost information
+    objective only; it is not a horizon-two or reconstruction-utility bound.
+    """
+    if not actions:
+        raise ValueError("at least one action is required")
+    if not math.isfinite(tolerance) or tolerance < 0:
+        raise ValueError("tolerance must be finite and nonnegative")
+    bounds = {
+        action: mixture_target_information_bounds(
+            belief,
+            indices,
+            _action_noise(noise_variance, action),
+            target_state_rows=target_state_rows,
+            rank_tolerance=rank_tolerance,
+        )
+        for action, indices in sorted(actions.items())
+    }
+    best_lower = max(value.lower for value in bounds.values())
+    survivors = tuple(
+        action
+        for action in sorted(actions)
+        if bounds[action].upper + tolerance >= best_lower
+    )
+    evaluations = tuple(
+        TargetActionEvaluation(
+            action=action,
+            bounds=bounds[action],
+            safely_pruned=action not in survivors,
+        )
+        for action in sorted(actions)
+    )
+    return survivors, evaluations
 
 
 def _indices(
@@ -320,3 +528,14 @@ def _null_basis(
     else:
         rank = 0
     return right[rank:].T, rank
+
+
+def _action_noise(
+    noise_variance: _ActionNoise,
+    action: int,
+) -> float | torch.Tensor:
+    if isinstance(noise_variance, Mapping):
+        if action not in noise_variance:
+            raise KeyError(f"missing noise variance for action {action}")
+        return noise_variance[action]
+    return noise_variance

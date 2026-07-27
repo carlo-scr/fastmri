@@ -725,15 +725,107 @@ nuisance means.  It uses forward-operator calls but no denoiser calls.
   independent block factor.
 - `test_nuisance_forward_factor_matches_analytic_jacobian` checks the finite
   difference against \(J_\phi U_\phi\).
-- The routine is for **one Gaussian branch**.  It does not include
-  branch-label information or compute mixture target information.
+- The diagnostic itself is for **one Gaussian branch**.  The mixture utility
+  below combines its target term with branch-label information.
 - `joint_information` is literally \(I(\xi;Y)\).  Calling it information
   about the complete represented state additionally requires that discarded
   coefficient directions cannot affect measurements; a sufficient condition
   is that the complete state factor has full column rank.
-- `rank_tolerance` controls numerical null spaces but is not validated as
-  positive.  Near the threshold, target and nuisance information can change
-  discontinuously.
+- `rank_tolerance` controls numerical null spaces and is validated as finite
+  and nonnegative.  Near the threshold, target and nuisance information can
+  still change discontinuously.
+
+### 9.1 Mixture target information with nuisance marginalized
+
+For branch \(k\), let \(X_k\) denote the selected target-state rows and let
+all coefficient directions in the null space of its target factor remain
+unobserved nuisance.  The mixture-level target is explicitly
+\[
+ T=(Z,X_Z).
+\]
+Including \(Z\) is a semantic choice: distinguishing two branch labels is
+valuable under this objective even if their physical target-state
+distributions overlap.
+
+**Theorem 8 (mixture target decomposition and sandwich).**  Define
+\[
+ L_a^{\mathrm{target}}
+ =
+ \sum_k w_k I(X_k;Y_a\mid Z=k),
+\]
+where every within-branch term is given by Theorem 7.  Then
+\[
+ I(T;Y_a)
+ =
+ L_a^{\mathrm{target}}+I(Z;Y_a).
+\]
+If \(U_a^{\mathrm G}\) is the moment-Gaussian upper bound computed from the
+complete predictive measurement mixture, then
+\[
+ L_a^{\mathrm{target}}
+ \leq I(T;Y_a)
+ \leq
+ \min\left\{
+ U_a^{\mathrm G},
+ L_a^{\mathrm{target}}+H(w)
+ \right\}.
+\]
+
+**Proof sketch.**  The equality is the chain rule
+\[
+ I(Z,X_Z;Y_a)=I(Z;Y_a)+I(X_Z;Y_a\mid Z).
+\]
+The second conditional term is the weight-averaged one-branch target
+information.  Nonnegativity of \(I(Z;Y_a)\) gives the lower bound and
+\(I(Z;Y_a)\leq H(w)\) gives the entropy upper bound.  Finally,
+\((Z,X_Z)\) is a function of the complete branch latent
+\((Z,\xi_Z)\), so data processing and Theorem 2 give
+\[
+ I(Z,X_Z;Y_a)
+ \leq I(Z,\xi_Z;Y_a)
+ \leq U_a^{\mathrm G}.
+\]
+
+The moment-Gaussian term contains all predictive variance, including
+nuisance-only variance, and can therefore be loose for a target-specific
+objective.  It remains valid.  For \(K=1\), \(H(w)=0\), so the entropy cap
+makes both bounds equal the exact one-branch target information even when
+the measurement contains substantial nuisance variance.
+
+Sampling the projected information density from Theorem 1 estimates only
+\(I(Z;Y_a)\).  Adding its sample mean to
+\(L_a^{\mathrm{target}}\) gives an unbiased estimator of
+\(I(T;Y_a)\) under the exact frozen surrogate and exact sufficient
+projection.  Its reported standard error covers only this mode term.
+
+**Corollary 8.1 (safe target-information H1 screening).**  If
+\[
+ U_a^{\mathrm{target}}
+ <
+ \max_b L_b^{\mathrm{target}},
+\]
+then action \(a\) cannot maximize the one-step target information
+\(I(T;Y_a)\).  The proof is identical to Corollary 2.1.
+
+**Implementation and evidence.**
+
+- `mixture_target_information_bounds` returns the analytic lower bound and
+  the minimum of the complete moment-Gaussian and entropy upper bounds.
+- `estimate_mixture_target_information` reuses the ordinary Rao projected
+  mixture estimator for \(I(Z;Y_a)\); no nuisance Monte Carlo is required.
+- `screen_target_information_actions` implements Corollary 8.1 for H1.
+- `test_mixture_target_information_reduces_to_single_branch_analytic` checks
+  a scalar image-plus-nuisance channel and prunes a nuisance-only action.
+- `test_mixture_target_information_adds_two_mode_information` checks that a
+  separated two-mode mixture approaches the analytic within-target term plus
+  categorical entropy.
+- No target-specific H2 planner is implemented.  H1 screening must not be
+  reused as a horizon-two root screen, and target-row semantics would need to
+  remain fixed and meaningful after every fantasy update.
+- If branch labels represent nuisance-only hypotheses rather than
+  target-relevant modes, the explicit target \((Z,X_Z)\) overcounts the
+  desired physical target information.  In that setting a label-marginalized
+  \(I(X;Y)\) objective is different and is not implemented here.
 
 ## 10. Claim and evidence matrix
 
@@ -748,7 +840,8 @@ nuisance means.  It uses forward-operator calls but no denoiser calls.
 | PSD posterior factors | Proved | Implemented by factor form and eigenvalue floor | Implicit covariance comparison | Does not imply diffusion calibration |
 | Gaussian no-adaptivity | Proved under frozen linear-Gaussian assumptions | Algebra is consistent | No dedicated test | Use as motivation for retaining modes, not as an empirical result |
 | Horizon-two root regret | Conditional theorem only | No confidence-certified selection | Functional router test only | Do not claim a finite-sample regret guarantee yet |
-| Joint Gaussian target information | Proved, Theorem 7 | Implemented | Scalar analytic test | One branch only |
+| Joint Gaussian target information | Proved, Theorem 7 | Implemented | Scalar analytic test | One-branch diagnostic |
+| Mixture target information \(I((Z,X);Y)\) | Proved, Theorem 8 | Implemented for H1 | Single-branch analytic and two-mode tests | Branch label must be target-relevant |
 | Nonnegative known-operator optimism | Proved only for independent target/nuisance | Independence created by augmentation, not checked by diagnostic | Independent scalar test only | State the independence assumption beside the claim |
 | Diffusion posterior calibration | Not proved | Factors are supplied by external sketch code | Requires experiments | Present as an empirical hypothesis |
 | Better reconstruction or cross-domain generalization | Not implied by theory | Runners exist | Requires locked benchmark evidence | Do not infer from these algebraic tests |
@@ -770,10 +863,9 @@ following additions are required before stronger planning claims are safe.
    errors, fantasy value, and root-selection error.
 6. Add a correlated image/nuisance counterexample test so that future edits
    cannot silently assume “optimism” is always nonnegative.
-7. For a joint mixture acquisition objective, derive and implement target
-   information that includes both branch labels and within-branch
-   image/nuisance coupling; the current one-branch diagnostic is not that
-   objective.
+7. Before extending target information to H2, specify whether branch labels
+   are part of the scientific target, keep target rows stable through
+   conditioning, and add exhaustive small-bank fantasy-tree tests.
 
 These gaps do not invalidate the exact finite-mixture algebra.  They delimit
 which parts are presently theorem-backed and which remain experimental
