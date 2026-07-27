@@ -1,4 +1,4 @@
-"""Multi-coil reconstruction with legacy PVAS and active-line baselines.
+"""Multi-coil reconstruction with active-line diffusion baselines.
 
 Sister script to ``scripts/reconstruct.py``. Operates on raw multi-coil
 k-space from fastMRI brain (and similar), and supports the full
@@ -18,6 +18,10 @@ Methods (``--methods`` list, any subset):
                 : PSD operator sketch scored one line at a time
   sketch_logdet_active
                 : PSD operator sketch with correlation-aware joint batches
+  raosense_greedy_active
+                : multimodal local-tangent belief with one-step information
+  raosense_h2_active
+                : operator-sufficient, outcome-contingent two-step planning
   static_match : ΠGDM-MC at the matched-budget static mask (a fair
                  baseline for the active runs; budget = R-mask + active_lines)
 
@@ -69,6 +73,7 @@ from src.samplers.multicoil_pv import (
     random_complement_order,
     run_ensemble_active_mc,
     run_fakgd_mc_pv,
+    run_raosense_active_mc,
 )
 from src.models.edm_loader import load_edm_model, EDMDenoiser
 from src.utils.metrics import (
@@ -560,6 +565,7 @@ def run_slice(
         runtime,
         diagnostics=None,
         nfe_start=None,
+        nfe_override=None,
         final_mask=None,
     ):
         rec_mag = recon.abs() if torch.is_complex(recon) else recon
@@ -591,7 +597,9 @@ def run_slice(
             'runtime_s':   float(runtime),
             'peak_cuda_memory_mb': _peak_memory_mb(),
         }
-        if nfe_start is not None and hasattr(denoiser, 'nfe'):
+        if nfe_override is not None:
+            rec['nfe'] = int(nfe_override)
+        elif nfe_start is not None and hasattr(denoiser, 'nfe'):
             rec['nfe'] = int(denoiser.nfe) - int(nfe_start)
         if final_mask is not None:
             selected_columns = torch.nonzero(
@@ -626,6 +634,34 @@ def run_slice(
                 rec['sketch_negative_mass_mean'] = float(np.mean([
                     row['core_negative_mass'] for row in sketch_rows
                 ]))
+            rao_rows = diagnostics.get('acquisitions') or []
+            if rao_rows:
+                rec['rao_acquisition_rounds'] = len(rao_rows)
+                rec['rao_effective_sample_size_mean'] = float(np.mean([
+                    row['effective_sample_size'] for row in rao_rows
+                ]))
+                rec['rao_effective_sample_size_min'] = float(np.min([
+                    row['effective_sample_size'] for row in rao_rows
+                ]))
+                rec['rao_between_mode_fraction_mean'] = float(np.mean([
+                    row['between_mode_fraction'] for row in rao_rows
+                ]))
+                rec['rao_between_mode_fraction_max'] = float(np.max([
+                    row['between_mode_fraction'] for row in rao_rows
+                ]))
+                rec['rao_expected_future_information_mean'] = float(np.mean([
+                    row['expected_future_information'] for row in rao_rows
+                ]))
+                rec['rao_safely_pruned_nodes'] = int(sum(
+                    row.get('safely_pruned_nodes', 0) for row in rao_rows
+                ))
+                rec['rao_candidate_cap_pruned'] = int(sum(
+                    row.get('candidate_cap_pruned', 0) for row in rao_rows
+                ))
+                rec['rao_nfe_base'] = int(diagnostics.get('nfe_base', 0))
+                rec['rao_nfe_tangent'] = int(
+                    diagnostics.get('nfe_tangent', 0)
+                )
         out['methods'][name] = rec
 
     def _actual_cols(result, fallback):
@@ -914,6 +950,58 @@ def run_slice(
                 _elapsed(t0), nfe_start=nfe0,
                 final_mask=r.get('mask_final'))
 
+    # ---- RaoSense (paired H1/H2 operator-sufficient mixture policies) ----
+    # Both variants restart from the same deterministic branch/probe streams.
+    # Their only intended difference is the planning horizon.
+    rao_methods = {
+        'raosense_greedy_active': 1,
+        'raosense_h2_active': 2,
+    }
+    for method_name, planning_horizon in rao_methods.items():
+        if method_name not in args.methods or args.active_lines <= 0:
+            continue
+        _reset_peak_memory()
+        t0 = time.time()
+        r = run_raosense_active_mc(
+            y_mc=y_R,
+            sense_op=sense_op,
+            sigma_schedule=sigma_schedule,
+            denoiser_fn=denoiser,
+            sigma_i_sq_init=sigma_i_sq,
+            n_branches=args.rao_branches,
+            tangent_rank=args.rao_tangent_rank,
+            active_lines=args.active_lines,
+            active_rounds=args.active_rounds,
+            active_after_frac=args.active_after_frac,
+            active_until_frac=args.active_until_frac,
+            planning_horizon=planning_horizon,
+            beam_width=args.rao_beam_width,
+            num_fantasies=args.rao_fantasies,
+            information_samples=args.rao_information_samples,
+            planner_candidate_cap=(
+                None
+                if args.rao_candidate_cap == 0
+                else args.rao_candidate_cap
+            ),
+            use_belief_correction=(
+                not args.rao_disable_belief_correction
+            ),
+            sketch_fd_step=args.sketch_fd_step,
+            sketch_psd_rtol=args.sketch_psd_rtol,
+            y_mc_full=mc_kn,
+            seed=slice_seed,
+            return_diagnostics=True,
+        )
+        _record(
+            method_name,
+            r['recon'],
+            _actual_cols(r, n_R_cols + args.active_lines),
+            _elapsed(t0),
+            diagnostics=r.get('diagnostics'),
+            nfe_override=r['nfe'],
+            final_mask=r.get('mask_final'),
+        )
+
     # ---- static_match (matched-budget static-random baseline) ----
     if 'static_match' in args.methods and args.active_lines > 0:
         mask_static = _static_matched_mask(
@@ -1092,6 +1180,49 @@ def main():
     p.add_argument('--sketch_psd_rtol', type=float, default=1e-6,
                    help='Relative eigenvalue floor for the Nyström core.')
     p.add_argument(
+        '--rao_branches',
+        type=int,
+        default=8,
+        help='Measurement-guided diffusion branches in each RaoSense belief.',
+    )
+    p.add_argument(
+        '--rao_tangent_rank',
+        type=int,
+        default=2,
+        help='Local Tweedie/JVP factor rank per RaoSense branch.',
+    )
+    p.add_argument(
+        '--rao_beam_width',
+        type=int,
+        default=8,
+        help='Root candidates retained for RaoSense H=2 fantasies.',
+    )
+    p.add_argument(
+        '--rao_fantasies',
+        type=int,
+        default=16,
+        help='Compressed fantasy outcomes per H=2 root candidate.',
+    )
+    p.add_argument(
+        '--rao_information_samples',
+        type=int,
+        default=128,
+        help='Mixture samples used to estimate mode information.',
+    )
+    p.add_argument(
+        '--rao_candidate_cap',
+        type=int,
+        default=48,
+        help='Candidates entering RaoSense Monte Carlo/lookahead after '
+             'upper-bound ranking; 0 disables this engineering cap.',
+    )
+    p.add_argument(
+        '--rao_disable_belief_correction',
+        action='store_true',
+        help='Acquisition-only ablation: do not feed analytic mixture '
+             'conditioning back into the reverse trajectories.',
+    )
+    p.add_argument(
         '--skip_canonical_replay',
         action='store_true',
         help='Pilot-only speed option. By default each final mask is replayed '
@@ -1109,7 +1240,9 @@ def main():
                             'sketch_logdet_active',
                             'energy_active', 'oracle_active',
                             'random_adaptive', 'equi_adaptive', 'static_match',
-                            'ens_active', 'ens_random_active'])
+                            'ens_active', 'ens_random_active',
+                            'raosense_greedy_active',
+                            'raosense_h2_active'])
 
     # Output
     p.add_argument('--output_dir', type=str, required=True)
@@ -1120,6 +1253,18 @@ def main():
             '--minimum_production_volumes cannot be lower than the '
             'predeclared 20-volume evidence floor'
         )
+    if args.rao_branches <= 0:
+        raise ValueError('--rao_branches must be positive')
+    if args.rao_tangent_rank <= 0:
+        raise ValueError('--rao_tangent_rank must be positive')
+    if args.rao_beam_width <= 0:
+        raise ValueError('--rao_beam_width must be positive')
+    if args.rao_fantasies <= 0:
+        raise ValueError('--rao_fantasies must be positive')
+    if args.rao_information_samples <= 0:
+        raise ValueError('--rao_information_samples must be positive')
+    if args.rao_candidate_cap < 0:
+        raise ValueError('--rao_candidate_cap must be nonnegative')
     if args.device.startswith('cuda') and not torch.cuda.is_available():
         args.device = 'cpu'
     if args.device == 'mps' and not torch.backends.mps.is_available():
@@ -1609,6 +1754,8 @@ def main():
     try:
         from scipy.stats import wilcoxon
         candidates = [
+            'raosense_h2_active',
+            'raosense_greedy_active',
             'operator_diag_active',
             'sketch_marginal_active',
             'sketch_logdet_active',
