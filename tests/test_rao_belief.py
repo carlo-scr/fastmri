@@ -8,6 +8,9 @@ from src.samplers.rao_belief import (
     plan_horizon_two,
     screen_actions,
 )
+from src.samplers.mri_forward import fft2c
+from src.samplers.multicoil_pv import run_raosense_active_mc
+from src.samplers.sense import MultiCoilSENSE
 
 
 def _branch(weight, mean, factor, state_mean=None, state_factor=None, label=""):
@@ -294,3 +297,57 @@ def test_horizon_two_prefers_mode_router_over_myopic_ternary_action():
     assert plan.action == 1
     assert plan.expected_future_information > 1.0
     assert plan.diagnostics["maximum_sufficient_rank"] == 5
+
+
+def test_raosense_mri_runner_acquires_budget_and_counts_tangent_nfe():
+    height, width, coils = 4, 5, 2
+    dtype = torch.complex64
+    truth = torch.complex(
+        torch.linspace(-0.5, 0.5, height * width).reshape(height, width),
+        torch.zeros(height, width),
+    ).to(dtype)
+    sensitivities = torch.stack(
+        (
+            torch.ones(height, width, dtype=dtype),
+            (0.7 + 0.2j) * torch.ones(height, width, dtype=dtype),
+        )
+    )
+    full_kspace = fft2c(sensitivities * truth.unsqueeze(0))
+    mask = torch.zeros(height, width)
+    mask[:, width // 2] = 1.0
+    operator = MultiCoilSENSE(
+        mask,
+        sensitivities,
+        torch.full((coils,), 1e-3),
+    )
+
+    result = run_raosense_active_mc(
+        y_mc=mask * full_kspace,
+        sense_op=operator,
+        sigma_schedule=torch.tensor([1.0, 0.3, 0.1]),
+        denoiser_fn=lambda value, _sigma: value,
+        sigma_i_sq_init=torch.full((height, width), 1e-3),
+        n_branches=2,
+        tangent_rank=1,
+        active_lines=1,
+        active_rounds=1,
+        active_after_frac=0.5,
+        active_until_frac=0.5,
+        planning_horizon=1,
+        information_samples=32,
+        planner_candidate_cap=None,
+        y_mc_full=full_kspace,
+        seed=11,
+        return_diagnostics=True,
+    )
+
+    assert int((result["mask_final"].sum(dim=0) > 0).sum().item()) == 2
+    assert result["nfe"] == 2 * 3 + 2 * 2 * 1
+    assert result["diagnostics"]["nfe_base"] == 6
+    assert result["diagnostics"]["nfe_tangent"] == 4
+    assert len(result["diagnostics"]["acquisitions"]) == 1
+    assert bool(torch.isfinite(result["recon"]).all())
+    torch.testing.assert_close(
+        result["branch_weights"].sum(),
+        torch.tensor(1.0),
+    )

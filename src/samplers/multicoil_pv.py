@@ -47,8 +47,16 @@ from .operator_sketch import (
     build_atom_information,
     conditional_atom_scores,
     diagonal_atom_scores,
+    expand_measurement_values_to_real,
     greedy_logdet_select,
+    real_unflatten,
     sketch_operator_posterior_covariance,
+)
+from .rao_belief import (
+    RaoBlackwellizedBelief,
+    branch_from_operator_sketch,
+    plan_horizon_two,
+    screen_actions,
 )
 from .sense import MultiCoilSENSE
 from .posterior_var import estimate_posterior_variance_kspace
@@ -729,3 +737,394 @@ def run_ensemble_active_mc(
             )
     return {"recon": recon, "mask_final": mask, "nfe": nfe,
             "particle_recons": xs}
+
+
+def run_raosense_active_mc(
+    y_mc: torch.Tensor,
+    sense_op: MultiCoilSENSE,
+    sigma_schedule: torch.Tensor,
+    denoiser_fn: Callable[[torch.Tensor, float], torch.Tensor],
+    sigma_i_sq_init: torch.Tensor,
+    *,
+    n_branches: int = 8,
+    tangent_rank: int = 2,
+    active_lines: int = 0,
+    active_rounds: int = 4,
+    active_after_frac: float = 0.35,
+    active_until_frac: float = 0.80,
+    planning_horizon: int = 2,
+    beam_width: int = 8,
+    num_fantasies: int = 16,
+    information_samples: int = 128,
+    planner_candidate_cap: int | None = 48,
+    use_belief_correction: bool = True,
+    sketch_fd_step: float = 5e-2,
+    sketch_psd_rtol: float = 1e-6,
+    y_mc_full: Optional[torch.Tensor] = None,
+    seed: int = 0,
+    return_diagnostics: bool = False,
+    eps: float = 1e-8,
+) -> dict:
+    """RaoSense active multi-coil MRI with analytic outcome planning.
+
+    ``n_branches`` measurement-guided trajectories represent between-mode
+    uncertainty.  At each acquisition checkpoint, a rank-``tangent_rank``
+    operator-space sketch supplies within-branch uncertainty.  The resulting
+    Gaussian mixture is conditioned and planned entirely in its sufficient
+    subspace.  Fantasy lookahead adds no denoiser calls.
+
+    The denoiser-equivalent count is
+
+    ``n_branches * T + 2 * n_branches * tangent_rank * active_rounds``
+
+    when every requested round fires.  The implementation is a retrospective
+    Cartesian-line simulator: ``y_mc_full`` is accessed only after a line is
+    selected.  It is not a scanner-control implementation.
+    """
+    if n_branches <= 0:
+        raise ValueError("n_branches must be positive")
+    if tangent_rank <= 0:
+        raise ValueError("tangent_rank must be positive")
+    if planning_horizon not in {1, 2}:
+        raise ValueError("planning_horizon must be one or two")
+    if planner_candidate_cap is not None and planner_candidate_cap <= 0:
+        raise ValueError("planner_candidate_cap must be positive or None")
+
+    torch.manual_seed(seed)
+    Nc, H, W = y_mc.shape
+    device = y_mc.device
+    T = len(sigma_schedule)
+
+    sig_c = sense_op.sigma_c_sq.to(device)
+    sig_c_norm = sig_c / sig_c.mean().clamp(min=eps)
+    sig_c_view = sig_c_norm.view(Nc, 1, 1)
+    sigma_i_sq = sigma_i_sq_init.clone().to(device)
+
+    mask = sense_op.mask.clone()
+    initial_cols = int((mask.sum(dim=0) > 0).sum().item())
+    sens = sense_op.sens.clone()
+    inv_sumS2 = 1.0 / ((sens.abs() ** 2).sum(dim=0) + sense_op.eps)
+    y_active = y_mc.clone()
+    sigma_max = sigma_schedule[0].item()
+    xs = [
+        sigma_max * _complex_randn(H, W, device=device)
+        for _ in range(n_branches)
+    ]
+    branch_weights = torch.full(
+        (n_branches,),
+        1.0 / n_branches,
+        device=device,
+        dtype=y_mc.real.dtype,
+    )
+
+    active_per_round = (
+        build_active_schedule(
+            T,
+            active_lines,
+            active_rounds,
+            active_after_frac,
+            active_until_frac,
+        )
+        if active_lines > 0 and y_mc_full is not None
+        else {}
+    )
+
+    # Each Cartesian action contains every coil/readout sample at one
+    # phase-encode column, in stacked real/imaginary flattening order.
+    complex_dimension = Nc * H * W
+    row_bases = torch.arange(
+        Nc * H, device=device, dtype=torch.long
+    ) * W
+    line_indices = {
+        column: torch.cat(
+            (
+                row_bases + column,
+                row_bases + column + complex_dimension,
+            )
+        )
+        for column in range(W)
+    }
+
+    nfe = 0
+    diagnostics = {
+        "acquisitions": [],
+        "weight_trajectory": [],
+        "effective_sample_size": [],
+        "nfe_base": 0,
+        "nfe_tangent": 0,
+    }
+
+    for step in range(T):
+        sigma_t = sigma_schedule[step].item()
+        mus = []
+        predictions = []
+        for branch_index in range(n_branches):
+            mu = denoiser_fn(xs[branch_index], sigma_t)
+            nfe += 1
+            diagnostics["nfe_base"] += 1
+            mus.append(mu)
+            predictions.append(fft2c(sens * mu.unsqueeze(0)))
+
+        if active_per_round and step in active_per_round:
+            def candidate_forward(value):
+                return fft2c(sens * value.unsqueeze(0))
+
+            def candidate_adjoint(value):
+                return (
+                    torch.conj(sens) * ifft2c(value)
+                ).sum(dim=0)
+
+            belief_branches = []
+            for branch_index in range(n_branches):
+                sketch = sketch_operator_posterior_covariance(
+                    x_t=xs[branch_index],
+                    mu=mus[branch_index],
+                    sigma_t=sigma_t,
+                    denoiser=denoiser_fn,
+                    forward=candidate_forward,
+                    adjoint=candidate_adjoint,
+                    measurement_template=predictions[branch_index],
+                    num_probes=tangent_rank,
+                    fd_step=sketch_fd_step,
+                    centered=True,
+                    generator=_probe_generator(
+                        seed + 19_000_003 * (branch_index + 1),
+                        step,
+                    ),
+                    psd_rtol=sketch_psd_rtol,
+                )
+                nfe += 2 * tangent_rank
+                diagnostics["nfe_tangent"] += 2 * tangent_rank
+                belief_branches.append(
+                    branch_from_operator_sketch(
+                        weight=float(branch_weights[branch_index].item()),
+                        measurement_mean=predictions[branch_index],
+                        state_mean=mus[branch_index],
+                        sketch=sketch,
+                        label=f"branch-{branch_index}",
+                    )
+                )
+            belief = RaoBlackwellizedBelief(belief_branches)
+            measurement_noise_total = (
+                sigma_i_sq.unsqueeze(0) * sig_c_view
+            )
+            measurement_noise_real = expand_measurement_values_to_real(
+                measurement_noise_total,
+                predictions[0],
+                complex_values_are_total=True,
+            )
+            full_observation_real = (
+                torch.cat(
+                    (
+                        y_mc_full.real.reshape(-1),
+                        y_mc_full.imag.reshape(-1),
+                    )
+                )
+                if y_mc_full is not None
+                else None
+            )
+
+            requested = active_per_round[step]
+            for within_round in range(requested):
+                mask_col = mask.sum(dim=0) > 0
+                available = torch.nonzero(
+                    ~mask_col, as_tuple=False
+                ).flatten().tolist()
+                if not available:
+                    break
+                actions = {
+                    int(column): line_indices[int(column)]
+                    for column in available
+                }
+
+                # Optional declared engineering cap.  Bounds are evaluated for
+                # every feasible line; only the highest tight upper bounds
+                # enter Monte Carlo/lookahead.  Set None for uncapped search.
+                cap_pruned = 0
+                if (
+                    planner_candidate_cap is not None
+                    and len(actions) > planner_candidate_cap
+                ):
+                    upper_ranked = sorted(
+                        actions,
+                        key=lambda action: (
+                            belief.information_bounds(
+                                actions[action], measurement_noise_real
+                            ).upper,
+                            -action,
+                        ),
+                        reverse=True,
+                    )
+                    keep = set(upper_ranked[:planner_candidate_cap])
+                    cap_pruned = len(actions) - len(keep)
+                    actions = {
+                        action: indices
+                        for action, indices in actions.items()
+                        if action in keep
+                    }
+
+                planning_generator = _probe_generator(
+                    seed + 31_000_031 + within_round,
+                    step,
+                )
+                if planning_horizon == 2 and len(actions) > 1:
+                    plan = plan_horizon_two(
+                        belief,
+                        actions,
+                        measurement_noise_real,
+                        beam_width=min(beam_width, len(actions)),
+                        num_fantasies=num_fantasies,
+                        information_samples=information_samples,
+                        generator=planning_generator,
+                    )
+                    selected = int(plan.action)
+                    plan_diagnostics = {
+                        "objective": float(plan.objective),
+                        "immediate_information": float(
+                            plan.immediate_information
+                        ),
+                        "expected_future_information": float(
+                            plan.expected_future_information
+                        ),
+                        **dict(plan.diagnostics),
+                    }
+                else:
+                    survivors, rows = screen_actions(
+                        belief, actions, measurement_noise_real
+                    )
+                    estimates = {
+                        action: belief.estimate_information(
+                            actions[action],
+                            measurement_noise_real,
+                            num_samples=information_samples,
+                            generator=planning_generator,
+                        )
+                        for action in survivors
+                    }
+                    selected = max(
+                        survivors,
+                        key=lambda action: (
+                            estimates[action].total,
+                            -action,
+                        ),
+                    )
+                    plan_diagnostics = {
+                        "objective": float(estimates[selected].total),
+                        "immediate_information": float(
+                            estimates[selected].total
+                        ),
+                        "expected_future_information": 0.0,
+                        "root_survivors": len(survivors),
+                        "safely_pruned_nodes": sum(
+                            row.safely_pruned for row in rows
+                        ),
+                    }
+
+                selected_indices = line_indices[selected]
+                assert full_observation_real is not None
+                observation = full_observation_real[selected_indices]
+                belief = belief.condition(
+                    selected_indices,
+                    observation,
+                    measurement_noise_real,
+                )
+                branch_weights = belief.weights
+                if use_belief_correction:
+                    for branch_index, branch in enumerate(belief.branches):
+                        assert branch.state_mean is not None
+                        mus[branch_index] = real_unflatten(
+                            branch.state_mean,
+                            mus[branch_index],
+                        )
+                        predictions[branch_index] = candidate_forward(
+                            mus[branch_index]
+                        )
+
+                mask[:, selected] = 1.0
+                y_active = torch.where(mask > 0, y_mc_full, y_active)
+                weights_cpu = [
+                    float(value) for value in branch_weights.detach().cpu()
+                ]
+                effective_sample_size = float(
+                    branch_weights.square().sum().reciprocal().item()
+                )
+                if return_diagnostics:
+                    within_trace = sum(
+                        branch_weights[index]
+                        * belief.branches[index]
+                        .measurement_factor.square().sum()
+                        for index in range(n_branches)
+                    )
+                    _, total_factor = belief.measurement_moments()
+                    total_trace = total_factor.square().sum()
+                    between_trace = (total_trace - within_trace).clamp_min(0)
+                    diagnostics["acquisitions"].append({
+                        "step": int(step),
+                        "within_round": int(within_round),
+                        "sigma_t": float(sigma_t),
+                        "selected_column": int(selected),
+                        "candidate_cap_pruned": int(cap_pruned),
+                        "weights": weights_cpu,
+                        "effective_sample_size": effective_sample_size,
+                        "within_mode_trace": float(within_trace.item()),
+                        "between_mode_trace": float(between_trace.item()),
+                        "between_mode_fraction": float(
+                            (
+                                between_trace
+                                / total_trace.clamp_min(
+                                    torch.finfo(total_trace.dtype).eps
+                                )
+                            ).item()
+                        ),
+                        **plan_diagnostics,
+                    })
+
+        sig_ci_sq = sigma_i_sq.unsqueeze(0) * sig_c_view
+        prior_var_complex = 2.0 * sigma_t ** 2
+        gain = prior_var_complex / (prior_var_complex + sig_ci_sq)
+        for branch_index in range(n_branches):
+            prediction = fft2c(sens * mus[branch_index].unsqueeze(0))
+            residual = mask * (y_active - prediction)
+            correction = (
+                torch.conj(sens) * ifft2c(gain * residual)
+            ).sum(dim=0) * inv_sumS2
+            corrected = mus[branch_index] + correction
+            if step < T - 1:
+                sigma_next = sigma_schedule[step + 1].item()
+                xs[branch_index] = (
+                    corrected
+                    + sigma_next * _complex_randn(H, W, device=device)
+                )
+            else:
+                xs[branch_index] = corrected
+
+        if return_diagnostics:
+            diagnostics["weight_trajectory"].append(
+                [float(value) for value in branch_weights.detach().cpu()]
+            )
+            diagnostics["effective_sample_size"].append(
+                float(branch_weights.square().sum().reciprocal().item())
+            )
+
+    stacked = torch.stack(xs, dim=0)
+    weight_view = branch_weights.to(stacked.real.dtype).view(
+        n_branches, *([1] * (stacked.dim() - 1))
+    )
+    recon = (weight_view * stacked).sum(dim=0)
+    if active_per_round:
+        expected = initial_cols + min(active_lines, W - initial_cols)
+        actual = int((mask.sum(dim=0) > 0).sum().item())
+        if actual != expected:
+            raise AssertionError(
+                f"active budget mismatch: expected {expected} columns, got {actual}"
+            )
+    output = {
+        "recon": recon,
+        "mask_final": mask,
+        "nfe": nfe,
+        "branch_recons": xs,
+        "branch_weights": branch_weights,
+    }
+    if return_diagnostics:
+        output["diagnostics"] = diagnostics
+    return output

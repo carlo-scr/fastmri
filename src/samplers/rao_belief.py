@@ -31,6 +31,8 @@ from typing import Mapping, Sequence
 
 import torch
 
+from .operator_sketch import OperatorCovarianceSketch, real_flatten
+
 
 def _as_real_vector(value: torch.Tensor, *, name: str) -> torch.Tensor:
     if torch.is_complex(value):
@@ -737,6 +739,31 @@ class RaoBlackwellizedBelief:
             projection,
             projection.project_observation(observation),
         )
+
+
+def branch_from_operator_sketch(
+    *,
+    weight: float,
+    measurement_mean: torch.Tensor,
+    state_mean: torch.Tensor,
+    sketch: OperatorCovarianceSketch,
+    label: str = "",
+) -> DiffusionBeliefBranch:
+    """Create an aligned belief branch from one protected operator sketch."""
+    measurement_vector = real_flatten(measurement_mean)
+    state_vector = real_flatten(state_mean)
+    if measurement_vector.numel() != sketch.measurement_factor.shape[0]:
+        raise ValueError("measurement mean does not match the operator sketch")
+    if state_vector.numel() != sketch.image_factor.shape[0]:
+        raise ValueError("state mean does not match the operator sketch")
+    return DiffusionBeliefBranch(
+        weight=weight,
+        measurement_mean=measurement_vector,
+        measurement_factor=sketch.measurement_factor,
+        state_mean=state_vector,
+        state_factor=sketch.image_factor,
+        label=label,
+    )
 
 
 def _numerical_rank(matrix: torch.Tensor) -> int:
