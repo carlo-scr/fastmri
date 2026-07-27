@@ -938,8 +938,10 @@ def run_raosense_active_mc(
                 }
 
                 # Optional declared engineering cap.  Bounds are evaluated for
-                # every feasible line; only the highest tight upper bounds
-                # enter Monte Carlo/lookahead.  Set None for uncapped search.
+                # every feasible line; only the highest immediate-information
+                # upper bounds enter Monte Carlo/lookahead.  This truncation
+                # is not safe for H=2 because future value can reverse the
+                # immediate ordering.  Set None for uncapped root search.
                 cap_pruned = 0
                 if (
                     planner_candidate_cap is not None

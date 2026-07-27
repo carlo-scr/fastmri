@@ -789,6 +789,8 @@ def screen_actions(
     """Safely prune actions whose MI upper bound loses to another lower bound."""
     if not actions:
         raise ValueError("at least one action is required")
+    if tolerance < 0:
+        raise ValueError("tolerance must be nonnegative")
     bounds = {
         action: belief.information_bounds(
             indices,
@@ -828,12 +830,18 @@ def plan_horizon_two(
     successors: Mapping[int, Sequence[int]] | None = None,
     generator: torch.Generator | None = None,
 ) -> LookaheadPlan:
-    """Bound-screened, outcome-dependent, receding-horizon-two planning.
+    """Outcome-dependent, receding-horizon-two planning.
 
     The routine performs no denoiser evaluation.  It samples fantasy outcomes,
     reconditions the compressed branch factors analytically, and returns only
     the root action.  A real system should acquire that action, condition on
     the actual observation, and replan.
+
+    One-step information bounds cannot safely remove a horizon-two root:
+    a weak immediate action can be a valuable mode router.  Every supplied
+    root is therefore scored myopically before the explicitly approximate
+    ``beam_width`` truncation.  One-step bound screening is used only at
+    future leaves, and only when their costs are equal.
     """
     if beam_width <= 0 or num_fantasies <= 0 or information_samples <= 0:
         raise ValueError("beam_width, fantasies, and samples must be positive")
@@ -845,24 +853,30 @@ def plan_horizon_two(
         raise ValueError("future_information_samples must be positive")
     costs = action_costs or {}
 
-    survivors, initial_evaluations = screen_actions(
-        belief, actions, noise_variance
-    )
+    if not actions:
+        raise ValueError("at least one action is required")
     estimates: dict[int, InformationEstimate] = {}
-    evaluation_map = {row.action: row for row in initial_evaluations}
-    for action in survivors:
+    evaluation_map = {}
+    for action in sorted(actions):
+        bounds = belief.information_bounds(
+            actions[action],
+            _action_noise(noise_variance, action),
+        )
         estimates[action] = belief.estimate_information(
             actions[action],
             _action_noise(noise_variance, action),
             num_samples=information_samples,
             generator=generator,
         )
-        evaluation_map[action] = replace(
-            evaluation_map[action], estimate=estimates[action]
+        evaluation_map[action] = ActionEvaluation(
+            action=action,
+            bounds=bounds,
+            estimate=estimates[action],
+            safely_pruned=False,
         )
     beam = tuple(
         sorted(
-            survivors,
+            actions,
             key=lambda action: (
                 estimates[action].total - float(costs.get(action, 0.0)),
                 -action,
@@ -875,7 +889,7 @@ def plan_horizon_two(
 
     root_values: dict[int, tuple[float, float, float]] = {}
     expanded_nodes = 0
-    pruned_nodes = sum(row.safely_pruned for row in initial_evaluations)
+    safely_pruned_future_nodes = 0
     for action in beam:
         action_noise = _action_noise(noise_variance, action)
         projection = belief.project_action(actions[action], action_noise)
@@ -895,10 +909,22 @@ def plan_horizon_two(
                 continue
             posterior = belief.condition_projected(projection, fantasy)
             future_actions = {candidate: actions[candidate] for candidate in allowed}
-            future_survivors, future_rows = screen_actions(
-                posterior, future_actions, noise_variance
+            future_costs = [
+                float(costs.get(candidate, 0.0))
+                for candidate in allowed
+            ]
+            equal_future_costs = (
+                max(future_costs) - min(future_costs) <= 1e-12
             )
-            pruned_nodes += sum(row.safely_pruned for row in future_rows)
+            if equal_future_costs:
+                future_survivors, future_rows = screen_actions(
+                    posterior, future_actions, noise_variance
+                )
+                safely_pruned_future_nodes += sum(
+                    row.safely_pruned for row in future_rows
+                )
+            else:
+                future_survivors = tuple(sorted(future_actions))
             best_future = float("-inf")
             for candidate in future_survivors:
                 expanded_nodes += 1
@@ -934,11 +960,12 @@ def plan_horizon_two(
         beam=beam,
         diagnostics={
             "num_actions": len(actions),
-            "root_survivors": len(survivors),
+            "root_survivors": len(actions),
             "beam_width": len(beam),
+            "root_beam_truncated_nodes": len(actions) - len(beam),
             "num_fantasies": int(num_fantasies),
             "expanded_future_nodes": int(expanded_nodes),
-            "safely_pruned_nodes": int(pruned_nodes),
+            "safely_pruned_nodes": int(safely_pruned_future_nodes),
             "maximum_sufficient_rank": belief.maximum_sufficient_rank,
         },
     )

@@ -343,6 +343,8 @@ def run_raosense_lidar(
                     planner_candidate_cap is not None
                     and len(feasible) > planner_candidate_cap
                 ):
+                    # Engineering cap only: an immediate-information upper
+                    # bound is not a safe H=2 root bound.
                     ranked = sorted(
                         feasible,
                         key=lambda action: (

@@ -242,6 +242,12 @@ def test_safe_bound_screening_removes_zero_information_action():
     by_action = {row.action: row for row in evaluations}
     assert not by_action[0].safely_pruned
     assert by_action[1].safely_pruned
+    try:
+        screen_actions(belief, actions, 1.0, tolerance=-1e-3)
+    except ValueError as error:
+        assert "nonnegative" in str(error)
+    else:
+        raise AssertionError("negative pruning tolerance was accepted")
 
 
 def test_horizon_two_prefers_mode_router_over_myopic_ternary_action():
@@ -297,6 +303,23 @@ def test_horizon_two_prefers_mode_router_over_myopic_ternary_action():
     assert plan.action == 1
     assert plan.expected_future_information > 1.0
     assert plan.diagnostics["maximum_sufficient_rank"] == 5
+    assert plan.diagnostics["root_survivors"] == len(actions)
+    assert plan.diagnostics["root_beam_truncated_nodes"] == 0
+    assert all(not row.safely_pruned for row in plan.evaluations)
+
+    narrow = plan_horizon_two(
+        belief,
+        actions,
+        0.25,
+        beam_width=1,
+        num_fantasies=8,
+        information_samples=1_000,
+        future_information_samples=500,
+        generator=torch.Generator().manual_seed(91),
+    )
+    assert narrow.diagnostics["root_survivors"] == len(actions)
+    assert narrow.diagnostics["root_beam_truncated_nodes"] == 3
+    assert len(narrow.evaluations) == len(actions)
 
 
 def test_raosense_mri_runner_acquires_budget_and_counts_tangent_nfe():

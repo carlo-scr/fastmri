@@ -658,6 +658,10 @@ def run_slice(
                 rec['rao_safely_pruned_nodes'] = int(sum(
                     row.get('safely_pruned_nodes', 0) for row in rao_rows
                 ))
+                rec['rao_root_beam_truncated_nodes'] = int(sum(
+                    row.get('root_beam_truncated_nodes', 0)
+                    for row in rao_rows
+                ))
                 rec['rao_candidate_cap_pruned'] = int(sum(
                     row.get('candidate_cap_pruned', 0) for row in rao_rows
                 ))
