@@ -73,6 +73,7 @@ def test_continuous_r2dm_adapter_uses_correct_vp_equations():
 def test_raosense_lidar_runner_acquires_tile_and_counts_nfe():
     diffusion = _ToyContinuousDiffusion()
     full_scan = torch.linspace(-0.8, 0.8, 2 * 4 * 8).reshape(2, 4, 8)
+    observed_scan = full_scan + 0.05
     initial_mask = make_lidar_scout_mask(
         channels=2,
         height=4,
@@ -85,6 +86,7 @@ def test_raosense_lidar_runner_acquires_tile_and_counts_nfe():
     result = run_raosense_lidar(
         diffusion=diffusion,
         full_scan=full_scan,
+        observed_scan=observed_scan,
         initial_mask=initial_mask,
         num_steps=3,
         n_branches=2,
@@ -106,6 +108,14 @@ def test_raosense_lidar_runner_acquires_tile_and_counts_nfe():
     assert len(result["acquisitions"]) == 1
     assert int(result["mask_final"].sum().item()) > initial_count
     assert bool(torch.isfinite(result["recon"]).all())
+    torch.testing.assert_close(
+        result["recon"][result["mask_final"]],
+        observed_scan[result["mask_final"]],
+    )
+    assert not torch.equal(
+        result["recon"][result["mask_final"]],
+        full_scan[result["mask_final"]],
+    )
     torch.testing.assert_close(
         result["branch_weights"].sum(),
         torch.tensor(1.0),

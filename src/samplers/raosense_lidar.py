@@ -185,6 +185,7 @@ def run_raosense_lidar(
     *,
     diffusion,
     full_scan: torch.Tensor,
+    observed_scan: torch.Tensor | None = None,
     initial_mask: torch.Tensor,
     candidate_actions: Mapping[int, Sequence[int] | torch.Tensor] | None = None,
     num_steps: int = 32,
@@ -206,9 +207,29 @@ def run_raosense_lidar(
     use_belief_correction: bool = True,
     seed: int = 0,
 ) -> dict:
-    """Retrospective programmable-LiDAR acquisition with an R2DM prior."""
+    """Retrospective programmable-LiDAR acquisition with an R2DM prior.
+
+    ``full_scan`` is the hidden evaluation reference.  By default the
+    retrospective emulator reveals its exact encoded values.  Robustness
+    studies must instead pass one once-sampled ``observed_scan``; that tensor,
+    never hidden truth, is then used for belief conditioning and every
+    data-consistency clamp.
+    """
     if full_scan.dim() != 3 or torch.is_complex(full_scan):
         raise ValueError("full_scan must have real shape (channels, H, W)")
+    if observed_scan is None:
+        observations = full_scan
+    else:
+        if (
+            observed_scan.shape != full_scan.shape
+            or observed_scan.dtype != full_scan.dtype
+            or observed_scan.device != full_scan.device
+            or torch.is_complex(observed_scan)
+        ):
+            raise ValueError("observed_scan must match full_scan")
+        if not bool(torch.isfinite(observed_scan).all()):
+            raise ValueError("observed_scan must be finite")
+        observations = observed_scan
     if initial_mask.shape != full_scan.shape:
         raise ValueError("initial_mask must match full_scan")
     if num_steps <= 0 or n_branches <= 0 or tangent_rank <= 0:
@@ -275,7 +296,7 @@ def run_raosense_lidar(
         device=device,
         dtype=full_scan.dtype,
     )
-    full_vector = full_scan.reshape(-1)
+    observation_vector = observations.reshape(-1)
     nfe = 0
     acquisitions: list[LidarAcquisition] = []
 
@@ -393,7 +414,7 @@ def run_raosense_lidar(
                 indices = feasible[action]
                 belief = belief.condition(
                     indices,
-                    full_vector[indices],
+                    observation_vector[indices],
                     measurement_noise_variance,
                 )
                 weights = belief.weights
@@ -422,7 +443,7 @@ def run_raosense_lidar(
 
         for branch_index in range(n_branches):
             corrected_mean = torch.where(
-                mask, full_scan, means[branch_index]
+                mask, observations, means[branch_index]
             )
             state_s = continuous_ddim_step_with_x0(
                 diffusion,
@@ -442,10 +463,10 @@ def run_raosense_lidar(
                 device=device,
                 dtype=full_scan.dtype,
             )
-            known_s = alpha_s * full_scan + sigma_s * known_noise
+            known_s = alpha_s * observations + sigma_s * known_noise
             states[branch_index] = torch.where(mask, known_s, state_s)
 
-    states = [torch.where(mask, full_scan, state) for state in states]
+    states = [torch.where(mask, observations, state) for state in states]
     stacked = torch.stack(states)
     recon = (
         weights.view(n_branches, 1, 1, 1) * stacked
