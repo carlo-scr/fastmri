@@ -9,3 +9,8 @@ from .rao_belief import (
     RaoBlackwellizedBelief,
     plan_horizon_two,
 )
+from .joint_operator import (
+    augment_branch_with_nuisance,
+    finite_difference_nuisance_measurement_factor,
+    gaussian_target_information,
+)
