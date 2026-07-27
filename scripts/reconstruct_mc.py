@@ -637,6 +637,9 @@ def run_slice(
             rao_rows = diagnostics.get('acquisitions') or []
             if rao_rows:
                 rec['rao_acquisition_rounds'] = len(rao_rows)
+                rec['rao_selected_columns'] = [
+                    int(row['selected_column']) for row in rao_rows
+                ]
                 rec['rao_effective_sample_size_mean'] = float(np.mean([
                     row['effective_sample_size'] for row in rao_rows
                 ]))
