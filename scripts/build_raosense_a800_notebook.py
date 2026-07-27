@@ -94,7 +94,7 @@ from pathlib import Path
 # Source pins.  REPO_COMMIT contains the tested RaoSense MRI/LiDAR core.
 REPO_URL = "https://github.com/carlo-scr/fastmri.git"
 REPO_BRANCH = "research/sketchsense-wacv27"
-REPO_COMMIT = "88ed4962b2631619bc7fad6a5c29c8cbce96d82f"
+REPO_COMMIT = "6f6bee8a319a971a6091628041b812f23466292a"
 ADPS_COMMIT = "75feb2fad4b53e48791fcb0257f2e53a25340774"
 R2DM_COMMIT = "ad66e71e86051d0341e096c60ece30a7de6c5b3f"
 FASTMRI_PLUS_COMMIT = "67ed9a68ee33d3197f93893e8125688470c4a577"
@@ -817,6 +817,10 @@ def evaluate_lidar_frame(dataset_index, active_action_count=16):
         result = run_raosense_lidar(
             diffusion=ddpm,
             full_scan=full_scan,
+            # Headline replay reveals the exact held-out raster encoding.
+            # A robustness run must instead pass one once-corrupted tensor;
+            # the adapter never clamps hidden truth when this is supplied.
+            observed_scan=full_scan,
             initial_mask=scout,
             candidate_actions=actions,
             num_steps=32,
@@ -1127,7 +1131,7 @@ assert "pending_gpu_and_licensed_data" in lowered
 assert "run_cifar" not in lowered
 assert "run_imagenet" not in lowered
 for revision in (
-    "88ed4962b2631619bc7fad6a5c29c8cbce96d82f",
+    "6f6bee8a319a971a6091628041b812f23466292a",
     "75feb2fad4b53e48791fcb0257f2e53a25340774",
     "ad66e71e86051d0341e096c60ece30a7de6c5b3f",
     "67ed9a68ee33d3197f93893e8125688470c4a577",
