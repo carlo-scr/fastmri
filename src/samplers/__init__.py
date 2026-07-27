@@ -14,3 +14,8 @@ from .joint_operator import (
     finite_difference_nuisance_measurement_factor,
     gaussian_target_information,
 )
+from .raosense_lidar import (
+    build_lidar_tile_actions,
+    make_lidar_scout_mask,
+    run_raosense_lidar,
+)
