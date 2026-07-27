@@ -1,0 +1,63 @@
+% RaoSense — WACV 2027 main-conference working draft.
+% Imaging result cells remain visibly PENDING until locked GPU runs.
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{../pvas_v2/wacv}
+\wacvalgorithmstrack
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage[pagebackref=true,breaklinks=true,colorlinks,bookmarks=false]{hyperref}
+
+% \wacvfinalcopy % Keep disabled for anonymous review.
+\def\wacvPaperID{****}
+\ifwacvfinal\pagestyle{empty}\fi
+
+\newcommand{\method}{RaoSense}
+\newcommand{\pending}{\textcolor{red}{\textbf{PENDING}}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\I}{\mathrm{I}}
+\newcommand{\N}{\mathcal{N}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\orth}{\operatorname{orth}}
+\newcommand{\softmax}{\operatorname{softmax}}
+\newcommand{\given}{\,\middle|\,}
+\newcommand{\resultcell}{\textcolor{red}{\textbf{PEND.}}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+
+\begin{document}
+
+\title{\method: Operator-Sufficient Diffusion Beliefs\\
+for Outcome-Adaptive Imaging}
+\author{Anonymous WACV submission\\Paper ID \wacvPaperID}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/method}
+\input{sections/theory}
+\input{sections/experiments}
+\input{sections/results}
+\input{sections/limitations}
+
+\clearpage
+\typeout{RAOSENSE_REFERENCES_START_PAGE=\thepage}
+{\small
+\bibliographystyle{../pvas_v2/ieee_fullname}
+\bibliography{references}
+}
+
+\end{document}

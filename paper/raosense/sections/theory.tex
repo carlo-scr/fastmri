@@ -1,0 +1,95 @@
+\section{Guarantees and approximation boundary}
+\label{sec:theory}
+
+Results below hold for the finite local mixture in Eq.~\eqref{eq:branch};
+they do not certify calibration to the true diffusion posterior.
+
+\begin{proposition}[Mixture covariance factor]
+Let $\bar m=\sum_kw_km_k$.  Then
+\begin{equation}
+ \Cov(x)=LL^\top,\quad
+ L=\left[\sqrt{w_k}U_k,\sqrt{w_k}(m_k-\bar m)\right]_{k=1}^K.
+\end{equation}
+Moreover, $\rank(L)\leq\sum_kr_k+K_+-1$, where $K_+$ is the number of
+positive-weight branches.
+\end{proposition}
+\noindent
+This is total covariance.  The mean offsets sum to zero, giving $K_+-1$;
+pushing $L$ through an action gives $G_a$ and the same bound.
+
+\begin{theorem}[Information sandwich]
+Under independent Gaussian action noise, Eq.~\eqref{eq:mi-decomposition} is
+exact for the represented latent $C$.  Its information satisfies
+Eq.~\eqref{eq:sandwich}.
+\end{theorem}
+\noindent
+The chain rule gives
+$\I(Z,\xi_Z;y)=\I(Z;y)+\I(\xi_Z;y\mid Z)$.  The latter is a weighted
+linear-Gaussian log determinant.  Nonnegativity and
+$\I(Z;y)\leq H(Z)$ give the lower bound and entropy cap.  A Gaussian maximizes
+entropy at fixed covariance, giving the moment-Gaussian upper bound.
+
+\begin{corollary}[Safe one-step screening]
+For an equal-cost one-step objective, if $U_a<\max_bL_b$, action $a$ is not
+optimal under the mixture surrogate.
+\end{corollary}
+\noindent
+This does not apply to an $H=2$ root: future value may reverse the immediate
+ordering.  Confirmatory paired $H=1/H=2$ runs score all roots through the same
+estimator; screening remains an optional $H=1$ primitive.
+
+\begin{theorem}[Operator sufficiency]
+Let $Q_a$ span $\widetilde G_a$ exactly.  The projected observation $s_a$ in
+Eq.~\eqref{eq:projected-observation} is sufficient for the component label and
+local coefficient.  Hence it preserves mixture likelihood ratios, mutual
+information, and the posterior update, with
+\begin{equation}
+ \dim(s_a)\leq\sum_kr_k+K_+-1.
+\end{equation}
+\end{theorem}
+\noindent
+After whitening, a vector orthogonal to $Q_a$ removes all factors and mean
+offsets, leaving standard Gaussian noise independent of $(Z,\xi_Z)$.
+Factorization gives sufficiency.  The numerical SVD implementation is
+approximate if it drops a nonzero singular value.
+
+\begin{proposition}[No outcome adaptivity for one Gaussian]
+For one frozen linear-Gaussian component, independent Gaussian measurements,
+and outcome-independent feasibility/costs, an optimal finite-horizon
+expected-information policy can be chosen open loop.
+\end{proposition}
+\noindent
+Posterior covariance depends on selected actions, not their values, so
+backward induction yields an action-history-only continuation.  In \method{},
+adaptive value can arise from updated mode weights/means, relinearization,
+operator uncertainty, or outcome-dependent constraints.
+
+\paragraph{Conditional $H=2$ error statement.}
+Let $\mathcal B$ be the retained root beam, let
+$\Delta_{\mathcal B}=\max_aQ(a)-\max_{a\in\mathcal B}Q(a)$, and suppose every
+estimated root, future action, and fantasy expectation is uniformly accurate
+within $\varepsilon_0,\varepsilon_1,\varepsilon_F$, respectively.  Then the
+selected root $\widehat a$ obeys
+\begin{equation}
+ \max_aQ(a)-Q(\widehat a)
+ \leq\Delta_{\mathcal B}
+ +2[\varepsilon_0+\gamma(\varepsilon_1+\varepsilon_F)].
+ \label{eq:regret}
+\end{equation}
+This follows from the 1-Lipschitz maximum and empirical-argmax inequalities.
+It is conditional, not a finite-sample certificate: mixture information
+density has an unbounded negative tail, nested maxima are biased, and
+$\Delta_{\mathcal B}$ is unbounded here.  Monte Carlo errors are descriptive;
+cap/beam sensitivity is tested empirically.
+
+\paragraph{Complexity.}
+With $T$ reverse steps, $K$ branches, $J$ acquisition rounds, and rank $r$,
+central differences use
+\begin{equation}
+    KT+2KrJ
+    \label{eq:nfe}
+\end{equation}
+image-equivalent denoiser evaluations.  Planning adds zero NFE but nonzero
+wall time.  Headline $K=8,r=2,T=32,J=4$ uses 384 NFE, matching a
+$K=12,T=32$ point ensemble.  Perturbations and branches are batchable, but we
+report calls, launches, memory, and latency.

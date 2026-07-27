@@ -1,0 +1,29 @@
+\section{Limitations, safety, and conclusion}
+\label{sec:limitations}
+
+\paragraph{Approximation boundary.}
+The local mixture is not the diffusion posterior.  Jacobian error, finite
+differences, PSD/rank truncation, and frozen fantasies add bias; guarantees
+hold only for the surrogate.  H2 expansion beams and any root cap are
+heuristic.  NFE omits planner arithmetic, so latency and energy remain
+essential.
+
+\paragraph{Retrospective sensing.}
+Both domains reveal held-out entries only after selection.  This prevents
+policy leakage but validates neither scanner timing nor hardware.  LiDAR
+budgets count spherical-raster queries, not verified firings, and the
+likelihood does not model no-return events.  Nuisance tests remain simulations
+until prospective acquisition.
+
+\paragraph{Clinical scope.}
+Single-reader, non-exhaustive fastMRI+ regions cannot support diagnostic
+claims; PSNR can rise while a lesion is erased.  We therefore require ROI,
+detector, hallucination, subgroup, and worst-decile analyses.  Dataset access
+agreements still govern redistribution.
+
+\paragraph{Conclusion.}
+\method{} combines diffusion modes and local tangents into an
+operator-sufficient active-imaging belief.  Its algebra is exact only within
+the surrogate; its value depends on real calibration and matched-compute
+outcome routing.  The locked MRI/LiDAR study keeps that answer \pending{}
+until evidence exists.

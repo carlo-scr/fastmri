@@ -1,0 +1,24 @@
+\begin{abstract}
+Active imaging with diffusion priors is commonly driven by disagreement
+between endpoint samples or by a single local covariance.  The former spends
+many denoiser evaluations, while the latter Gaussianizes away the outcome
+dependence that makes adaptive planning useful.  We introduce \method, a
+compressed belief state built from a small set of measurement-guided diffusion
+branches, each augmented by a low-rank local Tweedie/Jacobian factor.  Under
+this finite-mixture surrogate, mutual information decomposes into an analytic
+within-branch term and a bounded mode-disambiguation term.  More importantly,
+all action likelihoods, information bounds, Bayesian updates, and fantasy
+outcomes live in at most $\sum_k r_k+K-1$ whitened coordinates, independent of
+the scalar size of an MRI line or LiDAR angular tile.  This enables
+outcome-contingent horizon-two planning without additional denoiser calls and
+an analytic correction that is fed back into reverse diffusion.  We also
+derive a target-information extension that marginalizes low-dimensional
+forward-operator nuisance instead of treating calibration as known.  Synthetic
+falsification tests reduce covariance-estimation MSE by $61.6\%$, compress a
+4,096-dimensional action to 11 coordinates, and recover the correct
+non-myopic router.  The locked imaging study evaluates raw multicoil
+fastMRI+ brain/knee data and KITTI-360 programmable LiDAR at matched
+measurement and denoiser budgets.  Imaging results in this working draft are
+explicitly \pending{} and will not be claimed before the preregistered
+patient/drive-level gates pass.
+\end{abstract}

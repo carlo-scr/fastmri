@@ -1,0 +1,139 @@
+\section{Locked experimental design}
+\label{sec:experiments}
+
+All real-data cells are frozen before production.  Protocols, manifests, and
+the A800 notebook accompany the code.  We separate native reconstruction from
+passive replay of the final mask.  Replay isolates selection only within a
+fixed prior; comparing policies with different learned priors requires an
+additional, independently trained replay prior.  Native quality, angular
+queries/MRI lines, NFE, latency, launches, and memory are reported separately.
+
+\subsection{Raw multicoil fastMRI+}
+
+\paragraph{Cohorts and split.}
+We join raw multicoil fastMRI brain/knee acquisitions
+\cite{knoll2020fastmri} by filename to fastMRI+ lists and boxes
+\cite{zhao2022fastmriplus}: 1,001 reviewed brain and 1,172 knee studies.
+Single-reader, non-exhaustive labels are annotated regions, not diagnostic
+ground truth.  HDF5 files are SHA256-pinned; slices stay within study, and
+patient identity is used only when auditable under the data agreement.
+
+Grouped multilabel folds assign 50\% to prior/detector/baseline training,
+16.7\% to calibration, and 33.3\% to locked testing.  No slice crosses folds.
+Public checkpoints are smoke-test-only without a disjoint training manifest;
+the confirmatory track trains fresh anatomy-specific priors.
+
+\paragraph{Measurement protocol.}
+The primary cell starts at nominal $R=8$ with 4\% ACS and adds 16 complete
+phase-encode columns.  At each of four diffusion checkpoints it selects four
+columns \emph{sequentially}, conditions after every observed line, and replans:
+there are 16 feedback opportunities but only four tangent refreshes.  A
+$4\times4$ packet ablation selects four lines without within-packet feedback.
+Each action contains every coil/readout sample in one column.  Sensitivities
+and normalization use acquired ACS only; policies share mask, hidden
+measurement field, estimate, and seed.  Secondary budgets are $\{8,24\}$
+lines and $R=4$.
+
+\paragraph{Clinical endpoints.}
+We report volume RSS NMSE, PSNR, SSIM, HFEN, and LPIPS, plus box and
+size-matched normal-patch versions.  Because annotation export vertically
+flipped images, ten overlays are manually checked.  A frozen detector is
+cross-fitted by patient/study from fully sampled references; mAP, common-class
+sensitivity, hallucination errors, and worst deciles are reported.  Resampling
+uses patient/study, never slices or boxes.
+
+\subsection{KITTI-360 programmable LiDAR}
+
+R2DM \cite{nakashima2024r2dm} maps KITTI-360
+\cite{liao2023kitti360} to a 64$\times$1024 range/reflectance raster.  Its
+public checkpoint supports reproduction; confirmation uses a fresh prior and
+held-out drives.  We select 5,000 deterministic temporally thinned test frames
+from drives 0 and 2, reporting drives separately.
+
+Every method starts with a 12.5\% scout: all rows at every eighth azimuth.
+A 4$\times$128 tile contains 512 angular cells, 64 already scouted, so an
+action reveals 448 new range-image queries (896 scalar fields).  As in MRI,
+four checkpoints each make four sequential, outcome-conditioned selections:
+16 feedback opportunities end at 15,360 observed angular cells (23.44\%).
+The $4\times4$ no-within-packet-feedback variant is an ablation.  These cells
+are not verified physical laser firings.  The headline likelihood models only
+the two continuous R2DM channels, where invalid cells carry sentinel $-1$.
+The separate validity tensor is evaluation-only, never a third planner
+observation.  Likelihood variance $10^{-3}$ is a numerical regularizer, not
+sensor noise; noisy/no-return robustness remains pending.  This is
+retrospective beam emulation, not hardware validation.
+
+Metrics include valid-return range/reflectance MAE, distance bins,
+point-cloud distance, BEV occupancy IoU, and RangeNet mIoU against aligned
+held-out semantics.  Network predictions on full scans are not ground truth.
+Inference uses temporal blocks and drive-stratified effects.
+
+\begin{table*}[t]
+\centering
+\caption{\textbf{Confirmatory comparison set.} Canonical replay uses one
+32-step solver within each fixed-prior arm; an independent replay prior is
+required for cross-prior mask claims.  Exact NFE uses measured counters.}
+\label{tab:baselines}
+\small
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+Family & MRI & LiDAR & Training / privileged input & Comparison role\\
+\midrule
+Static & equispaced, VD random & uniform, random tiles & none & budget controls\\
+Learned static & LOUPE, IGS & calibration-fixed tiles & domain/task training & strong nonadaptive\\
+Learned active & uncertainty/RL MRI policy & interactive LiDAR & policy training; may use RGB & separate privileged tier\\
+Diffusion active & ADS, AdaSense, Iollo BED & ported ensemble variance & same prior and actions & closest published family\\
+Point belief & $K=12,16$ ensembles & $K=12,16$ R2DM ensembles & no policy training & in-family controls\\
+Local Gaussian & SketchSense ($K=1$) & SketchSense ($K=1$) & no policy training & removes modes\\
+\method{} & $H=1$ and $H=2$ & $H=1$ and $H=2$ & no policy training & proposed comparison\\
+Diagnostic & hidden-target greedy & hidden-target greedy & target access & nondeployable ranking check\\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+\subsection{Baselines, fairness, and ablations}
+
+Table~\ref{tab:baselines} lists the minimum comparison set.  Morssy-style
+empirical sample MI is included even if reimplemented, because generative
+sample MI predates our work \cite{morssy2024informed}.  Static pathology-aware
+MRI masks include LOUPE and IGS \cite{bahadir2020loupe,razumov2023igs}.
+LiDAR includes the WACV interactive-sampling baseline
+\cite{taguchi2023uncertainty}.  If a method originally chooses arbitrary
+Fourier points, its legal full-line port is labeled as such.
+
+The exact-NFE headline compares \method{} $K=8,r=2$ with the in-family
+$K=12,r=0$ point ensemble at 384 NFE.  $K=16$ is a 512-NFE in-family
+quality/memory reference, not a faithful ADS or AdaSense reproduction.
+Calibration selects wall-clock variants within $\pm5\%$ latency on one A800;
+a second GPU runs an independent anatomy/drive shard.
+
+Load-bearing ablations are $K\in\{1,4,8,16\}$,
+$r\in\{0,1,2,4\}$, $H\in\{1,2\}$, equal versus updated weights,
+selection-only versus correction-only versus both, exact mixture versus
+moment-Gaussian upper scoring, matched-compute extra particles, candidate cap
+$C\in\{48,96,\text{all}\}$, beam width, fantasy count, and fresh versus
+transported factors.  Confirmatory H1 and H2 both receive all feasible roots,
+use the same seed/estimator path (H1 sets future discount to zero), and differ
+only in future value.  Any root cap or finite H2 expansion beam is explicitly
+heuristic; all-expansion small cases measure sensitivity.  We report changed
+roots and realized retrospective two-step value.
+
+\subsection{Operator-nuisance stress}
+
+MRI stressors are gauge-fixed global coil gain/phase and piecewise-rigid line
+motion; LiDAR stressors are elevation zero-offset and range gain/bias.
+Comparisons include image-only \method{}, target-information \method{},
+fixed-mask blind reconstruction, known-operator oracle, and random/equispaced
+acquisition.  We report nuisance error, image/task quality, worst decile, and
+the fraction of the known-operator oracle gap recovered.  The nuisance model
+is fitted on calibration data only.  This study is promoted to a headline
+claim only if the local linearization remainder and gauge diagnostics pass.
+
+\paragraph{Inference.}
+Primary effects pair patients/studies or temporal blocks.  We report paired
+bootstrap 95\% intervals and preregistered one-sided Wilcoxon/permutation
+tests with Holm correction.  Slice/frame curves are descriptive; excluded
+locked cases retain fold and reason.

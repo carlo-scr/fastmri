@@ -1,0 +1,81 @@
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Adaptive sensing with generative priors.}
+Informed Adaptive Sensing already uses samples from a conditional generative
+model to estimate mutual information and sequentially place measurements
+\cite{morssy2024informed}.  Info-Greedy sensing develops adaptive information
+design for Gaussian-mixture beliefs \cite{braun2015infogreedy}.  We therefore
+do not claim novelty for posterior samples, mixture beliefs, or information
+greediness.  \method{} differs in how a diffusion posterior is compressed:
+each partially denoised mode carries an operator-pushed local covariance, and
+all downstream calculations share a provably sufficient low-dimensional
+space.
+
+ADS performs training-free active diffusion subsampling using particle
+entropy during reverse diffusion \cite{nolan2025ads}.  AdaSense repeatedly
+draws diffusion posterior samples and selects projected high-variance
+measurements \cite{elata2024adasense}.  Iollo \etal{} formulate diffusion-guided
+Bayesian experimental design for MRI and include trajectory constraints
+\cite{iollo2025active}.  These establish that active diffusion imaging is
+neither new nor limited to Cartesian MRI.  Our distinction is within/between
+Rao--Blackwellization, analytic mixture conditioning, and compressed
+outcome-contingent lookahead.  Every method is compared with measured
+denoiser-call, memory, and wall-clock costs.
+
+Zhang \etal{} optimize linear measurements through a diffusion reconstruction
+loss and include a greedily ordered design \cite{zhang2025generalized}.  Their
+measurements are optimized globally and fixed across test images; ours are
+selected online from feasible groups using realized subject measurements.
+Christoffel-DPS gives distribution-free diffusion sensor-placement theory
+\cite{rowbottom2026christoffel}.  It is complementary and prevents us from
+presenting local Gaussian design as universal or distribution-free.
+
+\paragraph{Diffusion posterior moments.}
+Tweedie's identity connects a denoiser Jacobian to conditional covariance
+\cite{efron2011tweedie,manor2024posterior}.  Free Hunch estimates low-rank
+denoiser covariance and transports it through diffusion without extra network
+calls \cite{rissanen2025freehunch}; covariance-aware sampling obtains
+structured posterior factors from few JVPs \cite{schioppa2026covariance}.
+\method{} makes no priority claim for these identities or estimators.  Its
+local factor is explicitly approximate for a learned, measurement-guided
+denoiser.  The new role of the factor is as the within-mode part of an
+operator-sufficient mixture used for grouped acquisition, likelihood updates,
+and lookahead.
+
+\paragraph{Sequential experimental design.}
+Approximate dynamic programming, scenario trees, and online planning are
+established in sequential Bayesian optimal experimental design
+\cite{huan2016soed,guo2026copex}.  Our $H=2$ controller is deliberately modest:
+it freezes local linearizations inside fantasies, executes only the root, and
+relinearizes after the real observation.  The contribution is not planning
+depth but removing image dimension and denoiser calls from every fantasy.
+Immediate-information bounds safely eliminate dominated one-step leaves.
+They do \emph{not} safely eliminate roots; a low-immediate action may route to
+a better second measurement.  We score every root supplied to the planner and
+report candidate-cap and beam truncation separately.
+
+\paragraph{Blind and self-calibrating diffusion.}
+BlindDPS runs parallel diffusion processes for an image and unknown operator
+\cite{chung2023blinddps}.  JSMoCo jointly estimates MRI coil sensitivities and
+motion with a self-calibrating score prior \cite{chen2025jsmoco}.  These solve
+blind reconstruction for a fixed acquisition.  Conversely, active diffusion
+methods generally assume a known operator.  Our target-information extension
+occupies their intersection: it asks which feasible measurement is informative
+about the image after marginalizing a low-dimensional operator nuisance.  We
+make only a local, gauge-fixed linearization claim and include known-operator
+oracle-gap and nuisance-error diagnostics.
+
+\paragraph{MRI and LiDAR design.}
+fastMRI provides raw multicoil data \cite{knoll2020fastmri}, while fastMRI+
+adds non-exhaustive, single-reader pathology boxes
+\cite{zhao2022fastmriplus}.  LOUPE learns static MRI sampling patterns
+\cite{bahadir2020loupe}; IGS optimizes masks for medical vision tasks
+\cite{razumov2023igs}.  Both are required pathology-aware static baselines.
+For a genuinely different operator, R2DM supplies a public diffusion prior for
+64$\times$1024 KITTI-360 range/reflectance images
+\cite{nakashima2024r2dm,liao2023kitti360}.  Uncertainty-aware interactive
+LiDAR sampling is already established at WACV
+\cite{taguchi2023uncertainty}.  Our retrospective angular-tile study tests
+whether one inference algorithm transfers from global complex Fourier lines
+to local spherical coordinate groups; it is not a hardware-deployment claim.

@@ -1,0 +1,207 @@
+\section{Operator-sufficient diffusion beliefs}
+\label{sec:method}
+
+\subsection{Problem and local belief}
+
+Let $x\in\R^n$ be the target, with acquired data
+$y_M=A_Mx+\epsilon_M$.  Action $a\in\mathcal A(M)$ reveals
+\begin{equation}
+    y_a=A_ax+\epsilon_a,\qquad
+    \epsilon_a\sim\N(0,\Gamma_a).
+    \label{eq:action-model}
+\end{equation}
+$A_a$ may be a complete complex multicoil phase-encode line in stacked real
+coordinates, or selection of range/reflectance values in an angular LiDAR
+tile.  $\Gamma_a$ is positive diagonal; a known whitening operator also
+suffices.
+
+At selected reverse-diffusion checkpoints, maintain $K$ trajectories
+$x_t^k$ guided by $y_M$.  Their clean predictions are
+$m_k=D_\theta(x_t^k,t)$.  A schedule-correct Tweedie coefficient $\kappa_t$
+relates the local denoiser Jacobian to a conditional covariance surrogate.
+Rather than form it in image space, we push $r_k$ candidate-space probes
+through central denoiser differences.  A protected Nystr\"om factorization
+produces aligned factors
+\begin{equation}
+ \begin{aligned}
+ x\mid Z=k &\approx m_k+U_k\xi_k,\quad
+ \xi_k\sim\N(0,I_{r_k}),\\[-1mm]
+ \Pr(Z=k)&=w_k .
+ \end{aligned}
+    \label{eq:branch}
+\end{equation}
+The same coefficient $\xi_k$ must generate the state and every candidate
+response.  This alignment, not merely matching marginal variances, is what
+makes analytic conditioning possible.
+
+For a complete candidate bank $B$, define
+\begin{equation}
+    \mu_k=Bm_k,\qquad V_k=BU_k.
+    \label{eq:bank}
+\end{equation}
+Only products with $B$ and $B^\top$ are required: $B$ is full SENSE,
+$(Bx)_c=\mathcal F(S_cx)$, for MRI and the identity before LiDAR tile
+indexing.  Jacobian bias, finite differences, PSD projection, and imperfect
+guidance make Eq.~\eqref{eq:branch} a surrogate, not an exact posterior.
+
+\subsection{Information decomposition and bounds}
+
+For action indices $P_a$, set
+\begin{equation}
+ \mu_{ka}=P_a\mu_k,\qquad
+ \widetilde V_{ka}=\Gamma_a^{-1/2}P_aV_k.
+\end{equation}
+Under Eq.~\eqref{eq:branch},
+$y_a\mid Z=k$ is Gaussian.  Information about the represented latent
+$C=(Z,\xi_Z)$ decomposes as
+\begin{align}
+ \I(C;y_a)
+ &=L_a+M_a, \label{eq:mi-decomposition}\\
+ L_a
+ &=\sum_k\frac{w_k}{2}
+   \log\det(I+\widetilde V_{ka}^{\top}\widetilde V_{ka}),\\
+ M_a&=\I(Z;y_a).
+\end{align}
+$L_a$ is analytic; only the categorical term is sampled from the small
+predictive mixture.  Each component width comes from its local diffusion
+tangent, rather than an isotropic kernel around endpoint particles.
+
+Let $\bar\mu_a=\sum_kw_k\mu_{ka}$ and concatenate
+\begin{equation}
+ G_a=\left[
+   \sqrt{w_k}P_aV_k,\;
+   \sqrt{w_k}(\mu_{ka}-\bar\mu_a)
+ \right]_{k=1}^K.
+\end{equation}
+The total-covariance identity gives $\Cov(P_aBx)=G_aG_a^\top$ and
+\begin{equation}
+ \boxed{\begin{aligned}
+ L_a&\leq \I(C;y_a)\leq U_a,\\
+ U_a&=\min\{U_a^{\rm G},\,L_a+H(w)\},\\
+ U_a^{\rm G}&=\tfrac12\log\det
+ (I+\widetilde G_a^\top\widetilde G_a).
+ \end{aligned}}
+ \label{eq:sandwich}
+\end{equation}
+where $\widetilde G_a=\Gamma_a^{-1/2}G_a$ and
+$H(w)=-\sum_kw_k\log w_k$.  Thus $U_a<\max_bL_b$ safely removes $a$ for a
+\emph{one-step, equal-cost} information objective.  A fixed candidate cap is
+an engineering truncation and is recorded separately.
+
+\subsection{Sufficient action coordinates}
+
+Choose an orthonormal basis
+\begin{equation}
+    Q_a=\orth(\widetilde G_a),\qquad
+    d_a=\rank(Q_a).
+    \label{eq:q}
+\end{equation}
+Whiten and project an observation:
+\begin{equation}
+    s_a=Q_a^\top\Gamma_a^{-1/2}(y_a-\bar\mu_a).
+    \label{eq:projected-observation}
+\end{equation}
+Coordinates orthogonal to $Q_a$ are component-independent standard Gaussian
+noise and can be discarded.  In projected coordinates,
+\begin{equation}
+  s_a\mid k\sim\N(\delta_{ka},I+R_{ka}R_{ka}^\top),
+\end{equation}
+with
+\begin{equation}
+  \delta_{ka}=Q_a^\top\Gamma_a^{-1/2}(\mu_{ka}-\bar\mu_a),
+  \quad R_{ka}=Q_a^\top\widetilde V_{ka}.
+\end{equation}
+Thus $d_a\leq\sum_kr_k+K-1$.  Numerical SVD truncation is approximate if it
+drops a nonzero direction; we log rank and tolerance.
+
+\subsection{Outcome update and reverse diffusion}
+
+For either a fantasy or real $s_a$, component $k$ updates in coefficient
+space:
+\begin{align}
+ \Lambda_{ka}&=(I+R_{ka}^\top R_{ka})^{-1},\\
+ \widehat\xi_{ka}
+ &=\Lambda_{ka}R_{ka}^\top(s_a-\delta_{ka}),\\
+ m_k^+&=m_k+U_k\widehat\xi_{ka},\qquad
+ U_k^+=U_k\operatorname{chol}(\Lambda_{ka}), \label{eq:update}\\
+ w_k^+&\propto w_k\,
+ \N(s_a;\delta_{ka},I+R_{ka}R_{ka}^\top).
+\end{align}
+The same update changes every unobserved candidate mean through
+$V_k\widehat\xi_{ka}$.  After a real observation, $m_k^+$ enters the next
+deterministic reverse step.  For VP/DDIM~\cite{song2021ddim},
+\begin{equation}
+ x_{t'}^k=\alpha_{t'}m_k^+
+ +\sigma_{t'}\frac{x_t^k-\alpha_tm_k}{\sigma_t}.
+ \label{eq:ddim-update}
+\end{equation}
+The implementation then re-evaluates the denoiser at the next ordinary step.
+
+\subsection{Receding-horizon planning}
+
+The $H=2$ value of root $a$ is
+\begin{equation}
+ Q(a)=g_b(a)+\gamma\E_{s_a}
+ \left[\max\{0,\max_{a'\in\mathcal A(a)}g_{b^+(s_a)}(a')\}\right],
+ \label{eq:h2}
+\end{equation}
+where $g_b(a)=\I_b(C;y_a)-c_a$.  Projected fantasies use
+Eqs.~\eqref{eq:projected-observation}--\eqref{eq:update}, so the tree calls no
+denoiser.  The confirmatory configuration supplies and scores every feasible
+root, then expands an immediate-utility beam, executes one root, and replans
+after its outcome.  The expansion beam is heuristic; any root cap is a
+separately labeled engineering ablation.  Immediate bounds safely prune
+equal-cost future leaves, never roots, and all-expansion small-scale runs
+measure beam sensitivity.
+
+\begin{algorithm}[t]
+\caption{\method{} at one acquisition checkpoint}
+\label{alg:raosense}
+\begin{algorithmic}[1]\footnotesize
+\Require states $\{x_t^k,w_k\}$, acquired data $y_M$, feasible groups
+\For{$k=1,\ldots,K$}
+  \State $m_k\gets D_\theta(x_t^k,t)$; obtain aligned $(U_k,V_k)$
+\EndFor
+\State build mixture bounds and projected action models
+\State score every feasible root; expand $H=2$ beam with projected fantasies
+\State acquire only $a^\star$ and observe real $y_{a^\star}$
+\State update $\{w_k,m_k,U_k\}$ analytically by Eq.~\eqref{eq:update}
+\State continue each branch by Eq.~\eqref{eq:ddim-update}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Target information under operator nuisance}
+\label{sec:target-information}
+
+Let $\phi$ be a low-dimensional nuisance in
+$y_a=A_a(\phi)x+\epsilon$.  Linearizing around $(m_k,\bar\phi_k)$ gives
+\begin{equation}
+  y_a\approx A_a(\bar\phi_k)x+
+  \left[\partial_\phi A_a(\bar\phi_k)m_k\right](\phi-\bar\phi_k)+\epsilon.
+  \label{eq:nuisance-linearization}
+\end{equation}
+Append a gauge-fixed nuisance factor to each branch.  For one branch, write
+the whitened response as
+$R_x\xi_x+R_\phi\xi_\phi+e$, initially with independent image and nuisance
+coefficients.  Information about the image while marginalizing nuisance is
+\begin{equation}
+ \I(\xi_x;y_a\mid k)
+ =\tfrac12\log\frac{
+   \det(I+[R_x,R_\phi]^\top[R_x,R_\phi])}{
+   \det(I+R_\phi^\top R_\phi)}.
+ \label{eq:target-info}
+\end{equation}
+After conditioning rotates coefficient directions, we instead use the null
+space of the target-state factor.  For a mixture, target $(Z,x)$ retains the
+mode term:
+\begin{equation}
+ \I(Z,x;y_a)
+ =\I(Z;y_a)+\sum_kw_k\I(x;y_a\mid Z=k).
+ \label{eq:mixture-target}
+\end{equation}
+This rewards mode/anatomy resolution while treating calibration variation as
+structured noise.  Because label information counts, $Z$ must be
+target-relevant; nuisance-only or duplicate labels can overcount image
+information.  Label-marginalized $\I(x;y_a)$ is not implemented.  This does
+not prove global blind identifiability; nuisance bases remain low-dimensional
+and gauge-fixed.
