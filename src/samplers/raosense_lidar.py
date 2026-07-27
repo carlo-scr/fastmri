@@ -26,7 +26,6 @@ from .rao_belief import (
     RaoBlackwellizedBelief,
     branch_from_operator_sketch,
     plan_horizon_two,
-    screen_actions,
 )
 
 
@@ -368,43 +367,28 @@ def run_raosense_lidar(
                 ).manual_seed(
                     int(seed) + 31_337 * (step + 1) + within_round
                 )
-                if planning_horizon == 2 and len(feasible) > 1:
-                    plan = plan_horizon_two(
-                        belief,
-                        feasible,
-                        measurement_noise_variance,
-                        beam_width=min(beam_width, len(feasible)),
-                        num_fantasies=num_fantasies,
-                        information_samples=information_samples,
-                        generator=planner_generator,
-                    )
-                    action = int(plan.action)
-                    immediate = float(plan.immediate_information)
-                    future = float(plan.expected_future_information)
-                else:
-                    survivors, _ = screen_actions(
-                        belief,
-                        feasible,
-                        measurement_noise_variance,
-                    )
-                    estimates = {
-                        action: belief.estimate_information(
-                            feasible[action],
-                            measurement_noise_variance,
-                            num_samples=information_samples,
-                            generator=planner_generator,
-                        )
-                        for action in survivors
-                    }
-                    action = max(
-                        survivors,
-                        key=lambda candidate: (
-                            estimates[candidate].total,
-                            -candidate,
-                        ),
-                    )
-                    immediate = float(estimates[action].total)
-                    future = 0.0
+                # H1 is the discount-zero intervention through the same
+                # all-root estimator used by H2.  With a shared seed, both
+                # horizons receive identical immediate-information draws.
+                plan = plan_horizon_two(
+                    belief,
+                    feasible,
+                    measurement_noise_variance,
+                    beam_width=(
+                        min(beam_width, len(feasible))
+                        if planning_horizon == 2
+                        else len(feasible)
+                    ),
+                    num_fantasies=(
+                        num_fantasies if planning_horizon == 2 else 1
+                    ),
+                    information_samples=information_samples,
+                    discount=1.0 if planning_horizon == 2 else 0.0,
+                    generator=planner_generator,
+                )
+                action = int(plan.action)
+                immediate = float(plan.immediate_information)
+                future = float(plan.expected_future_information)
 
                 indices = feasible[action]
                 belief = belief.condition(

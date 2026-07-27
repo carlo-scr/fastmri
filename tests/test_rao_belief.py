@@ -322,6 +322,54 @@ def test_horizon_two_prefers_mode_router_over_myopic_ternary_action():
     assert len(narrow.evaluations) == len(actions)
 
 
+def test_zero_future_horizon_two_exactly_matches_paired_horizon_one():
+    belief = RaoBlackwellizedBelief([
+        _branch(0.4, [-1.5, 0.2, 0.8], [[0.3], [0.8], [0.1]]),
+        _branch(0.6, [1.0, -0.4, -0.2], [[0.5], [0.2], [0.7]]),
+    ])
+    actions = {
+        0: torch.tensor([0]),
+        1: torch.tensor([1]),
+        2: torch.tensor([2]),
+    }
+    seed = 2027
+    paired_h1 = plan_horizon_two(
+        belief,
+        actions,
+        0.35,
+        beam_width=len(actions),
+        num_fantasies=1,
+        information_samples=2_000,
+        discount=0.0,
+        generator=torch.Generator().manual_seed(seed),
+    )
+    zero_future_h2 = plan_horizon_two(
+        belief,
+        actions,
+        0.35,
+        beam_width=len(actions),
+        num_fantasies=9,
+        information_samples=2_000,
+        successors={action: () for action in actions},
+        generator=torch.Generator().manual_seed(seed),
+    )
+
+    assert paired_h1.action == zero_future_h2.action
+    assert paired_h1.objective == zero_future_h2.objective
+    assert paired_h1.immediate_information == (
+        zero_future_h2.immediate_information
+    )
+    assert paired_h1.expected_future_information == 0.0
+    assert zero_future_h2.expected_future_information == 0.0
+    assert [
+        row.estimate.total for row in paired_h1.evaluations
+    ] == [
+        row.estimate.total for row in zero_future_h2.evaluations
+    ]
+    assert paired_h1.diagnostics["expanded_future_nodes"] == 0
+    assert zero_future_h2.diagnostics["expanded_future_nodes"] == 0
+
+
 def test_raosense_mri_runner_acquires_budget_and_counts_tangent_nfe():
     height, width, coils = 4, 5, 2
     dtype = torch.complex64

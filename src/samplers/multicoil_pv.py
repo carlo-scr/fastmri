@@ -56,7 +56,6 @@ from .rao_belief import (
     RaoBlackwellizedBelief,
     branch_from_operator_sketch,
     plan_horizon_two,
-    screen_actions,
 )
 from .sense import MultiCoilSENSE
 from .posterior_var import estimate_posterior_variance_kspace
@@ -969,58 +968,36 @@ def run_raosense_active_mc(
                     seed + 31_000_031 + within_round,
                     step,
                 )
-                if planning_horizon == 2 and len(actions) > 1:
-                    plan = plan_horizon_two(
-                        belief,
-                        actions,
-                        measurement_noise_real,
-                        beam_width=min(beam_width, len(actions)),
-                        num_fantasies=num_fantasies,
-                        information_samples=information_samples,
-                        generator=planning_generator,
-                    )
-                    selected = int(plan.action)
-                    plan_diagnostics = {
-                        "objective": float(plan.objective),
-                        "immediate_information": float(
-                            plan.immediate_information
-                        ),
-                        "expected_future_information": float(
-                            plan.expected_future_information
-                        ),
-                        **dict(plan.diagnostics),
-                    }
-                else:
-                    survivors, rows = screen_actions(
-                        belief, actions, measurement_noise_real
-                    )
-                    estimates = {
-                        action: belief.estimate_information(
-                            actions[action],
-                            measurement_noise_real,
-                            num_samples=information_samples,
-                            generator=planning_generator,
-                        )
-                        for action in survivors
-                    }
-                    selected = max(
-                        survivors,
-                        key=lambda action: (
-                            estimates[action].total,
-                            -action,
-                        ),
-                    )
-                    plan_diagnostics = {
-                        "objective": float(estimates[selected].total),
-                        "immediate_information": float(
-                            estimates[selected].total
-                        ),
-                        "expected_future_information": 0.0,
-                        "root_survivors": len(survivors),
-                        "safely_pruned_nodes": sum(
-                            row.safely_pruned for row in rows
-                        ),
-                    }
+                # H1 is the discount-zero intervention through the same
+                # all-root estimator used by H2.  With a shared seed, both
+                # horizons receive identical action-keyed immediate draws.
+                plan = plan_horizon_two(
+                    belief,
+                    actions,
+                    measurement_noise_real,
+                    beam_width=(
+                        min(beam_width, len(actions))
+                        if planning_horizon == 2
+                        else len(actions)
+                    ),
+                    num_fantasies=(
+                        num_fantasies if planning_horizon == 2 else 1
+                    ),
+                    information_samples=information_samples,
+                    discount=1.0 if planning_horizon == 2 else 0.0,
+                    generator=planning_generator,
+                )
+                selected = int(plan.action)
+                plan_diagnostics = {
+                    "objective": float(plan.objective),
+                    "immediate_information": float(
+                        plan.immediate_information
+                    ),
+                    "expected_future_information": float(
+                        plan.expected_future_information
+                    ),
+                    **dict(plan.diagnostics),
+                }
 
                 selected_indices = line_indices[selected]
                 assert full_observation_real is not None

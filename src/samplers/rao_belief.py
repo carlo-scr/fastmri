@@ -891,6 +891,17 @@ def plan_horizon_two(
     expanded_nodes = 0
     safely_pruned_future_nodes = 0
     for action in beam:
+        immediate = (
+            estimates[action].total - float(costs.get(action, 0.0))
+        )
+        # ``discount=0`` is the paired H1 control.  It deliberately reuses
+        # the exact same all-root immediate-estimation path as H2, without
+        # consuming fantasy draws or evaluating leaves.  Thus two calls with
+        # the same belief, action bank, and generator seed differ only by the
+        # future-value intervention.
+        if discount == 0:
+            root_values[action] = (immediate, immediate, 0.0)
+            continue
         action_noise = _action_noise(noise_variance, action)
         projection = belief.project_action(actions[action], action_noise)
         fantasies, _ = projection.sample(num_fantasies, generator=generator)
@@ -938,9 +949,6 @@ def plan_horizon_two(
                 best_future = max(best_future, value)
             future_values.append(max(0.0, best_future))
         future = float(sum(future_values) / len(future_values))
-        immediate = (
-            estimates[action].total - float(costs.get(action, 0.0))
-        )
         root_values[action] = (
             immediate + discount * future,
             immediate,
