@@ -63,3 +63,6 @@ nohup.out
 *.nav
 *.new
 paper/raosense/qa_current/
+
+# local Colab run copies (outputs)
+*_run.ipynb

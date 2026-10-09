@@ -90,6 +90,7 @@ if MODE == 'mount':
     OUT = f'{ART}/midl27_results'
     def fetch_input(name, dst): shutil.copy(f'{ART}/{name}', dst)
     def input_size(name): return os.path.getsize(f'{ART}/{name}') if os.path.exists(f'{ART}/{name}') else None
+    def list_inputs(): return sorted(os.listdir(ART))
     def sync(verbose=False): pass               # OUT already lives on Drive
 else:
     from google.colab import auth
@@ -117,6 +118,9 @@ else:
 
     def input_size(name):
         f = _find(name, ART_ID); return int(f['size']) if f else None
+    def list_inputs():
+        q = f"'{ART_ID}' in parents and trashed = false"
+        return sorted(f['name'] for f in _svc.files().list(q=q, fields='files(name)', pageSize=1000).execute()['files'])
     def _download(file_id, dst, chunk=2**26):
         with io.FileIO(dst + '.part', 'wb') as fh:
             dl = MediaIoBaseDownload(fh, _svc.files().get_media(fileId=file_id), chunksize=chunk)
@@ -171,7 +175,8 @@ if not os.path.exists('checkpoints/edm/supervised_R=1/network-snapshot.pkl'):
 if not os.path.isdir(DATA):
     size = input_size(TAR_NAME)
     if size is None:
-        raise FileNotFoundError(f'{TAR_NAME} not found in {DRIVE_DIR}')
+        raise FileNotFoundError(f'{TAR_NAME} not found in My Drive/{DRIVE_DIR}; it contains: {list_inputs()}. '
+                                'Upload data/midl27_brain.tar from the Mac there.')
     if size != TAR_BYTES:
         raise IOError(f'{TAR_NAME} is {size} bytes, expected {TAR_BYTES}: '
                       'upload incomplete or still syncing; re-upload and retry')
