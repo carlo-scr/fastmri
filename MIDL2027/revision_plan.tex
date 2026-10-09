@@ -1,0 +1,572 @@
+% ============================================================
+%  FA-KGD -> MIDL 2027: ranked, literature-grounded revision plan
+%  Internal planning document (not a submission).
+%  Build:  pdflatex revision_plan && bibtex revision_plan &&
+%          pdflatex revision_plan && pdflatex revision_plan
+% ============================================================
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[table]{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks,linkcolor=blue!50!black,citecolor=green!35!black,urlcolor=blue!50!black]{hyperref}
+
+\setlist{nosep,leftmargin=1.4em}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.15}
+
+\newcommand{\fakgd}{FA-KGD}
+\newcommand{\pigdm}{$\Pi$GDM}
+\pdfstringdefDisableCommands{\def\pigdm{PiGDM}\def\fakgd{FA-KGD}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\impact}[1]{\textbf{Impact:} #1}
+\newcommand{\tier}[1]{\colorbox{gray!15}{\textsc{#1}}}
+
+% One block per proposed change
+\newcommand{\change}[2]{\subsection*{#1\quad #2}\addcontentsline{toc}{subsection}{\texorpdfstring{#1\quad #2}{#1 #2}}}
+\newcommand{\field}[1]{\par\smallskip\noindent\textbf{#1}\enspace}
+
+\title{\fakgd{} $\rightarrow$ MIDL 2027\\[2pt]
+\large A ranked, literature-grounded revision plan}
+\author{Internal planning document for the \fakgd{} author team}
+\date{Prepared 5 October 2026\quad$\cdot$\quad Full-paper deadline 4 December 2026 (AoE)}
+
+\begin{document}
+\maketitle
+
+% ------------------------------------------------------------
+\section*{Executive summary}
+% ------------------------------------------------------------
+The CS231N report (\code{paper/cvpr2017AuthorKit/latex/egpaper\_final.tex}) contains one
+result that is potentially interesting for MIDL. A diffusion sampler with isotropic
+data consistency (DC) \emph{loses} PSNR as the number of reverse steps $T$ grows,
+while a frequency-aware DC does not. As currently written, however, the paper would
+likely be rejected. There are four reasons.
+\begin{enumerate}
+  \item Its physical premise, that k-space \emph{measurement} noise varies by 1--2 orders
+        of magnitude across frequency, is incorrect for thermal noise
+        \cite{roemer1990phased,kellman2005snr}. All headline numbers use synthetic
+        radial noise.
+  \item The baseline labelled ``\pigdm'' is not \pigdm~\cite{song2023pigdm}
+        (\S\ref{sec:audit}).
+  \item One of the three method components (the online M-step) is very likely inert
+        in the configuration used.
+  \item Closely related work from 2024--2026 is not discussed
+        \cite{peng2024optimal,tian2026frequency,ozturkler2023smrd,lee2026msc}.
+\end{enumerate}
+
+None of these is fatal. Three things make the plan feasible: the deadline (8.5 weeks
+away), one dedicated A100, and the existing multi-coil SENSE code path. The plan
+reframes the contribution as a \textbf{frequency-resolved posterior-uncertainty view of
+data consistency}. Under that view, \fakgd's ``per-frequency noise'' is reinterpreted as
+a per-frequency \emph{prior/posterior variance}, and the claims become testable on real
+multi-coil data. A hard go/no-go gate falls on \textbf{12 October 2026}
+(\S\ref{sec:timeline}).
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}c l L c@{}}
+\toprule
+Rank & ID & Change (highest $\rightarrow$ lowest impact) & Gate\\
+\midrule
+1 & C1 & Replace the noise premise with a posterior-variance interpretation; evaluate on real (prewhitened) noise only & G1\\
+2 & C2 & Implement real \pigdm; rename the current baseline; tune every baseline on a calibration split & G1\\
+3 & C3 & Diagnose the inert M-step; fix it or remove it & G1\\
+4 & C4 & Make step-count degradation the central, mechanistically measured finding & G2\\
+5 & C5 & Multi-coil SENSE with ESPIRiT maps and prewhitening as the primary operator & G2\\
+6 & C6 & Plug-in evaluation across samplers, explicitly positioned against 2024--26 work & G2\\
+7 & C7 & Leak-free splits, volume-level statistics, compute reporting & ---\\
+8 & C8 & Anatomy-matched knee prior & ---\\
+9 & C9 & Real low-SNR evidence (M4Raw 0.3\,T; fastMRI Prostate averages) & G3\\
+10 & C10 & Pathology-region and hallucination analysis (fastMRI+) & ---\\
+11 & C11 & Corrupted-sample robustness (spikes, motion lines) [stretch] & G3\\
+12 & C12 & Downstream task evaluation (SKM-TEA / K2S) [post-deadline] & ---\\
+13 & C13 & Posterior calibration of uncertainty [stretch] & ---\\
+14 & C14 & Rewrite for MIDL: template, scope of claims, LLM policy & ---\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\tableofcontents
+
+% ------------------------------------------------------------
+\section{Venue constraints (verified on 2027.midl.io, 5 Oct 2026)}
+\label{sec:venue}
+% ------------------------------------------------------------
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}l L@{}}
+\toprule
+Item & Fact \cite{midl2027cfp}\\
+\midrule
+Dates & Abstract registration 30 Nov 2026; \textbf{full paper 4 Dec 2026}; reviews 10 Jan; rebuttal 18--24 Jan; notification 12 Feb 2027; camera-ready 12 Mar. Conference: Porto, 14--16 Jul 2027.\\
+Main track & \textbf{10 pages} at submission (12 after rebuttal), excluding references, acknowledgements and appendices. ``Authors should justify the clinical or biomedical relevance of the problem.'' Reviewers are not required to read appendices.\\
+Validation track & 14 pages; novelty not required (external validation, reader studies). This is not our track unless C1--C6 fail.\\
+Review & \textbf{Single-blind} (since 2025) on OpenReview. Do not anonymise. Proceedings: PMLR.\\
+Template & Official MIDL \LaTeX{} template (\url{github.com/MIDL-Conference/MIDLLatexTemplate}). Font, spacing and margins must not be changed.\\
+Short papers & 3 pages, \emph{non-archival}. The track opens only after the full-paper cycle (about spring 2027), so it is a fallback, not a parallel option.\\
+Prior posting & An arXiv preprint or non-archival workshop does not count as dual publication. The CS231N report is non-archival; to be safe, confirm with the PCs by email.\\
+\textbf{LLM policy} & LLMs are allowed \textbf{only for minor language edits}. Generating ideas, analyses, results or substantive text is prohibited. \emph{Consequence:} the submission text must be written by the authors. This document is an internal planning aid; none of its prose should be pasted into the paper.\\
+Acceptance & 61.8\% in 2023 (112/181, PMLR v227 preface); about 54\% in 2024. No official rate has been published for 2025--26.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\paragraph{What gets accepted.} Recent MIDL MRI-reconstruction papers
+\cite{akoda2026consistency,deng2026subspace,karkalousos2023mtl} evaluate on fastMRI and/or
+CMRxRecon across several acceleration factors. They compare against both diffusion and
+unrolled baselines. They sell either speed (NFE) or physical consistency, and some add a
+downstream task. This sets the minimum bar for C5--C7.
+
+% ------------------------------------------------------------
+\section{Audit of the current draft and code}
+\label{sec:audit}
+% ------------------------------------------------------------
+Line numbers refer to \code{egpaper\_final.tex}; code paths are relative to the
+repository root.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}c L L@{}}
+\toprule
+Sev. & Finding & Evidence\\
+\midrule
+\cellcolor{red!15}A & The premise that k-space \emph{measurement} noise power varies 1--2 orders of magnitude between centre and periphery is physically wrong. Thermal noise is white per receive channel and correlated across coils \cite{roemer1990phased,pruessmann1999sense}. Receiver filtering changes noise along \emph{image position} on the readout axis and through the noise-equivalent bandwidth \cite{kellman2005snr}; it does not change per-sample k-space variance with spatial frequency. What does vary strongly with frequency is \emph{signal} power. & l.124--127; all sweeps use synthetic $\sigma^2(r)=\sigma_0^2(1+5(r/r_{\max})^2)$ (l.617--619, 755--757).\\
+\cellcolor{red!15}A & The ``\pigdm'' baseline is a scalar-gain Kalman correction of the Tweedie estimate followed by fresh-noise re-noising. It has no vector--Jacobian product guidance on $x_t$ and no $r_t$ schedule, so it is not the method of \cite{song2023pigdm}. Eq.~(1) of the draft describes a different update from the one evaluated. & \code{src/samplers/pigdm.py:49--64}\\
+\cellcolor{red!15}A & The M-step is very likely inert. $\alpha_t=1-(1-\alpha_0)\sigma_t/\sigma_{\max}\to1$ as $\sigma_t\to0$, so late steps barely update. In clamp mode, $\hat\sigma_i^2\le\hat\sigma^2_{i,\mathrm{init}}$, and early residuals exceed the initial value, so they are clamped back. This is consistent with the $\alpha$ sweep being identical to $10^{-3}$\,dB across all $\alpha_0$. & \code{src/samplers/fakgd.py:140--157}; Table~\code{tab:hparam} (l.1102--1104)\\
+\cellcolor{orange!20}B & Hyperparameters are selected on the fastMRI validation split and results are reported on the same split. The test split is described as ``unused''. & l.594--596, 889--890\\
+\cellcolor{orange!20}B & Overclaim: ``FA-KGD improves monotonically'' with $T$. Its absolute PSNR peaks at $T{=}50$ (30.24$\to$29.89\,dB; knee 31.92$\to$30.32). Only the \emph{gap} to the baseline grows. ``Scaling law'' (abstract) is not supported by four points. & l.81, 761--763, Table~\code{tab:tscaling}\\
+\cellcolor{orange!20}B & Headline significance $p<10^{-30}$ treats 192 correlated slices as independent. The volume-level test ($n{=}12$, $p{=}2^{-12}$, i.e.\ every volume positive) is the defensible one. & l.777--779\\
+\cellcolor{orange!20}B & The oracle ablation is internally inconsistent: $\eta=0.1$ vs.\ ``$\eta=0$''; ``three-slice'' vs.\ ``five-slice'' development set. Its PSNR values of about 60\,dB are far from the operating point. & l.908, 1132, 1150--1156\\
+\cellcolor{orange!20}B & The paper describes three different noise sources: ACS coil-difference variance (Eq.~2), image background patches (multicoil), and synthetic radial noise. Readers cannot tell which drives which result. & l.384--399\\
+\cellcolor{yellow!25}C & ``DDIM step'' in Alg.~1 and Fig.~1, but the code re-noises with fresh Gaussian noise (stochastic, not deterministic DDIM). & l.567; \code{fakgd.py:165--169}\\
+\cellcolor{yellow!25}C & The knee results use the brain-trained prior. The \code{checkpoints/unet\_knee} files are supervised U-Nets, not diffusion priors. & l.640--641; \code{checkpoints/}\\
+\cellcolor{yellow!25}C & The main experiments use a coil-combined single-channel operator, although a SENSE path exists in the code. & l.262--270; \code{src/samplers/multicoil.py}, \code{sense.py}\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% ------------------------------------------------------------
+\section{Position in the current literature}
+\label{sec:lit}
+% ------------------------------------------------------------
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l L c c c@{}}
+\toprule
+Work & Where non-isotropy / adaptivity enters & Basis & Online & MRI\\
+\midrule
+\pigdm{} \cite{song2023pigdm}, DPS \cite{chung2023dps} & None: isotropic $r_t^2$ or Laplace approximation & --- & --- & no\\
+Peng et al.\ \cite{peng2024optimal} & Posterior covariance of $x_0|x_t$, diagonal in an orthonormal basis; learned or offline Monte Carlo & DWT & no & no\\
+TMPD \cite{boys2024tmpd}, MMPS \cite{rozet2024mmps} & Full Tweedie covariance via denoiser Jacobian (moment projection / CG with VJPs) & dense & yes & MMPS: knee\\
+CA-DPS \cite{hamidi2024cadps} & Online diagonal covariance from score finite differences & pixel & yes & no\\
+Schioppa \& Salimans \cite{schioppa2026covariance} & Fourier-structured Tweedie covariance (unconditional sampling) & Fourier & yes & no\\
+Tian et al.\ \cite{tian2026frequency} & \textbf{Noise-conditioned frequency exposure} of measurements, returning to full-band DC & Haar/freq. & schedule & no\\
+SMRD \cite{ozturkler2023smrd} & SURE-tuned DC weight and \textbf{early stopping against noise overfitting} & scalar & yes & yes\\
+Lee \& Choi \cite{lee2026msc} & Plug-in measured-subspace correction wrapping six samplers & range/null & --- & yes\\
+HFS-SDE \cite{cao2024hfssde}, CDiffMR \cite{huang2023cdiffmr} & Frequency-split diffusion processes (\emph{require training}) & k-space & --- & yes\\
+Fast Diffusion EM \cite{laroche2024fastdiffem}, NA-NHMC \cite{xia2026nanhmc} & EM / marginalisation of blur kernel or scalar noise level & --- & yes & no\\
+\midrule
+\textbf{\fakgd{} (proposed framing)} & Per-frequency posterior variance in k-space, initialised from ACS, refined from residuals; frequency-gated DC & \textbf{k-space} & \textbf{yes} & \textbf{yes}\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\paragraph{What remains defensible.}
+\begin{enumerate}[label=(\roman*)]
+  \item \emph{Basis matched to the forward operator.} For Cartesian MRI the measurement
+        operator is diagonal in k-space up to coil sensitivities. A k-space-diagonal
+        posterior variance therefore makes the Kalman update exact and costs $O(n)$.
+        Peng et al.\ use a wavelet basis on natural images \cite{peng2024optimal}.
+  \item \emph{Scan-specific, training-free estimation} from the ACS region and the
+        residuals, with no calibration dataset.
+  \item \emph{The empirical finding} that isotropic-DC samplers degrade as $T$ grows on
+        multi-coil MRI. The literature search found no prior documentation for \pigdm-type
+        samplers on MRI. SMRD \cite{ozturkler2023smrd} documents noise overfitting and
+        early stopping, which is related evidence to cite. Burns \& Fridovich-Keil
+        \cite{burns2026finite} give a theoretical lens: miscalibrated intermediate
+        posterior spread makes samplers sensitive to stopping time.
+\end{enumerate}
+
+\paragraph{What must be conceded.} Frequency-progressive DC is conceptually close to
+noise-conditioned frequency exposure \cite{tian2026frequency}. FPDC must be presented as
+the MRI/k-space instantiation and compared against that paper's schedule, or derived
+from the posterior-variance view (\S\ref{sec:theory}) rather than claimed as novel.
+Non-isotropic posterior covariance in general is not new \cite{peng2024optimal,boys2024tmpd,rozet2024mmps}.
+
+% ------------------------------------------------------------
+\section{Proposed framing and a theory check}
+\label{sec:theory}
+% ------------------------------------------------------------
+\paragraph{Equivalence.} \fakgd's gain
+$K_i(t)=\sigma_t^2/(\sigma_t^2+\hat\sigma_i^2)$ is algebraically identical to a Kalman
+gain $K_i=P_i/(P_i+\sigma_y^2)$ with \emph{white} measurement noise $\sigma_y^2$ and
+per-frequency prior variance $P_i(t)=\sigma_y^2\sigma_t^2/\hat\sigma_i^2$. A radially
+increasing ``noise'' profile is therefore equivalent to a radially \emph{decreasing}
+posterior variance. That is physically expected, because image power falls off with
+spatial frequency. The method survives the correction of its premise; only the
+explanation changes. This also explains why the ACS coil-difference estimator (draft
+Eq.~2) produces a radial profile on real data: coil differences contain sensitivity-weighted
+\emph{signal}, which follows the power spectrum.
+
+\paragraph{Linear-Gaussian reference model.} Assume a stationary Gaussian prior with
+power spectrum $S_i$, observed through $x_t=x_0+\sigma_t\varepsilon$. Then
+$\operatorname{Var}[x_{0,i}\mid x_t]=P_i(t)=S_i\sigma_t^2/(S_i+\sigma_t^2)$, and the
+exact gain for a sampled frequency is
+\begin{equation}
+  K_i^{\star}(t)=\frac{P_i(t)}{P_i(t)+\sigma_y^2}
+  =\Bigl(1+\tfrac{\sigma_y^2}{\sigma_t^2}+\tfrac{\sigma_y^2}{S_i}\Bigr)^{-1}.
+  \label{eq:wiener}
+\end{equation}
+Compared with the isotropic gain $(1+\sigma_y^2/\sigma_t^2)^{-1}$, the only new term is
+the spectral SNR $\sigma_y^2/S_i$. Two consequences follow.
+\begin{enumerate}
+  \item A \emph{principled, hyperparameter-free variant} exists: estimate $S_i$ from the
+        ACS (radial power-law fit) and $\sigma_y^2$ from prewhitened background or
+        repetitions. Call it \emph{Spectral-SNR DC}. It must be in the ablation.
+  \item Eq.~\eqref{eq:wiener} does \emph{not} predict a progressive opening of high
+        frequencies over time. FPDC's benefit therefore cannot be justified by the
+        Gaussian model alone. It has to be justified empirically (C4 mechanism plots) or
+        through approximation error of the Tweedie mean at large $\sigma_t$
+        \cite{burns2026finite}. This is an honest, testable distinction. If Spectral-SNR DC
+        recovers most of the gain, the paper becomes cleaner and more principled; if FPDC
+        adds on top, that is evidence for an approximation-error mechanism.
+\end{enumerate}
+\emph{Before using this in the paper,} re-derive it with the EDM real/complex channel
+scaling used in \code{multicoil.py} (the factor 2 in $K_{c,i}$) and with coil
+sensitivities ($K$ becomes a small per-pixel system in SENSE).
+
+% ------------------------------------------------------------
+\section{Ranked changes}
+\label{sec:changes}
+% ------------------------------------------------------------
+Each change lists the problem, the change, the literature grounding, the effort on one
+A100, and a success criterion. Effort is in person-days (pd) plus GPU time.
+
+% ---- Tier 1 -------------------------------------------------
+\medskip\noindent\tier{Tier 1 --- blocking: decides whether there is a paper}
+
+\change{C1}{Replace the noise premise; evaluate on real noise only}
+\field{Problem.} Headline results depend on synthetic radial noise motivated by an
+incorrect physical claim (\S\ref{sec:audit}). An MR-physics reviewer stops reading there.
+\field{Change.}
+(a) Remove the ``1--2 orders of magnitude noise'' claim. Adopt the posterior-variance
+interpretation (\S\ref{sec:theory}).
+(b) Run every main experiment on \emph{unmodified} raw k-space. Estimate the coil noise
+covariance $\Psi$ from signal-free regions. The raw fastMRI readout is 2$\times$
+oversampled, and the region outside the central 320 columns is mostly air. Prewhiten
+\cite{kellman2005snr,pruessmann1999sense}.
+(c) Keep synthetic noise only as a controlled \emph{SNR sweep}: add \emph{white,
+$\Psi$-correlated} noise at chosen SNR levels, not radial noise.
+(d) Add Spectral-SNR DC (Eq.~\ref{eq:wiener}) as a variant.
+\field{Grounding.} Roemer \cite{roemer1990phased}; SENSE \cite{pruessmann1999sense};
+SNR-unit reconstruction and noise-equivalent bandwidth \cite{kellman2005snr}; magnitude
+statistics \cite{gudbjartsson1995rician,constantinides1997snr,ajafernandez2016noise}.
+To our knowledge no major public raw dataset ships noise prescans: fastMRI, M4Raw,
+CMRxRecon and Calgary-Campinas do not document them. Estimating $\Psi$ from background
+is therefore standard practice and should be stated as a limitation.
+\field{Effort.} 3--4 pd; under 1 GPU-day.
+\field{Success (Gate G1).} On real-noise brain data at $R\in\{4,8\}$ and $T\in\{20,50,100\}$,
+the frequency-aware variant beats the \emph{best tuned} isotropic baseline (C2). The
+volume-level mean $\Delta$PSNR must be $\ge0.2$\,dB with a bootstrap 95\% CI excluding 0
+for $T\ge50$.
+
+\change{C2}{Correct and fairly tune the baselines}
+\field{Problem.} The baseline is not \pigdm{}, and it shares \fakgd's hyperparameters
+without its own search. The draft itself flags the ``tuning asymmetry'' (l.900--902).
+Its degradation with $T$ may be a tuning artefact, and that would remove the central finding.
+\field{Change.}
+(a) Rename the current baseline \emph{Isotropic Kalman DC (IK-DC)}. It is the exact
+ablation parent of \fakgd{} and should stay.
+(b) Implement \pigdm{} as published (VJP guidance, $r_t$ schedule) \cite{song2023pigdm}.
+(c) For every method, tune its own hyperparameters ($\sigma_y$, step weight, $\zeta$,
+CG iterations) per $(R,T)$ on a disjoint calibration split, with an equal search budget.
+InverseBench tunes every algorithm per task with a fixed protocol
+\cite{zheng2025inversebench}; follow and cite it.
+\field{Effort.} 4--6 pd; about 2 GPU-days for the sweeps.
+\field{Success.} The IK-DC and \pigdm{} degradation with $T$ persists after tuning. If it
+does not, C4 changes from ``samplers degrade'' to ``frequency-aware DC reaches the tuned
+optimum without per-$T$ tuning''. That is weaker but still publishable.
+
+\change{C3}{Diagnose the inert M-step; fix it or remove it}
+\field{Problem.} Component 3 probably does nothing (\S\ref{sec:audit}), so the claimed
+superadditive synergy (draft \S4.4, ablation table) cannot be attributed to it.
+\field{Change.} On 32 real slices, compare \code{m\_step\_mode} $\in$ \{off, clamp, full\}
+and log $\|\hat\sigma^2_t-\hat\sigma^2_{\mathrm{init}}\|/\|\hat\sigma^2_{\mathrm{init}}\|$
+per step. If the change is $<1\%$, drop the component and the $\gamma$-family section.
+If you keep it, re-specify it as an online estimate of the \emph{posterior variance}
+$P_i(t)$ from residuals. Under \S\ref{sec:theory}, the expected squared residual is
+$P_i+\sigma_y^2$, which is a principled moment estimator. Use a schedule that is not
+switched off by $\alpha_t\to1$.
+\field{Grounding.} Online moment estimation of Tweedie covariance \cite{hamidi2024cadps,boys2024tmpd};
+EM-style adaptation \cite{laroche2024fastdiffem}.
+\field{Effort.} 1--2 pd.
+\field{Success.} Either a documented removal (simpler method, honest ablation) or a
+measurable contribution of at least 0.05\,dB with a CI excluding 0.
+
+% ---- Tier 2 -------------------------------------------------
+\medskip\noindent\tier{Tier 2 --- core contribution}
+
+\change{C4}{Make step-count degradation the central, mechanistically measured finding}
+\field{Problem.} ``Scaling law'' is an overclaim, and the mechanism (``DC shock'') is
+asserted rather than measured (draft l.448--451 admits this).
+\field{Change.} Plot per-band k-space error of $\hat x_0(x_t)$ as a function of the
+reverse step, for each sampler, with and without the frequency-aware module. Use 5
+radial bands and median plus IQR over volumes. Also record the ``realised residual vs.\
+predicted variance'' ratio per band, which tests the calibration of the implied
+$P_i(t)$. Replace ``scaling law'' with ``step-robustness''. Extend the $T$ grid to
+$\{10,20,50,100,200\}$ and report NFE explicitly.
+\field{Grounding.} Noise overfitting and early stopping in diffusion MRI \cite{ozturkler2023smrd};
+finite-sample failure modes \cite{burns2026finite}; few-step samplers showing that more
+steps are not required \cite{pandey2024cpigdm}.
+\field{Effort.} 3 pd; about 1 GPU-day.
+\field{Success (Gate G2).} The per-band error curves show high-band error accumulating
+in the isotropic samplers and not in the frequency-aware variant, on both anatomies.
+
+\change{C5}{Multi-coil SENSE as the primary operator}
+\field{Problem.} A coil-combined single-channel operator is non-standard for raw
+fastMRI, and reviewers know this. It also makes the supervised gap uninterpretable.
+\field{Change.} Use ESPIRiT maps \cite{uecker2014espirit} from the ACS, after prewhitening.
+Extend the existing \code{run\_pigdm\_mc} and \code{run\_fakgd\_mc} paths
+(\code{src/samplers/multicoil.py}) to all baselines. Report E2E-VarNet
+\cite{sriram2020varnet} on exactly the same slices and masks as a supervised reference.
+\field{Grounding.} Score-MRI parallel imaging \cite{chung2022scoremri}; DDS on multi-coil
+MRI \cite{chung2024dds}; InverseBench's multi-coil fastMRI task with real raw measurements
+\cite{zheng2025inversebench}; the prior from \cite{aali2025ambient}.
+\field{Effort.} 4--6 pd; 2--3 GPU-days for the main grid.
+
+\change{C6}{Plug-in evaluation across samplers, explicitly positioned}
+\field{Problem.} A single-sampler comparison invites ``tuning asymmetry'' objections.
+Recent work already proposes plug-in DC operators for MRI \cite{lee2026msc} and
+frequency-conditioned exposure \cite{tian2026frequency}.
+\field{Change.} Implement the frequency-aware gain as a drop-in for the DC step of
+IK-DC, \pigdm{} \cite{song2023pigdm}, DDS \cite{chung2024dds}, DiffPIR \cite{zhu2023diffpir},
+and, if time allows, DAPS \cite{zhang2025daps}. DPS \cite{chung2023dps} has no explicit DC
+step, so report it as an unmodified reference. Main table: sampler $\times$
+\{off, on\} $\times$ $T$. Add head-to-heads with (i) Tian et al.'s frequency-exposure
+schedule ported to k-space and (ii) the measured-subspace operator \cite{lee2026msc}, if
+its code is available. Otherwise reimplement it and label it as such.
+\field{Effort.} 7--10 pd; 3--4 GPU-days.
+\field{Success.} The module is positive for at least 3 of 4 samplers at $T\ge50$, with
+volume-level CIs excluding 0, and never worse than $-0.05$\,dB.
+
+\change{C7}{Leak-free protocol, volume-level statistics, compute reporting}
+\field{Change.}
+(a) Split by volume: calibration (tuning) / test. Use the official test split, or a
+frozen held-out subset of validation volumes, for the test set.
+(b) Freeze manifests (SHA-256 of the HDF5 files) before running the test.
+(c) Primary statistic: paired volume-level mean $\Delta$ with bootstrap 95\% CIs; Wilcoxon
+signed-rank across volumes; Holm correction across the main cells. Slice curves are
+descriptive only.
+(d) Report NFE, wall-clock time per slice on the A100, and peak memory.
+(e) Metrics: PSNR and SSIM on RSS magnitude within a foreground mask, plus NMSE and HFEN.
+Note Rician/noncentral-$\chi$ bias at low SNR \cite{gudbjartsson1995rician,constantinides1997snr}.
+\field{Effort.} 2 pd. This is mostly reuse of the RaoSense provenance tooling.
+
+% ---- Tier 3 -------------------------------------------------
+\medskip\noindent\tier{Tier 3 --- clinical relevance and external validity (MIDL fit)}
+
+\change{C8}{Anatomy-matched knee prior}
+\field{Problem.} The knee results use a brain prior, and the cross-domain caveat runs
+through the whole draft.
+\field{Change.} First check whether the Ambient-DPS repository \cite{aali2025ambient} or
+InverseBench \cite{zheng2025inversebench}, which uses an EDM prior on multi-coil fastMRI
+knee, releases a knee checkpoint. Otherwise train an EDM \cite{karras2022edm} on fastMRI
+knee training volumes. Our estimate for that is 3--5 A100-days at 320$\times$320; verify
+with a 2-hour throughput test. Keep brain$\to$knee as a \emph{robustness} row.
+\field{Effort.} 1--2 pd plus 0--5 GPU-days. Start in week 1 so training runs in parallel.
+
+\change{C9}{Real low-SNR evidence}
+\field{Problem.} A ``noise-aware'' method must be shown where noise matters.
+\field{Change.}
+\begin{itemize}
+  \item \textbf{M4Raw} \cite{lyu2023m4raw}: 0.3\,T, 4-channel brain, 183 subjects,
+        T1w/T2w $\times3$ and FLAIR $\times2$ repetitions, CC~BY~4.0. Differences of
+        repetitions give an empirical noise estimate, and averages give a higher-SNR
+        reference. Use the brain prior as-is (robustness) and, if time allows, fine-tune
+        it.
+  \item \textbf{fastMRI Prostate} \cite{tibrewala2024prostate}: T2w is stored as 3
+        separate averages; averages 1 and 3 sample the same (odd) lines. This gives a
+        second real-noise estimate at 3\,T with many channels. Optional, as a third
+        anatomy.
+  \item \textbf{SNR sweep} on fastMRI brain using $\Psi$-correlated white noise
+        (C1c), reported in SNR units \cite{kellman2005snr}.
+\end{itemize}
+\field{Effort.} 4--5 pd; 1--2 GPU-days.
+\field{Success (Gate G3).} The gain over the tuned baseline increases as SNR decreases.
+
+\change{C10}{Pathology-region and hallucination analysis}
+\field{Change.} Use fastMRI+ boxes \cite{zhao2022fastmriplus} (brain: 7{,}570 boxes, 30
+categories; knee: 16{,}154 boxes, 22 categories). Report ROI-restricted PSNR/SSIM/NMSE
+against size-matched normal patches, and hallucination maps \cite{bhadra2021hallucination}.
+Show a frozen, quantile-chosen qualitative panel, not hand-picked slices. Add deep
+feature distances, which track radiologist scores better than PSNR/SSIM
+\cite{adamson2023dfd}. Motivate this with the documented hallucinations in the 2020
+fastMRI challenge \cite{muckley2021fastmri}.
+\field{Effort.} 3--4 pd; under 1 GPU-day (reuses reconstructions). This is the main lever
+for the ``clinical relevance'' requirement.
+
+\change{C11}{Corrupted-sample robustness [stretch; requires C3 to work]}
+\field{Idea.} Per-frequency trust that adapts from residuals should down-weight corrupted
+samples: RF spikes / herringbone \cite{campbellwashburn2016spike,jin2017aloha} and
+motion-corrupted phase-encode lines \cite{levac2024motion}.
+\field{Change.} Simulate on \emph{multi-coil raw} k-space with our own implementation.
+TorchIO's RandomSpike, RandomMotion and RandomGhosting \cite{perezgarcia2021torchio} operate on
+single-channel k-space synthesised from magnitude images, so use them only as reference
+implementations. EMI at low field \cite{srinivas2022editer,liu2021ulf} is out of scope
+(no public raw EMI data).
+\field{Effort.} 4--6 pd. Cut if the timeline slips.
+
+\medskip\noindent\tier{Tier 4 --- valuable, but realistically after 4 December}
+
+\change{C12}{Downstream task evaluation}
+SKM-TEA \cite{desai2021skmtea} offers cartilage segmentation and T2 maps from GE 3D qDESS,
+and K2S \cite{tolpadi2023k2s} offers segmentation from undersampled knee data. Caveat:
+both ``fully sampled'' references are ARC-filled. K2S reports no correlation between
+reconstruction and segmentation metrics, which is a strong motivation for a journal
+extension.
+
+\change{C13}{Uncertainty calibration}
+With several posterior samples per slice, report the correlation between per-pixel
+spread and error, and per-band coverage. This follows naturally from the
+posterior-variance framing but needs about 8$\times$ more compute.
+
+\medskip\noindent\tier{Cross-cutting}
+
+\change{C14}{Rewrite for MIDL}
+\begin{itemize}
+  \item Use the official MIDL template, a 10-page main text, and author names (single-blind).
+  \item Remove the CS231N-specific sections (Contributions, ``Dataset and Features'',
+        GenAI statement in its current form).
+  \item Put a clinical-relevance paragraph in the introduction (scan time; artefact
+        risk; hallucination concerns \cite{muckley2021fastmri}).
+  \item Fix every finding in \S\ref{sec:audit}: ``scaling law''$\to$``step-robustness'';
+        stochastic re-noising, not DDIM; one oracle specification or none.
+  \item Write the related-work section from \S\ref{sec:lit}, positioning explicitly
+        against \cite{peng2024optimal,tian2026frequency,ozturkler2023smrd,lee2026msc}.
+  \item \textbf{LLM policy:} the authors write all substantive text, with LLM use limited
+        to language polishing \cite{midl2027cfp}. Keep a change log of who wrote what.
+  \item Release code and frozen manifests (encouraged by MIDL).
+\end{itemize}
+
+% ------------------------------------------------------------
+\section{Datasets and noise models: selection}
+\label{sec:data}
+% ------------------------------------------------------------
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l L c@{}}
+\toprule
+Dataset & Facts relevant to us & Use\\
+\midrule
+fastMRI brain/knee \cite{zbontar2018fastmri,knoll2020fastmri} & Raw multi-coil; Siemens 1.5/3\,T; knee 15 channels; readout 2$\times$ oversampled; no documented noise prescans & \textbf{core}\\
+fastMRI+ \cite{zhao2022fastmriplus} & Pathology boxes for fastMRI brain/knee & \textbf{core} (C10)\\
+M4Raw \cite{lyu2023m4raw} & 0.3\,T, 4-channel brain, 183 subjects, repetitions, CC~BY~4.0 & \textbf{core} (C9)\\
+fastMRI Prostate \cite{tibrewala2024prostate} & 3\,T Siemens Vida; 3 separate T2w averages; 10--30 channels & optional (C9)\\
+Calgary-Campinas MC \cite{beauferris2022calgary} & GE 3\,T, 12/32-channel 3D T1 brain; vendor shift & optional\\
+CMRxRecon \cite{wang2024cmrxrecon} & Siemens 3\,T, 32-channel cardiac, CC~BY~4.0 & journal\\
+SKM-TEA \cite{desai2021skmtea}, K2S \cite{tolpadi2023k2s} & GE 3\,T knee; segmentation, T2; references ARC-filled & journal (C12)\\
+mridata.org \cite{ong2018mridata} & Stanford 3D FSE knees (20 subjects, 8 channels) & sanity check only\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\paragraph{Noise models we will (and will not) use.}
+\begin{itemize}
+  \item \textbf{Use:} thermal noise, white per channel and coil-correlated through $\Psi$,
+        with prewhitening \cite{roemer1990phased,kellman2005snr}; controlled SNR reduction
+        by adding $\Psi$-correlated white noise; real low-field noise (M4Raw); magnitude
+        statistics for evaluation \cite{gudbjartsson1995rician,constantinides1997snr}.
+  \item \textbf{Stretch:} sparse k-space spikes; motion-corrupted lines (C11).
+  \item \textbf{Do not use as motivation:} ``frequency-dependent thermal noise''. Readout
+        anti-aliasing roll-off affects image-domain position and the noise-equivalent
+        bandwidth \cite{kellman2005snr}, not per-sample k-space variance across spatial
+        frequency.
+\end{itemize}
+
+% ------------------------------------------------------------
+\section{Timeline to 4 December 2026, with gates}
+\label{sec:timeline}
+% ------------------------------------------------------------
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l L l@{}}
+\toprule
+Week (2026) & Work & Gate\\
+\midrule
+1: Oct 5--11 & C3 diagnosis; real-noise brain run (C1); IK-DC vs.\ tuned IK-DC (C2a/c); start knee-prior throughput test or training (C8) & \textbf{G1 (Oct 12)}\\
+2: Oct 12--18 & Implement \pigdm{} and multi-coil baselines (C2b, C5); freeze splits and manifests (C7) & \\
+3: Oct 19--25 & DDS, DiffPIR, DAPS plug-ins (C6); mechanism instrumentation (C4) & \\
+4: Oct 26--Nov 1 & Main grid on brain; mechanism plots & \textbf{G2 (Nov 1)}\\
+5: Nov 2--8 & Knee grid (matched prior); M4Raw and SNR sweep (C9) & \textbf{G3 (Nov 8)}\\
+6: Nov 9--15 & fastMRI+ ROI and hallucination analysis (C10); C11 only if ahead & \\
+7: Nov 16--22 & Ablations: Spectral-SNR DC vs.\ FPDC vs.\ both; M-step; figures frozen & \\
+8: Nov 23--30 & Writing by the authors (C14); internal review; \textbf{abstract registration Nov 30} & \\
+9: Dec 1--4 & Final pass; submit by \textbf{Dec 4 AoE} & \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\paragraph{Compute budget (one A100).} The inference grid is roughly 200 test slices
+$\times$ 2 anatomies $\times$ 5 samplers $\times$ \{off, on\} $\times$ 5 $T$-values
+$\times$ 2 $R$, plus M4Raw and the SNR sweep. At a few seconds per slice for $T\le100$,
+this totals 3--6 GPU-days. Knee-prior training (0--5 days) is the only large item and
+runs concurrently. Measure per-slice runtime in week 1 and re-plan if it is above
+10\,s.
+
+% ------------------------------------------------------------
+\section{Risks and fallbacks}
+% ------------------------------------------------------------
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}L L@{}}
+\toprule
+If\ldots & Then\ldots\\
+\midrule
+G1 fails: no gain over a tuned isotropic baseline on real noise & Do not submit a methods paper to the main track. Write a negative/analysis note (``frequency-aware DC under real noise'') for the MIDL short-paper track (spring 2027), and keep FA-KGD as a course report.\\
+Baseline degradation with $T$ disappears after tuning & Reframe C4: the frequency-aware gain removes the need for per-$T$ tuning. Report tuning cost as the endpoint.\\
+Spectral-SNR DC explains all of the gain & Lead with the principled variant; FPDC becomes an ablation. This is a cleaner paper.\\
+M-step inert (C3) & Remove it and the $\gamma$-family section; drop C11.\\
+Knee prior not ready by week 5 & Report brain (matched) and M4Raw; keep knee as a cross-domain robustness row with an explicit caveat.\\
+Tian et al.\ \cite{tian2026frequency} schedule matches FPDC on MRI & Concede FPDC; the contribution becomes the k-space posterior-variance gain plus the MRI step-robustness analysis.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% ------------------------------------------------------------
+\section{Target paper outline (10 pages, MIDL main track)}
+% ------------------------------------------------------------
+\begin{enumerate}
+  \item \textbf{Introduction} (1\,p): clinical motivation; failure of isotropic DC as
+        $T$ grows; contributions (k-space posterior-variance gain; step-robustness
+        analysis; plug-in evaluation on real multi-coil and low-field data).
+  \item \textbf{Related work} (0.75\,p): \S\ref{sec:lit}.
+  \item \textbf{Method} (2\,p): linear-Gaussian derivation (Eq.~\ref{eq:wiener}); ACS
+        spectral estimate; FPDC as an approximation-error correction; residual-based
+        refinement (if C3 survives); plug-in form for each sampler.
+  \item \textbf{Experimental setup} (1.25\,p): data, prewhitening, splits, tuning
+        protocol, metrics, statistics, compute.
+  \item \textbf{Results} (3.5\,p): main plug-in table; step-robustness and mechanism
+        figure; low-SNR and M4Raw; pathology ROI and hallucinations; ablations.
+  \item \textbf{Discussion and limitations} (1\,p): $\Psi$ from background (no
+        prescans); retrospective undersampling; no reader study; brain-trained priors
+        where applicable.
+  \item \textbf{Appendix:} derivations, per-volume results, full tuning grids,
+        qualitative panels.
+\end{enumerate}
+
+\paragraph{Items to verify before citing.} Before any reference marked UNVERIFIED in the
+bibliography is cited, check its author lists and venue on the primary source. Also
+check the InverseBench MRI numbers against its tables. Read Blumenthal et al.\
+\cite{blumenthal2025pula} to see whether its preconditioner is k-space diagonal, because
+that would be a further novelty risk.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

@@ -1,0 +1,40 @@
+\section{Related Work}
+\label{sec:related}
+
+\authornote{\textbf{Diffusion posterior sampling for MRI.} Score-based CS-MRI
+\citep{jalal2021robust,chung2022scoremri}; priors trained on corrupted data
+\citep{aali2025ambient}; frequency-split diffusion processes that \emph{require
+training}, namely HFS-SDE \citep{cao2024hfssde} and CDiffMR \citep{huang2023cdiffmr}.
+Benchmarking: InverseBench includes multi-coil fastMRI with real raw measurements and
+tunes each sampler per task \citep{zheng2025inversebench}; we follow its tuning
+protocol. One sentence on where we differ: we are training-free and change only the
+DC step.}
+
+\authornote{\textbf{Beyond isotropic posterior covariance.} \citet{peng2024optimal} show
+that DPS and \pigdm{} share an isotropic Gaussian approximation and replace it with a
+covariance that is diagonal in a wavelet basis and learned or estimated offline. TMPD
+\citep{boys2024tmpd} and MMPS \citep{rozet2024mmps} use the denoiser Jacobian (MMPS is
+also evaluated on fastMRI knee). CA-DPS \citep{hamidi2024cadps} estimates a diagonal
+covariance online. \citet{schioppa2026covariance} use a Fourier-structured covariance
+for unconditional sampling. \emph{Difference (state it precisely):} our covariance is
+diagonal in the basis that diagonalises the MRI operator, is calibrated per scan from
+the ACS region with no extra network evaluations, and is evaluated on raw multi-coil
+and low-field data.}
+
+\authornote{\textbf{Frequency scheduling and adaptive DC.} \citet{tian2026frequency}
+expose measurement frequencies according to the diffusion noise level and return
+progressively to full-band consistency, on natural images. Our frequency gate is the
+k-space instance of this idea, and we compare against their schedule
+(\tableref{tab:ablation}). SMRD \citep{ozturkler2023smrd} adapts a \emph{scalar} DC
+weight with SURE and stops early. Measured-subspace consistency \citep{lee2026msc} is
+a plug-in range/null-space correction for MRI samplers. It is complementary to ours,
+because it does not reweight frequencies. Blind or noise-adaptive samplers estimate a
+scalar noise level or a blur kernel
+\citep{laroche2024fastdiffem,xia2026nanhmc}.}
+
+\authornote{\textbf{Noise in MRI.} Thermal noise is white per channel and correlated
+across coils; prewhitening with the coil noise covariance is standard
+\citep{roemer1990phased,pruessmann1999sense,kellman2005snr}. Magnitude images follow
+Rician or noncentral-$\chi$ statistics \citep{gudbjartsson1995rician,constantinides1997snr}.
+Keep this to 2--3 sentences. It justifies the white-noise likelihood in
+\equationref{eq:lik} and the magnitude-domain evaluation caveat.}

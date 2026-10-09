@@ -1,0 +1,76 @@
+\section{Experimental Setup}
+\label{sec:setup}
+
+\paragraph{Data.}
+\authornote{Describe the three cohorts in \tableref{tab:data}. All test results use
+raw k-space with its native noise. Synthetic noise appears only in the controlled SNR
+sweep (\sectionref{sec:res-snr}), and it is white and $\Psi$-correlated, never radial.
+fastMRI provides no documented noise prescans, so $\Psi$ is estimated from the
+signal-free part of the 2$\times$ oversampled readout field of view
+\citep{kellman2005snr}. Say this plainly; it is also a limitation.}
+
+\begin{table}[t]
+\floatconts{tab:data}
+{\caption{Cohorts. Splits are by volume or subject. Calibration volumes are used only
+for hyperparameter tuning of \emph{all} methods; test volumes are frozen (SHA-256
+manifest) before any test run.}}
+{\small\setlength{\tabcolsep}{3.5pt}
+\resizebox{\linewidth}{!}{\begin{tabular}{@{}lllcc@{}}
+\toprule
+Cohort & Acquisition & Prior used & Calib.\ vols & Test vols (slices)\\
+\midrule
+fastMRI brain \citep{zbontar2018fastmri} & Siemens 1.5/3\,T, multi-coil, AXT2/AXFLAIR & brain EDM \citep{aali2025ambient} & \xx & \xx{} (\xx)\\
+fastMRI knee \citep{knoll2020fastmri} & Siemens 1.5/3\,T, 15-ch, PD/PDFS & knee EDM (\xx) & \xx & \xx{} (\xx)\\
+M4Raw \citep{lyu2023m4raw} & 0.3\,T, 4-ch, T1w/T2w/FLAIR, repeats & brain EDM (cross-field) & \xx & \xx{} (\xx)\\
+fastMRI+ boxes \citep{zhao2022fastmriplus} & subset of the test volumes above & --- & --- & \xx{} boxes\\
+\bottomrule
+\end{tabular}}}
+\end{table}
+
+\paragraph{Sampling and references.}
+\authornote{1D Cartesian, equispaced plus fully sampled centre, $R\in\{4,8\}$ with
+centre fractions $\{0.08,0.04\}$ (fastMRI convention); one fixed mask seed per volume,
+shared by all methods. Reference: RSS of the fully sampled prewhitened coil images,
+centre-cropped to 320$\times$320. M4Raw: a second reference from the average of the
+repetitions; report both.}
+
+\paragraph{Priors.}
+\authornote{Brain: the public EDM checkpoint of \citet{aali2025ambient}, trained on
+fully sampled fastMRI brain and frozen. Knee: \xx{}. Either a released multi-coil knee
+EDM (InverseBench, \citealp{zheng2025inversebench}) or our own EDM \citep{karras2022edm}
+trained on fastMRI knee training volumes; report training cost. No network is trained
+or fine-tuned for \method{}.}
+
+\paragraph{Baselines and fair tuning.}
+\authornote{Samplers from \tableref{tab:plugin}, each run with and without \method.
+DPS is a reference with no DC to modify. Supervised reference: E2E-VarNet
+\citep{sriram2020varnet} with official weights, on the same slices and masks.
+\textbf{Tuning protocol} (follows \citealp{zheng2025inversebench}): for each sampler and
+each $(R,T)$, a grid search of equal size (\xx{} configurations) over its own
+hyperparameters on the calibration volumes, maximising volume-mean PSNR. \method{} uses
+\emph{one} configuration for all cells, chosen on calibration at $T{=}50$. This
+asymmetry \emph{favours the baselines}; say so.}
+
+\paragraph{Metrics.}
+\authornote{PSNR and SSIM on RSS magnitude within a foreground mask; NMSE; HFEN.
+Region metrics inside fastMRI+ boxes versus size-matched normal patches, plus
+hallucination maps \citep{bhadra2021hallucination}. Deep-feature distance as a
+perceptual complement \citep{adamson2023dfd}. Note the noncentral-$\chi$ bias of RSS
+magnitude at low SNR \citep{constantinides1997snr}, relevant for M4Raw.}
+
+\paragraph{Statistics and pre-registered endpoints.}
+\authornote{The unit of analysis is the volume (subject for M4Raw). Report paired
+volume-mean differences with 95\% percentile-bootstrap CIs (10{,}000 resamples), a
+one-sided Wilcoxon signed-rank test, and Holm correction across the three primary
+endpoints. Slice-level numbers are descriptive only. The \textbf{primary endpoints},
+fixed before test runs and committed to the repository on \xx:
+\textbf{E1} $\Delta$PSNR of +\method{} vs.\ tuned \pigdm{}, brain, $R{=}8$, $T{=}100$;
+\textbf{E2} mean $\Delta$PSNR over the four modifiable samplers, brain and knee, $R{=}4$
+and $8$, $T{=}50$;
+\textbf{E3} $\Delta$PSNR on M4Raw (all contrasts) at $T{=}50$.
+Everything else is secondary.}
+
+\paragraph{Compute.}
+\authornote{One NVIDIA A100 (\xx\,GB). Report NFE, wall-clock time per slice, and peak
+memory for every method (\tableref{tab:compute}). Seeds: \xx{} per slice for the
+primary endpoints, 1 elsewhere.}

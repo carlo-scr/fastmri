@@ -1,0 +1,223 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{Plug-in gains across samplers}
+\label{sec:res-main}
+
+\authornote{Lead with \tableref{tab:main}. Claims allowed \emph{only if the numbers
+support them}:
+(i) +\method{} improves every modifiable sampler in \xx{} of \xx{} cells (E2: \pxx\,dB,
+CI \ci);
+(ii) the gain is larger at $R{=}8$ than at $R{=}4$, which the spectral-SNR term
+predicts because more of the sampled data lie at high frequency relative to the ACS;
+(iii) the remaining gap to supervised E2E-VarNet is \xx\,dB. Explain it as a
+difference in training regime and do not hide it.
+If a sampler does \emph{not} benefit (DDS is a plausible candidate, since its CG
+already regularises), report it and give the reason.}
+
+\begin{table}[t]
+\floatconts{tab:main}
+{\caption{Raw multi-coil fastMRI, $T{=}50$, volume-mean PSNR (dB) / SSIM on the test
+volumes. Each baseline is tuned per cell; \method{} uses one configuration throughout.
+$\Delta$: paired volume-level difference with 95\% bootstrap CI. Grey: supervised
+reference.}}
+{\scriptsize\setlength{\tabcolsep}{2.6pt}
+\resizebox{\linewidth}{!}{\begin{tabular}{@{}ll cc cc cc cc@{}}
+\toprule
+& & \multicolumn{2}{c}{Brain $R{=}4$} & \multicolumn{2}{c}{Brain $R{=}8$}
+  & \multicolumn{2}{c}{Knee $R{=}4$} & \multicolumn{2}{c}{Knee $R{=}8$}\\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+Sampler & DC & PSNR & SSIM & PSNR & SSIM & PSNR & SSIM & PSNR & SSIM\\
+\midrule
+\multirow{2}{*}{\ikdc} & isotropic & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+ & +\method & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+\multirow{2}{*}{\pigdm} & isotropic & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+ & +\method & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+\multirow{2}{*}{DDS} & isotropic & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+ & +\method & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+\multirow{2}{*}{DiffPIR} & isotropic & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+ & +\method & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+DPS & --- & \xx & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+\midrule
+\multicolumn{2}{@{}l}{Mean $\Delta$ (4 samplers)} & \pxx & \pxx & \pxx & \pxx & \pxx & \pxx & \pxx & \pxx\\
+\multicolumn{2}{@{}l}{\quad 95\% CI} & \ci & & \ci & & \ci & & \ci & \\
+\midrule
+\multicolumn{2}{@{}l}{\textcolor{gray}{E2E-VarNet (supervised)}} & \textcolor{gray}{\xx} & \textcolor{gray}{\xx} & \textcolor{gray}{\xx} & \textcolor{gray}{\xx} & \textcolor{gray}{\xx} & \textcolor{gray}{\xx} & \textcolor{gray}{\xx} & \textcolor{gray}{\xx}\\
+\bottomrule
+\end{tabular}}}
+\end{table}
+
+\subsection{Step-robustness and mechanism}
+\label{sec:res-steps}
+
+\authornote{\tableref{tab:steps} and \figureref{fig:bands}. This is the paper's central
+finding (E1). Three things to establish:
+(i) isotropic samplers \emph{lose} \xx\,dB from their best $T$ to $T{=}200$ even when
+tuned per $T$;
+(ii) +\method{} is flat or monotone in $T$, so one configuration serves all budgets
+(a practical, tuning-free claim);
+(iii) mechanism: per-band error of $\hx$ along the reverse trajectory
+(\figureref{fig:bands}). In the isotropic samplers the error in the outer two bands
+rises during the last \xx\% of steps; with \method{} it does not. The calibration
+ratio (realised residual over predicted $p_i+\sigma_y^2$) stays near 1 with \method{}
+and drifts to \xx{} for the isotropic samplers.
+Relate (i) to the noise-overfitting / early-stopping evidence of
+\citet{ozturkler2023smrd}, and (iii) to \citet{burns2026finite}.}
+
+\begin{table}[t]
+\floatconts{tab:steps}
+{\caption{Step-count sweep, brain, $R{=}8$ (E1 cell in bold). Baselines tuned
+\emph{per $T$}; \method{} uses a single configuration. Volume-mean PSNR (dB); $\Delta$
+with 95\% bootstrap CI.}}
+{\scriptsize\setlength{\tabcolsep}{3.2pt}
+\resizebox{\linewidth}{!}{\begin{tabular}{@{}r ccc ccc@{}}
+\toprule
+& \multicolumn{3}{c}{\ikdc} & \multicolumn{3}{c}{\pigdm}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+$T$ & isotropic & +\method & $\Delta$ [CI] & isotropic & +\method & $\Delta$ [CI]\\
+\midrule
+10  & \xx & \xx & \pxx{} \ci & \xx & \xx & \pxx{} \ci\\
+20  & \xx & \xx & \pxx{} \ci & \xx & \xx & \pxx{} \ci\\
+50  & \xx & \xx & \pxx{} \ci & \xx & \xx & \pxx{} \ci\\
+100 & \xx & \xx & \pxx{} \ci & \xx & \xx & \textbf{\pxx{}} \ci\\
+200 & \xx & \xx & \pxx{} \ci & \xx & \xx & \pxx{} \ci\\
+\midrule
+best$\,\to\,$200 drop & $-$\xx & $-$\xx & & $-$\xx & $-$\xx & \\
+\bottomrule
+\end{tabular}}}
+\end{table}
+
+\begin{figure}[t]
+\floatconts{fig:bands}
+{\caption{\textbf{Mechanism.} Left: k-space NMSE of $\hx$ in five radial bands versus
+reverse step (brain, $R{=}8$, $T{=}100$; median over test volumes) for isotropic
+\pigdm{} (solid) and +\method{} (dashed). Right: calibration ratio
+$\langle|r_i|^2\rangle_b/(p_b+\sigma_y^2)$ per band; 1 is perfectly calibrated.}}
+{\figspec{4.0cm}{Two panels. (L) 5 lines per method, colour = band (inner$\to$outer),
+x = step index, y = log NMSE. (R) same layout, y = calibration ratio, dashed line at 1.
+Source: per-step diagnostics logged by the sampler (\texttt{return\_diagnostics=True}).}}
+\end{figure}
+
+\subsection{Low SNR and real low-field data}
+\label{sec:res-snr}
+
+\authornote{\tableref{tab:snr}. Hypothesis from \equationref{eq:gain}: the spectral-SNR
+term matters more as $\sigma_y^2$ grows, so the gain should increase as SNR falls.
+Show it in the controlled sweep (fastMRI brain plus $\Psi$-correlated white noise) and
+in real 0.3\,T data (E3). For M4Raw also report against the averaged reference, to
+show the gain is not an artefact of a noisy reference. If the trend is not monotone,
+say so.}
+
+\begin{table}[t]
+\floatconts{tab:snr}
+{\caption{Controlled SNR sweep (fastMRI brain, $R{=}4$, $T{=}50$) and real 0.3\,T
+M4Raw ($R{=}4$, $T{=}50$, brain prior without fine-tuning). Best tuned isotropic
+sampler vs.\ the same sampler +\method. SNR in units of \citet{kellman2005snr}.}}
+{\scriptsize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}ll ccc@{}}
+\toprule
+Data & Condition & isotropic & +\method & $\Delta$ [95\% CI]\\
+\midrule
+\multirow{4}{*}{fastMRI brain} & native (SNR \xx) & \xx & \xx & \pxx{} \ci\\
+ & SNR $\times\frac12$ & \xx & \xx & \pxx{} \ci\\
+ & SNR $\times\frac14$ & \xx & \xx & \pxx{} \ci\\
+ & SNR $\times\frac18$ & \xx & \xx & \pxx{} \ci\\
+\midrule
+\multirow{4}{*}{M4Raw 0.3\,T} & T1w & \xx & \xx & \pxx{} \ci\\
+ & T2w & \xx & \xx & \pxx{} \ci\\
+ & FLAIR & \xx & \xx & \pxx{} \ci\\
+ & all (\textbf{E3}); averaged ref. & \xx & \xx & \textbf{\pxx{}} \ci\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Pathology regions and hallucinations}
+\label{sec:res-roi}
+
+\authornote{\tableref{tab:roi} and \figureref{fig:qual}. The clinical question: does
+frequency-resolved DC preserve lesion detail, or does it smooth it away? Report the
+box-versus-normal-patch contrast. Choose qualitative examples \emph{by rule}: median
+and 90th-percentile $\Delta$ volumes, frozen before inspection. Never hand-pick.
+If \method{} reduces global error but not box error, report that as a limitation.}
+
+\begin{table}[t]
+\floatconts{tab:roi}
+{\caption{fastMRI+ pathology boxes vs.\ size-matched normal patches (test volumes,
+$R{=}8$, $T{=}50$, \pigdm{} host). NMSE ($\times10^{-2}$, lower is better), HFEN, and
+fraction of boxes with a hallucination-map peak above threshold \citep{bhadra2021hallucination}.}}
+{\scriptsize\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}ll cc cc cc@{}}
+\toprule
+& & \multicolumn{2}{c}{NMSE box} & \multicolumn{2}{c}{NMSE normal} & \multicolumn{2}{c}{Halluc.\ rate (\%)}\\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
+Anatomy & \#boxes & iso & +\method & iso & +\method & iso & +\method\\
+\midrule
+Brain & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+Knee  & \xx & \xx & \xx & \xx & \xx & \xx & \xx\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[t]
+\floatconts{fig:qual}
+{\caption{Rule-selected examples (median and 90th-percentile $\Delta$ volume): ground
+truth, isotropic \pigdm, +\method, and absolute-error maps, with the fastMRI+ box
+outlined.}}
+{\figspec{3.6cm}{2 rows (brain, knee) $\times$ 5 columns (GT, iso, +ours, $|$err iso$|$,
+$|$err ours$|$). Shared colour scale per row. Box overlay in yellow. Zoom inset on the
+box. Selection rule and IDs logged in \texttt{outputs/midl27/qual\_manifest.json}.}}
+\end{figure}
+
+\subsection{Ablations and compute}
+\label{sec:res-ablation}
+
+\authornote{\tableref{tab:ablation}. Use these rows to decide what stays in the method.
+(b) vs.\ (a) isolates the spectral posterior variance, our principled core.
+(c) and (d) test the frequency gate; (f) replaces it with the schedule of
+\citet{tian2026frequency}. (e) tests residual refinement. (g) uses an oracle spectrum
+from the fully sampled reference and bounds the cost of estimating $\hat S$.
+(h)--(i) test robustness to a misestimated $\sigma_y$. (j) tests the smoothing.
+\tableref{tab:compute} supports the ``negligible overhead'' claim with measured
+numbers only.}
+
+\begin{table}[t]
+\floatconts{tab:ablation}
+{\caption{Ablations (brain, $R{=}8$, \pigdm{} host; calibration volumes for (h)--(j),
+test volumes otherwise). PSNR (dB) and $\Delta$ vs.\ row (a).}}
+{\scriptsize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}cl cc cc@{}}
+\toprule
+& & \multicolumn{2}{c}{$T{=}50$} & \multicolumn{2}{c}{$T{=}100$}\\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+& Variant & PSNR & $\Delta$ & PSNR & $\Delta$\\
+\midrule
+(a) & isotropic $\bP_t=r_t^2\mathbf{I}$ (tuned) & \xx & --- & \xx & ---\\
+(b) & + spectral posterior variance, \eqref{eq:pt} & \xx & \pxx & \xx & \pxx\\
+(c) & (b) + frequency gate & \xx & \pxx & \xx & \pxx\\
+(d) & frequency gate only (isotropic $\bP_t$) & \xx & \pxx & \xx & \pxx\\
+(e) & (b or c) + residual refinement & \xx & \pxx & \xx & \pxx\\
+(f) & (b) + schedule of \citet{tian2026frequency} & \xx & \pxx & \xx & \pxx\\
+(g) & (b) with oracle spectrum $S$ & \xx & \pxx & \xx & \pxx\\
+(h) & (b) with $\sigma_y\times0.5$ & \xx & \pxx & \xx & \pxx\\
+(i) & (b) with $\sigma_y\times2$ & \xx & \pxx & \xx & \pxx\\
+(j) & (b) raw radial bins (no power-law fit) & \xx & \pxx & \xx & \pxx\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[t]
+\floatconts{tab:compute}
+{\caption{Cost per slice on one A100 (brain, $R{=}8$, $T{=}50$, batch 1). Overhead is
+relative to the same sampler with isotropic DC.}}
+{\scriptsize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}l c cc c c@{}}
+\toprule
+Sampler & NFE & time iso (s) & time +\method{} (s) & overhead (\%) & peak mem.\ (GB)\\
+\midrule
+\ikdc   & \xx & \xx & \xx & \xx & \xx\\
+\pigdm  & \xx & \xx & \xx & \xx & \xx\\
+DDS     & \xx & \xx & \xx & \xx & \xx\\
+DiffPIR & \xx & \xx & \xx & \xx & \xx\\
+\bottomrule
+\end{tabular}}
+\end{table}

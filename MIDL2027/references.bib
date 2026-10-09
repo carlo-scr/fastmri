@@ -1,0 +1,533 @@
+% ============================================================
+%  References for the FA-KGD -> MIDL 2027 revision plan.
+%  Every entry below was checked against arXiv / publisher /
+%  proceedings pages on 2026-10-05 unless a `note` field says
+%  otherwise. Entries marked "UNVERIFIED" must be re-checked
+%  before they are cited in the submission.
+% ============================================================
+
+% ---------------- Venue -------------------------------------
+@misc{midl2027cfp,
+  author       = {{MIDL Organizing Committee}},
+  title        = {{MIDL} 2027 Call for Papers, Important Dates and Author Instructions},
+  howpublished = {\url{https://2027.midl.io}},
+  note         = {Accessed 2026-10-05},
+  year         = {2026}
+}
+
+% ---------------- Diffusion samplers / baselines --------------
+@inproceedings{song2023pigdm,
+  title     = {Pseudoinverse-Guided Diffusion Models for Inverse Problems},
+  author    = {Song, Jiaming and Vahdat, Arash and Mardani, Morteza and Kautz, Jan},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  note      = {arXiv:2305.04391}
+}
+
+@inproceedings{chung2023dps,
+  title     = {Diffusion Posterior Sampling for General Noisy Inverse Problems},
+  author    = {Chung, Hyungjin and Kim, Jeongsol and McCann, Michael T. and Klasky, Marc L. and Ye, Jong Chul},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  note      = {arXiv:2209.14687}
+}
+
+@inproceedings{kawar2022ddrm,
+  title     = {Denoising Diffusion Restoration Models},
+  author    = {Kawar, Bahjat and Elad, Michael and Ermon, Stefano and Song, Jiaming},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2022},
+  note      = {arXiv:2201.11793}
+}
+
+@inproceedings{wang2023ddnm,
+  title     = {Zero-Shot Image Restoration Using Denoising Diffusion Null-Space Model},
+  author    = {Wang, Yinhuai and others},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  note      = {arXiv:2212.00490. Full author list not re-verified}
+}
+
+@inproceedings{zhu2023diffpir,
+  title     = {Denoising Diffusion Models for Plug-and-Play Image Restoration},
+  author    = {Zhu, Yuanzhi and others},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)},
+  year      = {2023},
+  note      = {arXiv:2305.08995. Full author list not re-verified}
+}
+
+@inproceedings{chung2024dds,
+  title     = {Decomposed Diffusion Sampler for Accelerating Large-Scale Inverse Problems},
+  author    = {Chung, Hyungjin and Lee, Suhyeon and Ye, Jong Chul},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  note      = {arXiv:2303.05754}
+}
+
+@inproceedings{song2024resample,
+  title     = {Solving Inverse Problems with Latent Diffusion Models via Hard Data Consistency},
+  author    = {Song, Bowen and Kwon, Soo Min and Zhang, Zecheng and Hu, Xinyu and Qu, Qing and Shen, Liyue},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  note      = {arXiv:2307.08123}
+}
+
+@inproceedings{zhang2025daps,
+  title     = {Improving Diffusion Inverse Problem Solving with Decoupled Noise Annealing},
+  author    = {Zhang, Bingliang and Chu, Wenda and Berner, Julius and Meng, Chenlin and Anandkumar, Anima and Song, Yang},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {20895--20905},
+  year      = {2025},
+  note      = {arXiv:2407.01521}
+}
+
+@article{chung2022scoremri,
+  title   = {Score-based Diffusion Models for Accelerated {MRI}},
+  author  = {Chung, Hyungjin and Ye, Jong Chul},
+  journal = {Medical Image Analysis},
+  volume  = {80},
+  year    = {2022},
+  note    = {arXiv:2110.05243}
+}
+
+@inproceedings{jalal2021robust,
+  title     = {Robust Compressed Sensing {MRI} with Deep Generative Priors},
+  author    = {Jalal, Ajil and Arvinte, Marius and Daras, Giannis and Price, Eric and Dimakis, Alexandros G. and Tamir, Jonathan I.},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2021},
+  note      = {arXiv:2108.01368}
+}
+
+@inproceedings{aali2025ambient,
+  title     = {Ambient Diffusion Posterior Sampling: Solving Inverse Problems with Diffusion Models Trained on Corrupted Data},
+  author    = {Aali, Asad and Daras, Giannis and Levac, Brett and Kumar, Sidharth and Dimakis, Alexandros G. and Tamir, Jonathan I.},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  note      = {arXiv:2403.08728}
+}
+
+@inproceedings{zheng2025inversebench,
+  title     = {{InverseBench}: Benchmarking Plug-and-Play Diffusion Priors for Inverse Problems in Physical Sciences},
+  author    = {Zheng, Hongkai and Chu, Wenda and Zhang, Bingliang and Wu, Zihui and Wang, Austin and Feng, Berthy T. and Zou, Caifeng and Sun, Yu and Kovachki, Nikola and Ross, Zachary E. and Bouman, Katherine L. and Yue, Yisong},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  note      = {arXiv:2503.11043}
+}
+
+@inproceedings{karras2022edm,
+  title     = {Elucidating the Design Space of Diffusion-Based Generative Models},
+  author    = {Karras, Tero and Aittala, Miika and Aila, Timo and Laine, Samuli},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2022},
+  note      = {arXiv:2206.00364}
+}
+
+@inproceedings{pandey2024cpigdm,
+  title     = {Fast Samplers for Inverse Problems in Iterative Refinement Models},
+  author    = {Pandey, Kushagra and Yang, Ruihan and Mandt, Stephan},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2024},
+  note      = {arXiv:2405.17673}
+}
+
+@inproceedings{sriram2020varnet,
+  title     = {End-to-End Variational Networks for Accelerated {MRI} Reconstruction},
+  author    = {Sriram, Anuroop and Zbontar, Jure and Murrell, Tullie and Defazio, Aaron and Zitnick, C. Lawrence and Yakubova, Nafissa and Knoll, Florian and Johnson, Patricia},
+  booktitle = {Medical Image Computing and Computer Assisted Intervention (MICCAI)},
+  series    = {LNCS},
+  volume    = {12262},
+  pages     = {64--73},
+  year      = {2020},
+  note      = {arXiv:2004.06688}
+}
+
+% ---------------- Posterior covariance / frequency-aware ------
+@inproceedings{peng2024optimal,
+  title     = {Improving Diffusion Models for Inverse Problems Using Optimal Posterior Covariance},
+  author    = {Peng, Xinyu and Zheng, Ziyang and Dai, Wenrui and Xiao, Nuoqian and Li, Chenglin and Zou, Junni and Xiong, Hongkai},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  series    = {PMLR},
+  volume    = {235},
+  year      = {2024},
+  note      = {arXiv:2402.02149}
+}
+
+@article{boys2024tmpd,
+  title   = {Tweedie Moment Projected Diffusions for Inverse Problems},
+  author  = {Boys, Benjamin and Girolami, Mark and Pidstrigach, Jakiw and Reich, Sebastian and Mosca, Alan and Akyildiz, O. Deniz},
+  journal = {Transactions on Machine Learning Research (TMLR)},
+  year    = {2024},
+  note    = {arXiv:2310.06721}
+}
+
+@inproceedings{rozet2024mmps,
+  title     = {Learning Diffusion Priors from Observations by Expectation Maximization},
+  author    = {Rozet, Fran{\c{c}}ois and Andry, G{\'e}r{\^o}me and Lanusse, Fran{\c{c}}ois and Louppe, Gilles},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2024},
+  note      = {arXiv:2405.13712}
+}
+
+@misc{tian2026frequency,
+  title        = {Posterior Continuation with Noise-Conditioned Frequency Exposure for Diffusion Inverse Problems},
+  author       = {Tian, F. and Li, Y. and Zeng, W. and Zhang, W. and Yan, Y. and Yang, X.},
+  howpublished = {arXiv:2602.00176},
+  year         = {2026},
+  note         = {Preprint; earlier title ``Stabilizing Diffusion Posterior Sampling by Noise--Frequency Continuation''}
+}
+
+@misc{hamidi2024cadps,
+  title        = {Enhancing Diffusion Models for Inverse Problems with Covariance-Aware Posterior Sampling},
+  author       = {Mohajer Hamidi, Shayan and Yang, En-Hui},
+  howpublished = {arXiv:2412.20045},
+  year         = {2024},
+  note         = {Preprint; acceptance status UNVERIFIED}
+}
+
+@misc{schioppa2026covariance,
+  title        = {Covariance-aware Sampling for Diffusion Models},
+  author       = {Schioppa, Andrea and Salimans, Tim},
+  howpublished = {arXiv:2605.13910},
+  year         = {2026},
+  note         = {Preprint}
+}
+
+@misc{lee2026msc,
+  title        = {Measured-Subspace Consistency: A Plug-and-Play Operator for Diffusion Posterior Sampling in Accelerated {MRI} Reconstruction},
+  author       = {Lee, J. and Choi, K. S.},
+  howpublished = {arXiv:2606.28448},
+  year         = {2026},
+  note         = {Preprint}
+}
+
+@article{cao2024hfssde,
+  title   = {High-Frequency Space Diffusion Models for Accelerated {MRI}},
+  author  = {Cao, Chentao and Cui, Zhuo-Xu and Wang, Yue and Liu, Shaonan and Chen, Taijin and Zheng, Hairong and Liang, Dong and Zhu, Yanjie},
+  journal = {IEEE Transactions on Medical Imaging},
+  year    = {2024},
+  note    = {arXiv:2208.05481}
+}
+
+@inproceedings{huang2023cdiffmr,
+  title     = {{CDiffMR}: Can We Replace the {G}aussian Noise with {K}-Space Undersampling for Fast {MRI}?},
+  author    = {Huang, Jiahao and Aviles-Rivero, Angelica I. and Sch{\"o}nlieb, Carola-Bibiane and Yang, Guang},
+  booktitle = {Medical Image Computing and Computer Assisted Intervention (MICCAI)},
+  year      = {2023},
+  note      = {arXiv:2306.14350}
+}
+
+@misc{peng2022diffuserecon,
+  title        = {Towards Performant and Reliable Undersampled {MR} Reconstruction via Diffusion Model Sampling},
+  author       = {Peng, Cheng and Guo, Pengfei and Zhou, S. Kevin and Patel, Vishal M. and Chellappa, Rama},
+  howpublished = {arXiv:2203.04292},
+  year         = {2022},
+  note         = {MICCAI 2022 venue UNVERIFIED}
+}
+
+@inproceedings{ozturkler2023smrd,
+  title     = {{SMRD}: {SURE}-based Robust {MRI} Reconstruction with Diffusion Models},
+  author    = {Ozturkler, Batu and Liu, Chao and Eckart, Benjamin and Mardani, Morteza and Song, Jiaming and Kautz, Jan},
+  booktitle = {Medical Image Computing and Computer Assisted Intervention (MICCAI)},
+  year      = {2023},
+  note      = {arXiv:2310.01799}
+}
+
+@misc{burns2026finite,
+  title        = {When, Why, and How Do Diffusion Posterior Samplers Fail? {A} Finite-Sample Lens},
+  author       = {Burns and Fridovich-Keil, Sara},
+  howpublished = {arXiv:2605.30330},
+  year         = {2026},
+  note         = {Preprint; first-author given name UNVERIFIED}
+}
+
+@inproceedings{laroche2024fastdiffem,
+  title     = {Fast Diffusion {EM}: A Diffusion Model for Blind Inverse Problems with Application to Deconvolution},
+  author    = {Laroche, Charles and Almansa, Andr{\'e}s and Coupet{\'e}, Eva},
+  booktitle = {IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+  year      = {2024},
+  note      = {arXiv:2309.00287}
+}
+
+@misc{xia2026nanhmc,
+  title        = {Noise-Adaptive Diffusion Sampling for Inverse Problems Without Task-Specific Tuning},
+  author       = {Xia and Tanomkiattikun and Zhen and Gu},
+  howpublished = {arXiv:2604.16919},
+  year         = {2026},
+  note         = {ICLR 2026 acceptance UNVERIFIED; author given names UNVERIFIED}
+}
+
+@misc{blumenthal2025pula,
+  title        = {Fast and Robust Diffusion Posterior Sampling for {MR} Image Reconstruction Using the Preconditioned Unadjusted {L}angevin Algorithm},
+  author       = {Blumenthal, Moritz and Holliber and Tamir, Jonathan I. and Uecker, Martin},
+  howpublished = {arXiv:2512.05791},
+  year         = {2025},
+  note         = {Submitted to MRM; preconditioner structure UNVERIFIED -- read before positioning}
+}
+
+% ---------------- MRI physics / noise ---------------------------
+@article{roemer1990phased,
+  title   = {The {NMR} Phased Array},
+  author  = {Roemer, P. B. and Edelstein, W. A. and Hayes, C. E. and Souza, S. P. and Mueller, O. M.},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {16},
+  number  = {2},
+  pages   = {192--225},
+  year    = {1990}
+}
+
+@article{pruessmann1999sense,
+  title   = {{SENSE}: Sensitivity Encoding for Fast {MRI}},
+  author  = {Pruessmann, Klaas P. and Weiger, Markus and Scheidegger, Markus B. and Boesiger, Peter},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {42},
+  number  = {5},
+  pages   = {952--962},
+  year    = {1999}
+}
+
+@article{kellman2005snr,
+  title   = {Image Reconstruction in {SNR} Units: A General Method for {SNR} Measurement},
+  author  = {Kellman, Peter and McVeigh, Elliot R.},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {54},
+  number  = {6},
+  pages   = {1439--1447},
+  year    = {2005}
+}
+
+@article{gudbjartsson1995rician,
+  title   = {The {R}ician Distribution of Noisy {MRI} Data},
+  author  = {Gudbjartsson, H{\'a}kon and Patz, Samuel},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {34},
+  number  = {6},
+  pages   = {910--914},
+  year    = {1995}
+}
+
+@article{constantinides1997snr,
+  title   = {Signal-to-Noise Measurements in Magnitude Images from {NMR} Phased Arrays},
+  author  = {Constantinides, Christakis D. and Atalar, Ergin and McVeigh, Elliot R.},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {38},
+  number  = {5},
+  pages   = {852--857},
+  year    = {1997}
+}
+
+@book{ajafernandez2016noise,
+  title     = {Statistical Analysis of Noise in {MRI}: Modeling, Filtering and Estimation},
+  author    = {Aja-Fern{\'a}ndez, Santiago and Vegas-S{\'a}nchez-Ferrero, Gonzalo},
+  publisher = {Springer},
+  year      = {2016},
+  note      = {ISBN 978-3-319-39933-1}
+}
+
+@article{uecker2014espirit,
+  title   = {{ESPIRiT}---An Eigenvalue Approach to Autocalibrating Parallel {MRI}: Where {SENSE} Meets {GRAPPA}},
+  author  = {Uecker, Martin and Lai, Peng and Murphy, Mark J. and Virtue, Patrick and Elad, Michael and Pauly, John M. and Vasanawala, Shreyas S. and Lustig, Michael},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {71},
+  number  = {3},
+  pages   = {990--1001},
+  year    = {2014}
+}
+
+@article{campbellwashburn2016spike,
+  title   = {Using the Robust Principal Component Analysis Algorithm to Remove {RF} Spike Artifacts from {MR} Images},
+  author  = {Campbell-Washburn, Adrienne E. and others},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {75},
+  number  = {6},
+  pages   = {2517--2525},
+  year    = {2016}
+}
+
+@article{jin2017aloha,
+  title   = {{MRI} Artifact Correction Using Sparse + Low-Rank Decomposition of Annihilating Filter-Based {H}ankel Matrix},
+  author  = {Jin, Kyong Hwan and others},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {78},
+  pages   = {327--340},
+  year    = {2017}
+}
+
+@article{srinivas2022editer,
+  title   = {External Dynamic {InTerference} Estimation and Removal ({EDITER}) for Low Field {MRI}},
+  author  = {Srinivas, Sai Abitha and others},
+  journal = {Magnetic Resonance in Medicine},
+  volume  = {87},
+  number  = {2},
+  year    = {2022},
+  note    = {arXiv:2104.08680}
+}
+
+@article{liu2021ulf,
+  title   = {A Low-Cost and Shielding-Free Ultra-Low-Field Brain {MRI} Scanner},
+  author  = {Liu, Yilong and others},
+  journal = {Nature Communications},
+  volume  = {12},
+  pages   = {7238},
+  year    = {2021},
+  doi     = {10.1038/s41467-021-27317-1}
+}
+
+@article{levac2024motion,
+  title   = {Accelerated Motion Correction with Deep Generative Diffusion Models},
+  author  = {Levac, Brett and Kumar, Sidharth and Jalal, Ajil and Tamir, Jonathan I.},
+  journal = {Magnetic Resonance in Medicine},
+  year    = {2024},
+  doi     = {10.1002/mrm.30082}
+}
+
+@article{perezgarcia2021torchio,
+  title   = {{TorchIO}: A {P}ython Library for Efficient Loading, Preprocessing, Augmentation and Patch-Based Sampling of Medical Images in Deep Learning},
+  author  = {P{\'e}rez-Garc{\'i}a, Fernando and Sparks, Rachel and Ourselin, S{\'e}bastien},
+  journal = {Computer Methods and Programs in Biomedicine},
+  volume  = {208},
+  pages   = {106236},
+  year    = {2021}
+}
+
+% ---------------- Evaluation / hallucination ---------------------
+@article{bhadra2021hallucination,
+  title   = {On Hallucinations in Tomographic Image Reconstruction},
+  author  = {Bhadra, Sayantan and Kelkar, Varun A. and Brooks, Frank J. and Anastasio, Mark A.},
+  journal = {IEEE Transactions on Medical Imaging},
+  volume  = {40},
+  number  = {11},
+  pages   = {3249--3260},
+  year    = {2021}
+}
+
+@article{muckley2021fastmri,
+  title   = {Results of the 2020 {fastMRI} Challenge for Machine Learning {MR} Image Reconstruction},
+  author  = {Muckley, Matthew J. and others},
+  journal = {IEEE Transactions on Medical Imaging},
+  volume  = {40},
+  number  = {9},
+  pages   = {2306--2317},
+  year    = {2021},
+  doi     = {10.1109/TMI.2021.3075856}
+}
+
+@inproceedings{adamson2023dfd,
+  title     = {Using Deep Feature Distances for Evaluating {MR} Image Reconstruction Quality},
+  author    = {Adamson, Philip M. and others},
+  booktitle = {NeurIPS 2023 Workshop on Deep Learning and Inverse Problems},
+  year      = {2023}
+}
+
+% ---------------- Datasets ---------------------------------------
+@misc{zbontar2018fastmri,
+  title        = {{fastMRI}: An Open Dataset and Benchmarks for Accelerated {MRI}},
+  author       = {Zbontar, Jure and others},
+  howpublished = {arXiv:1811.08839},
+  year         = {2018}
+}
+
+@article{knoll2020fastmri,
+  title   = {{fastMRI}: A Publicly Available Raw k-Space and {DICOM} Dataset of Knee Images for Accelerated {MR} Image Reconstruction Using Machine Learning},
+  author  = {Knoll, Florian and others},
+  journal = {Radiology: Artificial Intelligence},
+  year    = {2020},
+  doi     = {10.1148/ryai.2020190007}
+}
+
+@article{zhao2022fastmriplus,
+  title   = {{fastMRI+}, Clinical Pathology Annotations for Knee and Brain Fully Sampled Magnetic Resonance Imaging Data},
+  author  = {Zhao, Ruiyang and others},
+  journal = {Scientific Data},
+  year    = {2022},
+  note    = {arXiv:2109.03812}
+}
+
+@article{tibrewala2024prostate,
+  title   = {{FastMRI} Prostate: A Public, Biparametric {MRI} Dataset to Advance Machine Learning for Prostate Cancer Imaging},
+  author  = {Tibrewala, Radhika and others},
+  journal = {Scientific Data},
+  year    = {2024},
+  doi     = {10.1038/s41597-024-03252-w}
+}
+
+@article{lyu2023m4raw,
+  title   = {{M4Raw}: A Multi-Contrast, Multi-Repetition, Multi-Channel {MRI} k-Space Dataset for Low-Field {MRI} Research},
+  author  = {Lyu, Mengye and others},
+  journal = {Scientific Data},
+  year    = {2023},
+  doi     = {10.1038/s41597-023-02181-4}
+}
+
+@inproceedings{desai2021skmtea,
+  title     = {{SKM-TEA}: A Dataset for Accelerated {MRI} Reconstruction with Dense Image Labels for Quantitative Clinical Evaluation},
+  author    = {Desai, Arjun D. and others},
+  booktitle = {NeurIPS Datasets and Benchmarks Track},
+  year      = {2021},
+  note      = {arXiv:2203.06823}
+}
+
+@inproceedings{ong2018mridata,
+  title     = {mridata.org: An Open Archive for Sharing {MRI} Raw Data},
+  author    = {Ong, Frank and Amin, Shahab and Vasanawala, Shreyas S. and Lustig, Michael},
+  booktitle = {Proceedings of the ISMRM},
+  pages     = {3425},
+  year      = {2018}
+}
+
+@article{beauferris2022calgary,
+  title   = {Multi-Coil {MRI} Reconstruction Challenge---Assessing Brain {MRI} Reconstruction Models and Their Generalizability to Varying Coil Configurations},
+  author  = {Beauferris, Youssef and others},
+  journal = {Frontiers in Neuroscience},
+  year    = {2022},
+  doi     = {10.3389/fnins.2022.919186}
+}
+
+@article{tolpadi2023k2s,
+  title   = {{K2S} Challenge: From Undersampled K-Space to Automatic Segmentation},
+  author  = {Tolpadi, Aniket A. and others},
+  journal = {Bioengineering},
+  volume  = {10},
+  number  = {2},
+  pages   = {267},
+  year    = {2023},
+  doi     = {10.3390/bioengineering10020267}
+}
+
+@article{wang2024cmrxrecon,
+  title   = {{CMRxRecon}: A Publicly Available k-Space Dataset and Benchmark to Advance Deep Learning for Cardiac {MRI}},
+  author  = {Wang, Chengyan and others},
+  journal = {Scientific Data},
+  year    = {2024},
+  doi     = {10.1038/s41597-024-03525-4}
+}
+
+% ---------------- Recent MIDL MRI-reconstruction papers ----------
+@inproceedings{akoda2026consistency,
+  title     = {Beyond Diffusion: Consistency Models for One-Step, High-Fidelity {MRI} Reconstruction},
+  author    = {Akoda and Qin},
+  booktitle = {Medical Imaging with Deep Learning (MIDL)},
+  series    = {PMLR},
+  volume    = {315},
+  year      = {2026},
+  note      = {proceedings.mlr.press/v315/akoda26a.html}
+}
+
+@inproceedings{deng2026subspace,
+  title     = {Sparse Subspace Diffusion Model for Physically Consistent Accelerated {MRI} Reconstruction},
+  author    = {Deng and Shen and Dayarathna and Meneses and Uribe and Chen},
+  booktitle = {Medical Imaging with Deep Learning (MIDL)},
+  series    = {PMLR},
+  volume    = {315},
+  year      = {2026},
+  note      = {proceedings.mlr.press/v315/deng26a.html}
+}
+
+@inproceedings{karkalousos2023mtl,
+  title     = {{MultiTask} Learning for Accelerated-{MRI} Reconstruction and Segmentation of Brain Lesions in Multiple Sclerosis},
+  author    = {Karkalousos, Dimitrios and others},
+  booktitle = {Medical Imaging with Deep Learning (MIDL)},
+  series    = {PMLR},
+  volume    = {227},
+  year      = {2023},
+  note      = {Exact title UNVERIFIED beyond prefix}
+}

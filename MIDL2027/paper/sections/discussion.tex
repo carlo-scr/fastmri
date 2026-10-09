@@ -1,0 +1,35 @@
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+\authornote{\textbf{What the results mean.} One paragraph. The isotropic posterior
+approximation, not the prior, explains the step-count degradation, because the same
+prior with a frequency-resolved covariance is step-robust. Practical consequence:
+report PSNR-vs-$T$ curves for any diffusion MRI sampler, and prefer covariances matched
+to the forward operator's basis. Tie back to \citet{peng2024optimal}: their argument
+was for a better covariance in general; ours is for the \emph{operator-matched} basis
+in MRI.}
+
+\authornote{\textbf{Limitations (be specific; reviewers reward this).}
+(1) $\Psi$ is estimated from signal-free regions because public raw datasets
+(fastMRI, M4Raw) document no noise prescans; mis-estimation is studied only through
+$\sigma_y$ scaling (rows h--i).
+(2) The Gaussian reference model sets the \emph{shape} of $\bP_t$. Diffusion posteriors
+are not Gaussian, and the frequency gate (if kept) is empirical.
+(3) Undersampling is retrospective. Prospective acquisition and non-Cartesian
+trajectories are untested; the latter would need a NUFFT and lose the exact
+diagonalisation.
+(4) No reader study. Box metrics from fastMRI+ come from a single reader and are not
+exhaustive \citep{zhao2022fastmriplus}, so they do not establish diagnostic benefit.
+(5) M4Raw uses a 3\,T-trained brain prior (field-strength shift).
+(6) PSNR/SSIM on magnitude images is biased at low SNR \citep{constantinides1997snr}.}
+
+\authornote{\textbf{Future work} (two sentences): downstream quantitative endpoints
+(cartilage segmentation and T2 on SKM-TEA, \citealp{desai2021skmtea}; K2S,
+\citealp{tolpadi2023k2s}), where K2S found pixel metrics uncorrelated with segmentation
+quality; corrupted-sample robustness (spikes, motion lines,
+\citealp{campbellwashburn2016spike,levac2024motion}), which residual refinement could
+address.}
+
+\paragraph{Conclusion.}
+\authornote{Three sentences: the problem, the operator-matched fix, and the headline
+numbers (E1, E2, E3) with CIs.}

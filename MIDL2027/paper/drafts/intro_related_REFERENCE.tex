@@ -1,0 +1,138 @@
+% ============================================================%
+%  To preview it inside the paper temporarily, replace
+%    \input{sections/introduction}\input{sections/related}
+%  with \input{drafts/intro_related_REFERENCE} in main.tex.
+% ============================================================
+
+\section{Introduction}
+\label{sec:intro}
+
+Magnetic resonance imaging offers unmatched soft-tissue contrast, but its
+acquisition is slow. Each phase-encode line of k-space takes one repetition, so
+undersampling by a factor $R$ shortens a scan almost proportionally. Shorter
+scans reduce motion artefacts, make paediatric and cardiac protocols feasible,
+and increase scanner throughput. The price is an ill-posed inverse problem, and
+the way a reconstruction method resolves that ill-posedness determines what it
+is allowed to invent. The 2020 fastMRI challenge found that top-ranked
+learned reconstructions could hallucinate vessels and clefts that radiologists
+judged clinically misleading \citep{muckley2021fastmri}. This makes the
+mechanism by which measurements are trusted, and not only the prior, a
+clinically relevant design choice \citep{bhadra2021hallucination}.
+
+Diffusion models have become a strong, training-free route to this problem.
+A single unconditional prior, trained once, can be combined with any
+undersampling mask, acceleration and coil array at inference time
+\citep{jalal2021robust,chung2022scoremri,aali2025ambient}. This contrasts
+with supervised unrolled networks, which must be retrained for each
+configuration \citep{sriram2020varnet}. Many posterior samplers have been
+proposed. Gradient guidance through the denoiser (DPS,
+\citealp{chung2023dps}), pseudo-inverse guidance (\pigdm,
+\citealp{song2023pigdm}), conjugate-gradient data consistency on the denoised
+estimate (DDS, \citealp{chung2024dds}), plug-and-play proximal steps (DiffPIR,
+\citealp{zhu2023diffpir}) and decoupled annealing (DAPS,
+\citealp{zhang2025daps}) differ in many details. As \citet{peng2024optimal}
+showed, however, most of them share one modelling decision: the intractable
+posterior $p(x_0\mid x_t)$ is approximated by a Gaussian centred on the
+denoiser output with an \emph{isotropic} covariance.
+
+We find that this decision has a visible and practically important
+consequence in accelerated MRI. On raw multi-coil fastMRI brain data, samplers
+with isotropic data consistency lose quality as the number of reverse steps
+grows. Tuned \pigdm{} drops by \xx\,dB from its best step count to $T{=}200$,
+even when its hyperparameters are re-tuned for every $T$
+(\figureref{fig:teaser}). More computation should not make a posterior sampler
+worse. This behaviour forces practitioners to tune the step budget per protocol.
+It is consistent with earlier reports that diffusion MRI samplers overfit
+measurement noise and benefit from early stopping
+\citep{ozturkler2023smrd}, and with recent theory showing that miscalibrated
+intermediate posteriors make samplers sensitive to when they stop
+\citep{burns2026finite}.
+
+Our explanation is specific to MRI. For Cartesian sampling, the forward
+operator is diagonal in k-space up to the coil sensitivities. After
+prewhitening, thermal noise is white across k-space
+\citep{roemer1990phased,kellman2005snr}, but image power is anything but white:
+it decays by several orders of magnitude from the centre to the periphery. An
+isotropic posterior covariance ignores this decay. It therefore over-trusts
+measurements at high spatial frequencies, where the signal is comparable to the
+noise, and it turns data consistency at large diffusion noise into an
+ill-conditioned SENSE inversion. The fix suggested by the problem's structure is
+a covariance that is diagonal in the basis that diagonalises the operator. This
+differs from the wavelet basis of \citet{peng2024optimal} and from the dense
+Jacobian covariances of \citet{boys2024tmpd} and \citet{rozet2024mmps}, both of
+which require additional network evaluations.
+
+We make three contributions.
+\begin{itemize}
+  \item \textbf{A frequency-resolved data-consistency update.} \method{}
+  replaces the isotropic covariance by a per-frequency posterior variance
+  derived from the image power spectrum, which is estimated from the scan's own
+  acquired lines. It is training-free, closed-form for single-coil data,
+  solved by conjugate gradients for SENSE, and plugs into five samplers without
+  extra denoiser evaluations (\sectionref{sec:method}).
+  \item \textbf{A step-count study on raw multi-coil MRI.} We document the
+  degradation of isotropic samplers with $T$ under per-$T$ tuning. We show that
+  the frequency-resolved update removes it with a single configuration
+  (\pxx\,dB at $T{=}100$, 95\% CI \ci), and we trace the effect to
+  high-frequency error accumulation with a band-resolved mechanism analysis
+  (\sectionref{sec:res-steps}).
+  \item \textbf{Validation where it matters clinically.} We evaluate on real
+  0.3\,T low-field data (M4Raw), in a controlled SNR sweep, and inside fastMRI+
+  pathology regions, where the update reduces error by \xx\% without increasing
+  hallucination rates (\sectionref{sec:res-snr}, \sectionref{sec:res-roi}).
+\end{itemize}
+
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Diffusion posterior sampling for MRI.}
+Score-based compressed-sensing MRI was introduced with annealed Langevin
+dynamics on fastMRI \citep{jalal2021robust} and extended to parallel imaging
+\citep{chung2022scoremri}. \citet{aali2025ambient} train EDM priors
+\citep{karras2022edm} directly on undersampled multi-coil data; we use their
+fully sampled checkpoint. Several methods change the diffusion process itself
+to exploit k-space structure, for example by diffusing only high-frequency
+k-space \citep{cao2024hfssde} or replacing Gaussian noise with undersampling
+\citep{huang2023cdiffmr}. These require training. Our update changes only the
+data-consistency step of a frozen prior. InverseBench
+\citep{zheng2025inversebench} benchmarks fourteen plug-and-play diffusion
+samplers on multi-coil fastMRI with a per-task tuning protocol, which we
+follow.
+
+\paragraph{Beyond isotropic posterior covariances.}
+\citet{peng2024optimal} show that DPS, \pigdm{} and related methods share an
+isotropic Gaussian approximation of $p(x_0\mid x_t)$. They replace it with a
+maximum-likelihood covariance that is learned or estimated offline and, in its
+most expressive form, is diagonal in a wavelet basis; they evaluate on natural
+images. Tweedie moment projection \citep{boys2024tmpd} and moment-matching
+posterior sampling \citep{rozet2024mmps} use the denoiser Jacobian to form the
+covariance; the latter includes accelerated knee MRI. CA-DPS
+\citep{hamidi2024cadps} estimates a diagonal covariance online from score
+differences, and \citet{schioppa2026covariance} propose a Fourier-structured
+covariance for unconditional sampling. Our covariance differs in three ways. It
+is diagonal in the basis that diagonalises the MRI operator. It is calibrated
+per scan from acquired data alone, without a training set or additional network
+evaluations. And it is evaluated on raw multi-coil and low-field data.
+
+\paragraph{Frequency scheduling and adaptive data consistency.}
+\citet{tian2026frequency} expose measurement frequencies progressively
+according to the diffusion noise level before returning to full-band
+consistency, on natural images. The optional frequency gate in our method is
+the k-space instance of this idea, and we compare against their schedule
+directly. SMRD \citep{ozturkler2023smrd} adapts a scalar data-consistency
+weight with Stein's unbiased risk estimate and stops early to avoid fitting
+noise. Measured-subspace consistency \citep{lee2026msc} is a plug-in
+range/null-space correction for MRI samplers. It is complementary to ours,
+because it does not reweight frequencies. Blind or noise-adaptive samplers
+estimate a scalar noise level or a blur kernel
+\citep{laroche2024fastdiffem,xia2026nanhmc}, whereas we model the
+\emph{signal} side of the posterior per frequency.
+
+\paragraph{Noise in MRI.}
+Receiver noise is white per channel and correlated across coils. Prewhitening
+with the coil noise covariance is standard \citep{roemer1990phased,pruessmann1999sense},
+and reconstruction in SNR units makes noise levels comparable across scans
+\citep{kellman2005snr}. Magnitude images follow Rician or noncentral-$\chi$
+statistics \citep{gudbjartsson1995rician,constantinides1997snr}, which biases
+magnitude-domain metrics at low SNR; we take this into account in the low-field
+evaluation.

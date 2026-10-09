@@ -1,0 +1,24 @@
+\begin{abstract}
+\authornote{Target $\le$200 words, five moves, one sentence each.
+(1) \emph{Context:} training-free diffusion samplers reconstruct accelerated MRI with
+one unconditional prior, but enforce data consistency with an \emph{isotropic}
+Gaussian approximation of $p(x_0\mid x_t)$
+\citep{song2023pigdm,chung2023dps,peng2024optimal}.
+(2) \emph{Observation:} on raw multi-coil fastMRI these samplers lose quality as the
+number of steps $T$ grows ($-$\xx\,dB from $T{=}20$ to $T{=}100$ for tuned \pigdm{}).
+(3) \emph{Method:} because the Cartesian MRI operator is diagonal in k-space, we
+replace the isotropic covariance with a per-frequency posterior variance estimated from
+the scan's own calibration region. This yields a training-free, plug-in update that
+costs \xx\% extra time.
+(4) \emph{Results:} across \xx{} samplers, brain and knee, and real 0.3\,T low-field
+data, it improves PSNR by \pxx\,dB (95\% CI \ci) at $T{=}100$, removes the step-count
+degradation, and reduces error inside fastMRI+ pathology boxes by \xx\%.
+(5) \emph{Take-away:} what to report for any diffusion MRI sampler (a step-count curve)
+and code availability.
+Do NOT write ``scaling law''; say ``step-robust''.}
+\end{abstract}
+
+\begin{keywords}
+Accelerated MRI, diffusion models, posterior sampling, data consistency, k-space,
+low-field MRI
+\end{keywords}

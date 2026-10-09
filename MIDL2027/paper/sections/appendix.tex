@@ -1,0 +1,53 @@
+\section{Derivation of the frequency-resolved gain}
+\label{app:derivation}
+
+\authornote{Write out the following in full, in your own derivation.
+(1) Stationary complex Gaussian prior $x_0\sim\mathcal{CN}(0,\bF^H\diag(S)\bF)$ with VE
+forward process $x_t=x_0+\sigma_t\varepsilon$. Then
+$\mathrm{Cov}[x_0\mid x_t]=\bF^H\diag(p(t))\bF$ with $p_i=S_i\sigma_t^2/(S_i+\sigma_t^2)$.
+(2) Insert into \eqref{eq:kalman} with $\bA=\bM\bF$ to obtain \eqref{eq:gain}.
+(3) The isotropic limit $S_i\to\infty$.
+(4) The equivalence with the CS231N parametrisation $\hat\sigma_i^2=\sigma_y^2\sigma_t^2/p_i$.
+(5) Multi-coil: Woodbury identity giving \eqref{eq:cg}, and positive definiteness, which
+guarantees CG convergence.
+(6) EDM channel convention: per-real-channel variance $\sigma_t^2$ means complex
+variance $2\sigma_t^2$. Check against \texttt{src/samplers/multicoil.py}.}
+
+\section{Implementation details and tuning grids}
+\label{app:impl}
+
+\begin{table}[h]
+\floatconts{tab:hparams}
+{\caption{Hyperparameters. Baseline grids are searched per $(R,T)$ on calibration
+volumes; \method{} is fixed across all cells.}}
+{\scriptsize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Method & Hyperparameter & Grid / value\\
+\midrule
+\ikdc & $\sigma_y$ scale & \xx\\
+\pigdm & $r_t$ schedule scale; guidance weight & \xx\\
+DDS & $\gamma$; CG iterations & \xx\\
+DiffPIR & $\lambda$; $\zeta$ & \xx\\
+DPS & step size $\zeta$ & \xx\\
+\method & radial bins; power-law fit range; $N_{\mathrm{CG}}$ & \xx\\
+\method{} (gate) & $\beta$ & \xx\\
+\method{} (refinement) & $\lambda$; start fraction & \xx\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\authornote{Also list: EDM noise schedule ($\sigma_{\min}$, $\sigma_{\max}$, $\rho$),
+the stochastic re-noising rule (not deterministic DDIM), ESPIRiT parameters, the
+foreground-mask rule, the $\Psi$-estimation region, and the commit hash.}
+
+\section{Per-volume results and SSIM tables}
+\label{app:pervolume}
+\authornote{Per-volume $\Delta$ dot plots for E1--E3 (every volume shown); full SSIM,
+NMSE and HFEN versions of \tableref{tab:main} and \tableref{tab:steps}; the
+$R{=}4$ step sweep.}
+
+\section{Additional qualitative results}
+\label{app:qual}
+\authornote{Rule-selected panels for M4Raw (each contrast) and the worst-decile
+volumes, i.e.\ where \method{} helps least or hurts.}

@@ -1,0 +1,147 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Problem setup and the isotropic approximation}
+
+\authornote{Define the prewhitened multi-coil model. Coil noise covariance $\Psi$ is
+estimated from signal-free readout-oversampling regions and removed by prewhitening
+\citep{kellman2005snr}. ESPIRiT sensitivities come from the ACS
+\citep{uecker2014espirit}. $\bM$ is the Cartesian mask with ACS. State the EDM
+convention: VE process, real and imaginary channels each with variance $\sigma_t^2$,
+so the complex variance is $2\sigma_t^2$. Below, $\sigma_t^2$ denotes the
+\emph{complex} variance.}
+
+\begin{equation}
+  \by=\bA x+n,\qquad \bA=\bM\bF\bS,\qquad n\sim\mathcal{CN}(0,\sigma_y^2\mathbf{I}),
+  \label{eq:lik}
+\end{equation}
+
+\authornote{Most training-free samplers approximate the intractable
+$p(x_0\mid x_t)$ by a Gaussian centred at the Tweedie denoiser output
+$\hx(x_t)$ \citep{peng2024optimal}. The covariance is isotropic, $\bP_t=r_t^2\mathbf{I}$,
+with $r_t^2$ hand-set (\pigdm) or implicit (DDS, DiffPIR penalty weight). Under this
+approximation the data-consistent estimate is the Kalman/MAP update below. Every
+sampler in \tableref{tab:plugin} contains this computation in some form.}
+
+\begin{equation}
+  \tilde x_0=\hx+\bP_t\bA^{H}\bigl(\bA\bP_t\bA^{H}+\sigma_y^2\mathbf{I}\bigr)^{-1}
+  \bigl(\by-\bA\hx\bigr).
+  \label{eq:kalman}
+\end{equation}
+
+\subsection{Frequency-resolved posterior variance}
+
+\authornote{The key modelling step. Images are not white in k-space: their power
+spectrum $S_i$ decays with spatial frequency $\rho_i=\|\omega_i\|$. We choose $\bP_t$
+diagonal in the Fourier basis, which also (almost) diagonalises $\bA$. As a reference
+derivation, take a stationary Gaussian prior with spectrum $S_i$ under the VE forward
+process; its exact posterior variance is \equationref{eq:pt}. Stress that this is a
+\emph{reference model} used to set the shape of $\bP_t$, not a claim that MR images
+are Gaussian.}
+
+\begin{equation}
+  \bP_t=\bF^{H}\diag\bigl(p(t)\bigr)\bF,\qquad
+  p_i(t)=\frac{S_i\,\sigma_t^2}{S_i+\sigma_t^2}.
+  \label{eq:pt}
+\end{equation}
+
+\authornote{Single-coil Cartesian case ($\bS=\mathbf{I}$): \equationref{eq:kalman}
+becomes an element-wise gain on the sampled frequencies. Point out the interpretation.
+Compared with the isotropic gain $(1+\sigma_y^2/\sigma_t^2)^{-1}$, the only new term is
+the \emph{spectral SNR} $\sigma_y^2/S_i$, which down-weights measurements whose signal
+power is low relative to the noise. When $S_i\to\infty$ the isotropic update is
+recovered exactly. Note that the CS231N \method{} gain
+$\sigma_t^2/(\sigma_t^2+\hat\sigma_i^2)$ is the same family under the
+reparametrisation $\hat\sigma_i^2=\sigma_y^2\sigma_t^2/p_i$.}
+
+\begin{equation}
+  K_i(t)=\frac{p_i(t)}{p_i(t)+\sigma_y^2}
+  =\Bigl(1+\frac{\sigma_y^2}{\sigma_t^2}+\frac{\sigma_y^2}{S_i}\Bigr)^{-1},
+  \qquad i\in\Omega .
+  \label{eq:gain}
+\end{equation}
+
+\paragraph{Scan-specific spectrum estimate.}
+\authornote{The gain is needed only on \emph{sampled} frequencies, where $|y_i|^2$ is
+observed. Estimate $S$ by radially binning the prewhitened measurements, averaged over
+coils and normalised by the coil-sensitivity energy, then subtracting the noise floor.
+Smooth with a power-law fit for robustness in sparsely sampled outer bins. No
+extrapolation into unsampled k-space is needed, no learned parameters are added, and
+the cost is one pass over $\by$. Report the bin count and fit form in
+\appendixref{app:impl}.}
+
+\begin{equation}
+  \hat S(\rho)=\max\Bigl(\bigl\langle\,|y_{c,i}|^2\bigr\rangle_{c,\;i\in\Omega:\,\rho_i\in\mathcal{B}(\rho)}-\sigma_y^2,\;\epsilon\Bigr),
+  \qquad \hat S(\rho)\approx a\,\rho^{-b}+c .
+  \label{eq:spectrum}
+\end{equation}
+
+\subsection{Multi-coil update and plug-in form}
+
+\authornote{With coil sensitivities, \equationref{eq:kalman} is no longer element-wise.
+Solve the equivalent MAP problem with $N_{\mathrm{CG}}$ conjugate-gradient iterations,
+as DDS does for the isotropic case \citep{chung2024dds}. $\bP_t^{-1}$ is applied with
+two FFTs. State the per-step cost: $N_{\mathrm{CG}}$ applications of $\bA^H\bA$ plus
+FFTs, with zero extra denoiser evaluations. The measured overhead is in
+\tableref{tab:compute}.}
+
+\begin{equation}
+  \tilde x_0=\hx+\delta,\qquad
+  \Bigl(\tfrac{1}{\sigma_y^2}\bA^{H}\bA+\bP_t^{-1}\Bigr)\delta
+  =\tfrac{1}{\sigma_y^2}\bA^{H}\bigl(\by-\bA\hx\bigr).
+  \label{eq:cg}
+\end{equation}
+
+\begin{table}[t]
+\floatconts{tab:plugin}
+{\caption{Where the posterior covariance enters each sampler, and what \method{}
+changes. Only the covariance is replaced; denoiser calls, schedules and step rules
+are unchanged.}}
+{\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Sampler & Isotropic ingredient & With \method{}\\
+\midrule
+\ikdc{} (Kalman DC on $\hx$) & $\bP_t=\sigma_t^2\mathbf{I}$ in \eqref{eq:kalman} & $\bP_t$ from \eqref{eq:pt}\\
+\pigdm{} \citep{song2023pigdm} & $(r_t^2\bA\bA^H+\sigma_y^2\mathbf{I})^{-1}$ in VJP guidance & $(\bA\bP_t\bA^H+\sigma_y^2\mathbf{I})^{-1}$\\
+DDS \citep{chung2024dds} & CG on $\|\by-\bA x\|^2+\gamma\|x-\hx\|^2$ & $\gamma\|\cdot\|^2\to\|\cdot\|^2_{\bP_t^{-1}}$\\
+DiffPIR \citep{zhu2023diffpir} & proximal weight $\rho_t\|x-\hx\|^2$ & $\|x-\hx\|^2_{\bP_t^{-1}}$\\
+DAPS \citep{zhang2025daps} & Langevin prior $\mathcal{N}(\hx,r_t^2\mathbf{I})$ & $\mathcal{N}(\hx,\bP_t)$\\
+DPS \citep{chung2023dps} & no explicit covariance & reference only (unchanged)\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Optional components (kept only if the ablation supports them)}
+\label{sec:optional}
+
+\paragraph{Frequency gate.}
+\authornote{The CS231N ``FPDC''. The gate $g_i(t)=\mathbb{1}[\rho_i\le r(t)]$ sets
+$p_i(t)=0$ outside a growing radius $r(t)=\rho_{\mathrm{ACS}}+(\rho_{\max}-\rho_{\mathrm{ACS}})(1-t/T)^{\beta}$.
+Be explicit: the Gaussian reference model does \emph{not} predict a progressive opening.
+\equationref{eq:gain} is time-separable in frequency. The gate is therefore an
+empirical correction for the error of $\hx$ at large $\sigma_t$, related to
+noise-conditioned frequency exposure \citep{tian2026frequency}. Keep it only if
+\tableref{tab:ablation} rows (c)--(d) show a gain beyond row (b). Otherwise move it to
+the appendix as a negative result.}
+
+\paragraph{Residual refinement.}
+\authornote{Under the model, $\mathbb{E}|y_i-[\bA\hx]_i|^2=p_i(t)+\sigma_y^2$. A band-wise
+moment estimate therefore refines $p(t)$ online:
+$p_b\leftarrow(1-\lambda)p_b+\lambda\max(\langle|r_i|^2\rangle_{b}-\sigma_y^2,\epsilon)$.
+This replaces the CS231N EMA M-step, which was inert in the original configuration.
+Keep it only if ablation row (e) is positive with a CI excluding 0. Otherwise drop it
+and state that removal in one sentence.}
+
+\begin{algorithm2e}[t]
+\caption{\method{} as a plug-in DC step (one reverse step)}
+\label{alg:plugin}
+\DontPrintSemicolon
+\KwIn{$x_t$, $\sigma_t$, $\by$, $\bA$, $\sigma_y^2$, spectrum fit $\hat S$ (once per scan, \eqref{eq:spectrum})}
+$\hx\leftarrow D_\theta(x_t;\sigma_t)$ \tcp*{one denoiser call}
+$p_i\leftarrow \hat S(\rho_i)\sigma_t^2/(\hat S(\rho_i)+\sigma_t^2)$ for all $i$ \tcp*{\eqref{eq:pt}}
+\lIf{gate enabled}{$p_i\leftarrow p_i\, g_i(t)$}
+\eIf{single-coil}{$\tilde x_0\leftarrow \hx+\bF^{H}\bigl(K\odot(\by-\bA\hx)\bigr)$ \tcp*{\eqref{eq:gain}}}
+{$\tilde x_0\leftarrow \hx+\mathrm{CG}_{N_{\mathrm{CG}}}$ solution of \eqref{eq:cg}}
+$x_{t-1}\leftarrow$ host sampler's own step rule applied to $\tilde x_0$\;
+\end{algorithm2e}

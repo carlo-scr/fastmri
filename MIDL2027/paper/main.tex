@@ -1,0 +1,78 @@
+% ============================================================
+%  MIDL 2027 full-paper scaffold -- FA-KGD (reframed)
+%
+%  STATUS: scaffold. Structure, equations, tables, figure specs and
+%  citations are in place; every pending number is XX.XX.
+%  Orange "author notes" say what each paragraph must argue.
+%  MIDL 2027 policy: LLMs may be used only for minor language edits,
+%  so the authors write the prose that replaces each note.
+%
+%  Toggle notes:  \shownotestrue / \shownotesfalse  (below)
+%  Build:  make   (or pdflatex main; bibtex main; pdflatex x2)
+% ============================================================
+\documentclass{midl}
+
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{siunitx}
+
+\jmlrvolume{-- Under Review}
+\jmlryear{2027}
+\jmlrworkshop{Full Paper -- MIDL 2027 submission}
+\editors{Under Review for MIDL 2027}
+
+% ---------------- placeholders & notes ---------------------
+\newif\ifshownotes
+\shownotestrue            % <- set to \shownotesfalse for submission
+\newcommand{\xx}{XX.XX}   % pending number
+\newcommand{\pxx}{$+$XX.XX}
+\newcommand{\ci}{[\xx,\,\xx]}
+\newcommand{\authornote}[1]{\ifshownotes\ifvmode\else\par\fi\leavevmode\par\noindent
+  \fcolorbox{orange!70!black}{orange!8}{\parbox{\dimexpr\linewidth-\leftskip-\rightskip-2\fboxsep-2\fboxrule}{\footnotesize
+  \textbf{\textcolor{orange!60!black}{Author note.}}~#1}}\par\smallskip\fi}
+\newcommand{\figspec}[2]{\fbox{\parbox[c][#1][c]{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{\centering\footnotesize\textit{Figure placeholder.}\\[2pt]#2}}}
+
+% ---------------- notation ---------------------------------
+\newcommand{\method}{FA-KGD}
+\newcommand{\pigdm}{$\Pi$GDM}
+\newcommand{\ikdc}{IK-DC}
+\newcommand{\bA}{\mathbf{A}}
+\newcommand{\bF}{\mathbf{F}}
+\newcommand{\bM}{\mathbf{M}}
+\newcommand{\bS}{\mathbf{S}}
+\newcommand{\bP}{\mathbf{P}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\hx}{\hat{x}_0}
+\DeclareMathOperator{\diag}{diag}
+
+\title[Frequency-Resolved Data Consistency for Diffusion MRI]
+{When More Steps Hurt: Frequency-Resolved Data Consistency for Training-Free Diffusion MRI Reconstruction}
+
+\midlauthor{\Name{Carlo Schreiber\nametag{$^{1}$}} \Email{carlops@stanford.edu}\\
+\Name{Emma Sampietro\nametag{$^{1}$}} \Email{esampi@stanford.edu}\\
+\Name{Nino Triandafilidis\nametag{$^{1}$}} \Email{ninot@stanford.edu}\\
+\addr $^{1}$ Stanford University, Stanford, CA, USA}
+
+\begin{document}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/method}
+\input{sections/setup}
+\input{sections/results}
+\input{sections/discussion}
+
+\clearpage
+\midlacknowledgments{\authornote{Acknowledge compute (A100 provider), data sources
+(fastMRI, fastMRI+, M4Raw agreements), and TAs if appropriate. State LLM use
+(language editing only) as required by the MIDL 2027 author instructions.}}
+
+\bibliography{../references}
+
+\appendix
+\input{sections/appendix}
+
+\end{document}
